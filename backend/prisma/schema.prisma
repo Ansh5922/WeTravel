@@ -1,0 +1,323 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+enum Role {
+  creator
+  admin
+  member
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+  blocked
+}
+
+enum TripStatus {
+  planning
+  ongoing
+  completed
+  archived
+}
+
+enum MessageType {
+  text
+  image
+  receipt_upload
+  poll
+  ai_system
+}
+
+enum PollStatus {
+  open
+  closed
+}
+
+enum ExpenseSource {
+  manual_entry
+  ai_screenshot_ocr
+}
+
+enum ExpenseStatus {
+  pending_approval
+  approved
+  rejected
+}
+
+enum SettlementStatus {
+  pending
+  completed
+}
+
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  passwordHash  String?  @map("password_hash") @db.VarChar(255)
+  fullName      String?  @map("full_name") @db.VarChar(100)
+  phone         String?  @db.VarChar(20)
+  isPremium     Boolean  @default(false) @map("is_premium")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  profile               UserProfile?
+  friendships           Friendship[]            @relation("UserFriendships")
+  friendOf              Friendship[]            @relation("FriendUsers")
+  createdTrips          TripGroup[]             @relation("CreatedTrips")
+  groupMemberships      GroupMember[]
+  editedConsensus       GroupConsensusProfile[]
+  messages              Message[]
+  createdPolls          Poll[]
+  pollVotes             PollVote[]
+  createdExpenses       Expense[]               @relation("ExpenseCreator")
+  approvedExpenses      Expense[]               @relation("ExpenseApprover")
+  expenseSplits         ExpenseSplit[]
+  payerSettlements      Settlement[]            @relation("PayerSettlements")
+  payeeSettlements      Settlement[]            @relation("PayeeSettlements")
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId               String   @id @map("user_id") @db.Uuid
+  dietaryPreference    String?  @map("dietary_preference") @db.VarChar(50)
+  travelStyle          String?  @map("travel_style") @db.VarChar(50)
+  budgetTier           String?  @map("budget_tier") @db.VarChar(30)
+  pacePreference       String?  @map("pace_preference") @db.VarChar(30)
+  healthConstraints    Json?    @map("health_constraints")
+  climateSensitivities Json?    @map("climate_sensitivities")
+  rawPreferenceNotes   String?  @map("raw_preference_notes") @db.Text
+  preferenceVector     Unsupported("vector(384)")? @map("preference_vector")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Friendship {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  friendId  String           @map("friend_id") @db.Uuid
+  status    FriendshipStatus @default(pending)
+
+  user   User @relation("UserFriendships", fields: [userId], references: [id])
+  friend User @relation("FriendUsers", fields: [friendId], references: [id])
+
+  @@map("friendships")
+}
+
+model TripGroup {
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String     @db.VarChar(150)
+  coverImageUrl         String?    @map("cover_image_url") @db.Text
+  createdBy             String     @map("created_by") @db.Uuid
+  status                TripStatus @default(planning)
+  tripStartDate         DateTime?  @map("trip_start_date") @db.Date
+  tripEndDate           DateTime?  @map("trip_end_date") @db.Date
+  chatRetentionDeadline DateTime?  @map("chat_retention_deadline") @db.Date
+  preserveChat          Boolean    @default(false) @map("preserve_chat")
+
+  creator               User                     @relation("CreatedTrips", fields: [createdBy], references: [id])
+  members               GroupMember[]
+  consensusProfile      GroupConsensusProfile?
+  messages              Message[]
+  polls                 Poll[]
+  interactionEmbeddings InteractionEmbedding[]
+  itineraries           Itinerary[]
+  expenses              Expense[]
+  settlements           Settlement[]
+
+  @@map("trip_groups")
+}
+
+model GroupMember {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId  String   @map("group_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     Role     @default(member)
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz
+
+  group TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("group_members")
+}
+
+model GroupConsensusProfile {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId              String   @unique @map("group_id") @db.Uuid
+  computedBudgetRange  Json?    @map("computed_budget_range")
+  hardConstraints      Json?    @map("hard_constraints")
+  consensusVector      Unsupported("vector(384)")? @map("consensus_vector")
+  lastEditedBy         String?  @map("last_edited_by") @db.Uuid
+  isLockedByAdmin      Boolean  @default(false) @map("is_locked_by_admin")
+
+  group        TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  lastEditor   User?     @relation(fields: [lastEditedBy], references: [id])
+
+  @@map("group_consensus_profiles")
+}
+
+model Message {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String      @map("group_id") @db.Uuid
+  senderId    String?     @map("sender_id") @db.Uuid
+  messageType MessageType @default(text) @map("message_type")
+  content     String      @db.Text
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  group  TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User?     @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model Poll {
+  id         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId    String                     @map("group_id") @db.Uuid
+  createdBy  String                     @map("created_by") @db.Uuid
+  question   String                     @db.Text
+  status     PollStatus                 @default(open)
+  pollVector Unsupported("vector(384)")? @map("poll_vector")
+
+  group     TripGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator   User         @relation(fields: [createdBy], references: [id])
+  options   PollOption[]
+  votes     PollVote[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollId     String @map("poll_id") @db.Uuid
+  optionText String @map("option_text") @db.VarChar(255)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@map("poll_options")
+}
+
+model PollVote {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollId   String @map("poll_id") @db.Uuid
+  optionId String @map("option_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("poll_votes")
+}
+
+model InteractionEmbedding {
+  id            String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String                     @map("group_id") @db.Uuid
+  sourceType    String                     @map("source_type") @db.VarChar(50)
+  sourceId      String?                    @map("source_id") @db.Uuid
+  summaryText   String                     @map("summary_text") @db.Text
+  contextVector Unsupported("vector(384)")? @map("context_vector")
+
+  group TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("interaction_embeddings")
+}
+
+model DestinationCatalog {
+  id                String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String                     @db.VarChar(150)
+  state             String?                    @db.VarChar(100)
+  country           String?                    @db.VarChar(100)
+  tags              Json?
+  climateType       String?                    @map("climate_type") @db.VarChar(50)
+  avgDailyCost      Decimal?                   @map("avg_daily_cost") @db.Decimal(10, 2)
+  destinationVector Unsupported("vector(384)")? @map("destination_vector")
+
+  @@map("destinations_catalog")
+}
+
+model Itinerary {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  generatedBy String   @default("ai") @map("generated_by") @db.VarChar(20)
+  version     Int      @default(1)
+  isActive    Boolean  @default(true) @map("is_active")
+
+  group TripGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  items ItineraryItem[]
+
+  @@map("itineraries")
+}
+
+model ItineraryItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itineraryId   String   @map("itinerary_id") @db.Uuid
+  dayNumber     Int      @map("day_number")
+  timeSlot      String   @map("time_slot") @db.VarChar(30)
+  activityName  String   @map("activity_name") @db.VarChar(255)
+  description   String?  @db.Text
+  location      String?  @db.VarChar(255)
+  transitMode   String?  @map("transit_mode") @db.VarChar(50)
+  estimatedCost Decimal? @map("estimated_cost") @db.Decimal(10, 2)
+
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+
+  @@map("itinerary_items")
+}
+
+model Expense {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId         String        @map("group_id") @db.Uuid
+  createdBy       String        @map("created_by") @db.Uuid
+  source          ExpenseSource @default(manual_entry)
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("INR") @db.VarChar(10)
+  category        String?       @db.VarChar(50)
+  receiptImageUrl String?       @map("receipt_image_url") @db.Text
+  ocrRawMetadata  Json?         @map("ocr_raw_metadata")
+  status          ExpenseStatus @default(pending_approval)
+  approvedBy      String?       @map("approved_by") @db.Uuid
+  approvedAt      DateTime?     @map("approved_at") @db.Timestamptz
+
+  group      TripGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator    User           @relation("ExpenseCreator", fields: [createdBy], references: [id])
+  approver   User?          @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  splits     ExpenseSplit[]
+
+  @@map("expenses")
+}
+
+model ExpenseSplit {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId  String  @map("expense_id") @db.Uuid
+  userId     String  @map("user_id") @db.Uuid
+  amountOwed Decimal @map("amount_owed") @db.Decimal(12, 2)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("expense_splits")
+}
+
+model Settlement {
+  id      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId String           @map("group_id") @db.Uuid
+  payerId String           @map("payer_id") @db.Uuid
+  payeeId String           @map("payee_id") @db.Uuid
+  amount  Decimal          @db.Decimal(12, 2)
+  status  SettlementStatus @default(pending)
+
+  group TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer User      @relation("PayerSettlements", fields: [payerId], references: [id])
+  payee User      @relation("PayeeSettlements", fields: [payeeId], references: [id])
+
+  @@map("settlements")
+}

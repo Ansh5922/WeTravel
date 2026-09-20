@@ -1,0 +1,467 @@
+# WeTravel Complete Database Schema Specification
+
+This document defines the unified database schema for **WeTravel**, derived directly from the system architecture specification (`doc.text`).
+
+The database is built on **PostgreSQL 16+** with the **`pgvector`** extension. Relational operations and transactional constraints are managed by the Node.js Orchestrator via **Prisma ORM**, while vector embeddings (`VECTOR(384)`) and semantic operations are managed by the FastAPI AI Engine via **SQLAlchemy** and `pgvector-python`.
+
+---
+
+## 1. PostgreSQL Extensions & Custom Types
+
+```sql
+-- Enable vector extension for vector embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Custom Enum Types
+CREATE TYPE "Role" AS ENUM ('creator', 'admin', 'member');
+CREATE TYPE "FriendshipStatus" AS ENUM ('pending', 'accepted', 'blocked');
+CREATE TYPE "TripStatus" AS ENUM ('planning', 'ongoing', 'completed', 'archived');
+CREATE TYPE "MessageType" AS ENUM ('text', 'image', 'receipt_upload', 'poll', 'ai_system');
+CREATE TYPE "PollStatus" AS ENUM ('open', 'closed');
+CREATE TYPE "ExpenseSource" AS ENUM ('manual_entry', 'ai_screenshot_ocr');
+CREATE TYPE "ExpenseStatus" AS ENUM ('pending_approval', 'approved', 'rejected');
+CREATE TYPE "SettlementStatus" AS ENUM ('pending', 'completed');
+```
+
+---
+
+## 2. Table Specifications & DDL Statements
+
+### Layer 1: Identity & User Profile
+
+#### Table: `users`
+Primary user accounts and identity table.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `email`: `VARCHAR(255)` | NOT NULL, UNIQUE, INDEXED
+- `password_hash`: `VARCHAR(255)` | NULLABLE (for OAuth / Social logins)
+- `full_name`: `VARCHAR(100)` | NULLABLE
+- `phone`: `VARCHAR(20)` | NULLABLE
+- `is_premium`: `BOOLEAN` | NOT NULL, DEFAULT `false` (permits extended chat retention)
+- `created_at`: `TIMESTAMPTZ` | NOT NULL, DEFAULT `CURRENT_TIMESTAMP`
+- `updated_at`: `TIMESTAMPTZ` | NOT NULL, DEFAULT `CURRENT_TIMESTAMP`
+
+#### Table: `user_profiles`
+Detailed travel personas, health constraints, and preference vector.
+- `user_id`: `UUID` | Primary Key, Foreign Key $\to$ `users.id` ON DELETE CASCADE
+- `dietary_preference`: `VARCHAR(50)` | NULLABLE (e.g., 'veg', 'non-veg', 'vegan', 'jain')
+- `travel_style`: `VARCHAR(50)` | NULLABLE (e.g., 'backpacking', 'luxury', 'adventure')
+- `budget_tier`: `VARCHAR(30)` | NULLABLE (e.g., 'budget', 'moderate', 'luxury')
+- `pace_preference`: `VARCHAR(30)` | NULLABLE (e.g., 'relaxed', 'fast-paced')
+- `health_constraints`: `JSONB` | NULLABLE (e.g., `["motion_sickness_bus", "asthma"]`)
+- `climate_sensitivities`: `JSONB` | NULLABLE (e.g., `["extreme_heat_avoidance"]`)
+- `raw_preference_notes`: `TEXT` | NULLABLE
+- `preference_vector`: `VECTOR(384)` | NULLABLE (Updated directly by FastAPI via SQLAlchemy)
+
+#### Table: `friendships`
+User network connections and friend requests.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `user_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `friend_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `status`: `FriendshipStatus` | NOT NULL, DEFAULT `'pending'` (`pending`, `accepted`, `blocked`)
+
+---
+
+### Layer 2: Group Coordination & Dynamic Consensus
+
+#### Table: `trip_groups`
+Core trip group container and lifecycle tracker.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `name`: `VARCHAR(150)` | NOT NULL
+- `cover_image_url`: `TEXT` | NULLABLE
+- `created_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `status`: `TripStatus` | NOT NULL, DEFAULT `'planning'` (`planning`, `ongoing`, `completed`, `archived`)
+- `trip_start_date`: `DATE` | NULLABLE
+- `trip_end_date`: `DATE` | NULLABLE
+- `chat_retention_deadline`: `DATE` | NULLABLE (`trip_end_date + INTERVAL '5 days'`)
+- `preserve_chat`: `BOOLEAN` | NOT NULL, DEFAULT `false`
+
+#### Table: `group_members`
+Membership junction table with Role-Based Access Control (RBAC).
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `user_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE CASCADE
+- `role`: `Role` | NOT NULL, DEFAULT `'member'` (`creator`, `admin`, `member`)
+- `joined_at`: `TIMESTAMPTZ` | NOT NULL, DEFAULT `CURRENT_TIMESTAMP`
+
+#### Table: `group_consensus_profiles`
+Shared profile combining constraints and group centroid vector.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE, UNIQUE
+- `computed_budget_range`: `JSONB` | NULLABLE
+- `hard_constraints`: `JSONB` | NULLABLE (Aggregated health, dietary, transit limits)
+- `consensus_vector`: `VECTOR(384)` | NULLABLE (Centroid computed by FastAPI)
+- `last_edited_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE SET NULL
+- `is_locked_by_admin`: `BOOLEAN` | NOT NULL, DEFAULT `false`
+
+---
+
+### Layer 3: Ephemeral Chat, Media & Persistent AI Knowledge Base
+
+#### Table: `messages`
+Real-time group chat messages (ephemeral, subject to 5-day retention cleanup).
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `sender_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE SET NULL (Nullable for system notes)
+- `message_type`: `MessageType` | NOT NULL, DEFAULT `'text'` (`text`, `image`, `receipt_upload`, `poll`, `ai_system`)
+- `content`: `TEXT` | NOT NULL
+- `created_at`: `TIMESTAMPTZ` | NOT NULL, DEFAULT `CURRENT_TIMESTAMP`
+
+#### Table: `polls`
+Group decision-making polls.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `created_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `question`: `TEXT` | NOT NULL
+- `status`: `PollStatus` | NOT NULL, DEFAULT `'open'` (`open`, `closed`)
+- `poll_vector`: `VECTOR(384)` | NULLABLE (Generated on poll completion by FastAPI)
+
+#### Table: `poll_options`
+Individual choices for a poll.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `poll_id`: `UUID` | Foreign Key $\to$ `polls.id` ON DELETE CASCADE
+- `option_text`: `VARCHAR(255)` | NOT NULL
+
+#### Table: `poll_votes`
+Member votes cast on poll options.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `poll_id`: `UUID` | Foreign Key $\to$ `polls.id` ON DELETE CASCADE
+- `option_id`: `UUID` | Foreign Key $\to$ `poll_options.id` ON DELETE CASCADE
+- `user_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE CASCADE
+
+#### Table: `interaction_embeddings`
+Long-term context vector storage retained after raw chat messages expire.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `source_type`: `VARCHAR(50)` | NOT NULL (`poll_result`, `chat_preference_snippet`, `receipt_summary`)
+- `source_id`: `UUID` | NULLABLE (Reference to `poll_id` or `expense_id`)
+- `summary_text`: `TEXT` | NOT NULL
+- `context_vector`: `VECTOR(384)` | NULLABLE
+
+---
+
+### Layer 4: Catalog & Structured Itinerary Domain
+
+#### Table: `destinations_catalog`
+System Knowledge Base for cities, places, and activities.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `name`: `VARCHAR(150)` | NOT NULL
+- `state`: `VARCHAR(100)` | NULLABLE
+- `country`: `VARCHAR(100)` | NULLABLE
+- `tags`: `JSONB` | NULLABLE (e.g., `["hills", "cafe", "peaceful", "trekking"]`)
+- `climate_type`: `VARCHAR(50)` | NULLABLE
+- `avg_daily_cost`: `DECIMAL(10, 2)` | NULLABLE
+- `destination_vector`: `VECTOR(384)` | NULLABLE (Matched via `<=>` cosine distance)
+
+#### Table: `itineraries`
+Trip itinerary versions.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `generated_by`: `VARCHAR(20)` | NOT NULL, DEFAULT `'ai'` (`ai`, `admin`)
+- `version`: `INTEGER` | NOT NULL, DEFAULT `1`
+- `is_active`: `BOOLEAN` | NOT NULL, DEFAULT `true`
+
+#### Table: `itinerary_items`
+Day-wise activity schedule items.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `itinerary_id`: `UUID` | Foreign Key $\to$ `itineraries.id` ON DELETE CASCADE
+- `day_number`: `INTEGER` | NOT NULL
+- `time_slot`: `VARCHAR(30)` | NOT NULL (`morning`, `afternoon`, `evening`)
+- `activity_name`: `VARCHAR(255)` | NOT NULL
+- `description`: `TEXT` | NULLABLE
+- `location`: `VARCHAR(255)` | NULLABLE
+- `transit_mode`: `VARCHAR(50)` | NULLABLE (e.g., `train`, `walking`, `cab`)
+- `estimated_cost`: `DECIMAL(10, 2)` | NULLABLE
+
+---
+
+### Layer 5: Financial Ledger & Settlement Domain
+
+#### Table: `expenses`
+Financial expense items (manual or OCR screenshot parsed).
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `created_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `source`: `ExpenseSource` | NOT NULL, DEFAULT `'manual_entry'` (`manual_entry`, `ai_screenshot_ocr`)
+- `amount`: `DECIMAL(12, 2)` | NOT NULL
+- `currency`: `VARCHAR(10)` | NOT NULL, DEFAULT `'INR'`
+- `category`: `VARCHAR(50)` | NULLABLE (`stay`, `transit`, `food`, `activities`, `misc`)
+- `receipt_image_url`: `TEXT` | NULLABLE
+- `ocr_raw_metadata`: `JSONB` | NULLABLE (PaddleOCR raw response payload)
+- `status`: `ExpenseStatus` | NOT NULL, DEFAULT `'pending_approval'` (`pending_approval`, `approved`, `rejected`)
+- `approved_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE SET NULL
+- `approved_at`: `TIMESTAMPTZ` | NULLABLE
+
+#### Table: `expense_splits`
+Individual debt breakdown once an expense is approved.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `expense_id`: `UUID` | Foreign Key $\to$ `expenses.id` ON DELETE CASCADE
+- `user_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `amount_owed`: `DECIMAL(12, 2)` | NOT NULL
+
+#### Table: `settlements`
+Post-trip minimized debt settlement transactions.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `payer_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `payee_id`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `amount`: `DECIMAL(12, 2)` | NOT NULL
+- `status`: `SettlementStatus` | NOT NULL, DEFAULT `'pending'` (`pending`, `completed`)
+
+---
+
+### Layer 6: Post-Trip Media & Memories Layer
+
+#### Table: `trip_memories`
+Permanent media vault after trip conclusion.
+- `id`: `UUID` | Primary Key, DEFAULT `gen_random_uuid()`
+- `group_id`: `UUID` | Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE
+- `media_url`: `TEXT` | NOT NULL
+- `uploaded_by`: `UUID` | Foreign Key $\to$ `users.id` ON DELETE RESTRICT
+- `captured_at`: `TIMESTAMPTZ` | NULLABLE (EXIF metadata extraction)
+- `location_tag`: `VARCHAR(150)` | NULLABLE
+- `ai_highlight`: `BOOLEAN` | NOT NULL, DEFAULT `false`
+
+---
+
+## 3. SQL DDL Statements (PostgreSQL 16 + pgvector)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TYPE "Role" AS ENUM ('creator', 'admin', 'member');
+CREATE TYPE "FriendshipStatus" AS ENUM ('pending', 'accepted', 'blocked');
+CREATE TYPE "TripStatus" AS ENUM ('planning', 'ongoing', 'completed', 'archived');
+CREATE TYPE "MessageType" AS ENUM ('text', 'image', 'receipt_upload', 'poll', 'ai_system');
+CREATE TYPE "PollStatus" AS ENUM ('open', 'closed');
+CREATE TYPE "ExpenseSource" AS ENUM ('manual_entry', 'ai_screenshot_ocr');
+CREATE TYPE "ExpenseStatus" AS ENUM ('pending_approval', 'approved', 'rejected');
+CREATE TYPE "SettlementStatus" AS ENUM ('pending', 'completed');
+
+CREATE TABLE "users" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "email" VARCHAR(255) NOT NULL,
+    "password_hash" VARCHAR(255),
+    "full_name" VARCHAR(100),
+    "phone" VARCHAR(20),
+    "is_premium" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+CREATE TABLE "user_profiles" (
+    "user_id" UUID NOT NULL,
+    "dietary_preference" VARCHAR(50),
+    "travel_style" VARCHAR(50),
+    "budget_tier" VARCHAR(30),
+    "pace_preference" VARCHAR(30),
+    "health_constraints" JSONB,
+    "climate_sensitivities" JSONB,
+    "raw_preference_notes" TEXT,
+    "preference_vector" vector(384),
+    CONSTRAINT "user_profiles_pkey" PRIMARY KEY ("user_id"),
+    CONSTRAINT "user_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "friendships" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "friend_id" UUID NOT NULL,
+    "status" "FriendshipStatus" NOT NULL DEFAULT 'pending',
+    CONSTRAINT "friendships_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "friendships_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "friendships_friend_id_fkey" FOREIGN KEY ("friend_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "trip_groups" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" VARCHAR(150) NOT NULL,
+    "cover_image_url" TEXT,
+    "created_by" UUID NOT NULL,
+    "status" "TripStatus" NOT NULL DEFAULT 'planning',
+    "trip_start_date" DATE,
+    "trip_end_date" DATE,
+    "chat_retention_deadline" DATE,
+    "preserve_chat" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "trip_groups_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "trip_groups_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "group_members" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'member',
+    "joined_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "group_members_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "group_members_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "group_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "group_consensus_profiles" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "computed_budget_range" JSONB,
+    "hard_constraints" JSONB,
+    "consensus_vector" vector(384),
+    "last_edited_by" UUID,
+    "is_locked_by_admin" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "group_consensus_profiles_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "group_consensus_profiles_group_id_key" UNIQUE ("group_id"),
+    CONSTRAINT "group_consensus_profiles_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "group_consensus_profiles_last_edited_by_fkey" FOREIGN KEY ("last_edited_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE "messages" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "sender_id" UUID,
+    "message_type" "MessageType" NOT NULL DEFAULT 'text',
+    "content" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "messages_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "messages_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "messages_sender_id_fkey" FOREIGN KEY ("sender_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE "polls" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "created_by" UUID NOT NULL,
+    "question" TEXT NOT NULL,
+    "status" "PollStatus" NOT NULL DEFAULT 'open',
+    "poll_vector" vector(384),
+    CONSTRAINT "polls_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "polls_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "polls_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "poll_options" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "poll_id" UUID NOT NULL,
+    "option_text" VARCHAR(255) NOT NULL,
+    CONSTRAINT "poll_options_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "poll_options_poll_id_fkey" FOREIGN KEY ("poll_id") REFERENCES "polls"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "poll_votes" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "poll_id" UUID NOT NULL,
+    "option_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    CONSTRAINT "poll_votes_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "poll_votes_poll_id_fkey" FOREIGN KEY ("poll_id") REFERENCES "polls"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "poll_votes_option_id_fkey" FOREIGN KEY ("option_id") REFERENCES "poll_options"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "poll_votes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "interaction_embeddings" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "source_type" VARCHAR(50) NOT NULL,
+    "source_id" UUID,
+    "summary_text" TEXT NOT NULL,
+    "context_vector" vector(384),
+    CONSTRAINT "interaction_embeddings_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "interaction_embeddings_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "destinations_catalog" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" VARCHAR(150) NOT NULL,
+    "state" VARCHAR(100),
+    "country" VARCHAR(100),
+    "tags" JSONB,
+    "climate_type" VARCHAR(50),
+    "avg_daily_cost" DECIMAL(10,2),
+    "destination_vector" vector(384),
+    CONSTRAINT "destinations_catalog_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "itineraries" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "generated_by" VARCHAR(20) NOT NULL DEFAULT 'ai',
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "itineraries_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "itineraries_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "itinerary_items" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "itinerary_id" UUID NOT NULL,
+    "day_number" INTEGER NOT NULL,
+    "time_slot" VARCHAR(30) NOT NULL,
+    "activity_name" VARCHAR(255) NOT NULL,
+    "description" TEXT,
+    "location" VARCHAR(255),
+    "transit_mode" VARCHAR(50),
+    "estimated_cost" DECIMAL(10,2),
+    CONSTRAINT "itinerary_items_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "itinerary_items_itinerary_id_fkey" FOREIGN KEY ("itinerary_id") REFERENCES "itineraries"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE "expenses" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "created_by" UUID NOT NULL,
+    "source" "ExpenseSource" NOT NULL DEFAULT 'manual_entry',
+    "amount" DECIMAL(12,2) NOT NULL,
+    "currency" VARCHAR(10) NOT NULL DEFAULT 'INR',
+    "category" VARCHAR(50),
+    "receipt_image_url" TEXT,
+    "ocr_raw_metadata" JSONB,
+    "status" "ExpenseStatus" NOT NULL DEFAULT 'pending_approval',
+    "approved_by" UUID,
+    "approved_at" TIMESTAMPTZ,
+    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "expenses_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "expenses_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "expenses_approved_by_fkey" FOREIGN KEY ("approved_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE "expense_splits" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "expense_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "amount_owed" DECIMAL(12,2) NOT NULL,
+    CONSTRAINT "expense_splits_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "expense_splits_expense_id_fkey" FOREIGN KEY ("expense_id") REFERENCES "expenses"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "expense_splits_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "settlements" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "payer_id" UUID NOT NULL,
+    "payee_id" UUID NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "status" "SettlementStatus" NOT NULL DEFAULT 'pending',
+    CONSTRAINT "settlements_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "settlements_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "settlements_payer_id_fkey" FOREIGN KEY ("payer_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "settlements_payee_id_fkey" FOREIGN KEY ("payee_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "trip_memories" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "group_id" UUID NOT NULL,
+    "media_url" TEXT NOT NULL,
+    "uploaded_by" UUID NOT NULL,
+    "captured_at" TIMESTAMPTZ,
+    "location_tag" VARCHAR(150),
+    "ai_highlight" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "trip_memories_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "trip_memories_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "trip_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "trip_memories_uploaded_by_fkey" FOREIGN KEY ("uploaded_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+```
+
+---
+
+## 4. System Boundaries & Operations
+
+1. **Single Vector Authority**: Only the FastAPI microservice interacts directly with vector columns (`preference_vector`, `consensus_vector`, `destination_vector`, `poll_vector`, `context_vector`) via SQLAlchemy and `pgvector`. Node.js reads/writes relational structures via Prisma.
+2. **Ephemeral Purge Rules**: When `CURRENT_DATE > chat_retention_deadline` and `preserve_chat = false`, the daily cron job purges `messages` and local receipt images (`/storage/receipts/{group_id}`). Financial records (`expenses`, `expense_splits`, `settlements`), photo galleries (`trip_memories`), itineraries (`itineraries`), and semantic embeddings (`interaction_embeddings`) are permanently retained.
