@@ -59,6 +59,7 @@ enum SettlementStatus {
 model User {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email         String   @unique @db.VarChar(255)
+  username      String?  @unique @db.VarChar(50)
   passwordHash  String?  @map("password_hash") @db.VarChar(255)
   fullName      String?  @map("full_name") @db.VarChar(100)
   phone         String?  @db.VarChar(20)
@@ -80,12 +81,15 @@ model User {
   expenseSplits         ExpenseSplit[]
   payerSettlements      Settlement[]            @relation("PayerSettlements")
   payeeSettlements      Settlement[]            @relation("PayeeSettlements")
+  sentInvites           TripInvite[]            @relation("SentInvites")
+  receivedInvites       TripInvite[]            @relation("ReceivedInvites")
 
   @@map("users")
 }
 
 model UserProfile {
   userId               String   @id @map("user_id") @db.Uuid
+  age                  Int?
   dietaryPreference    String?  @map("dietary_preference") @db.VarChar(50)
   travelStyle          String?  @map("travel_style") @db.VarChar(50)
   budgetTier           String?  @map("budget_tier") @db.VarChar(30)
@@ -132,6 +136,7 @@ model TripGroup {
   itineraries           Itinerary[]
   expenses              Expense[]
   settlements           Settlement[]
+  invites               TripInvite[]
 
   @@map("trip_groups")
 }
@@ -152,8 +157,9 @@ model GroupMember {
 model GroupConsensusProfile {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId              String   @unique @map("group_id") @db.Uuid
-  computedBudgetRange  Json?    @map("computed_budget_range")
-  hardConstraints      Json?    @map("hard_constraints")
+  groupStats           Json?    @map("group_stats")           // Full human-readable stats: budget/pace/dietary/styles/climate/age
+  computedBudgetRange  Json?    @map("computed_budget_range") // Kept for backward compat; also lives in groupStats
+  hardConstraints      Json?    @map("hard_constraints")      // Admin overrides
   consensusVector      Unsupported("vector(384)")? @map("consensus_vector")
   lastEditedBy         String?  @map("last_edited_by") @db.Uuid
   isLockedByAdmin      Boolean  @default(false) @map("is_locked_by_admin")
@@ -320,4 +326,38 @@ model Settlement {
   payee User      @relation("PayeeSettlements", fields: [payeeId], references: [id])
 
   @@map("settlements")
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+enum InviteType {
+  friend
+  email
+  whatsapp
+  link
+}
+
+model TripInvite {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId      String       @map("group_id") @db.Uuid
+  invitedBy    String       @map("invited_by") @db.Uuid
+  inviteeId    String?      @map("invitee_id") @db.Uuid
+  inviteeEmail String?      @map("invitee_email") @db.VarChar(255)
+  inviteePhone String?      @map("invitee_phone") @db.VarChar(20)
+  inviteType   InviteType   @map("invite_type")
+  inviteToken  String       @unique @map("invite_token") @db.VarChar(64)
+  status       InviteStatus @default(pending)
+  expiresAt    DateTime?    @map("expires_at") @db.Timestamptz
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  group    TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter  User      @relation("SentInvites", fields: [invitedBy], references: [id])
+  invitee  User?     @relation("ReceivedInvites", fields: [inviteeId], references: [id])
+
+  @@map("trip_invites")
 }

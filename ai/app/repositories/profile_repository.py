@@ -30,11 +30,12 @@ def update_preference_vector(db: Session, user_id: str, vector: list[float]) -> 
     db.execute(
         text("""
             INSERT INTO user_profiles (user_id, preference_vector)
-            VALUES (:user_id, :vector::vector)
+            VALUES (:user_id, CAST(:vector AS vector))
             ON CONFLICT (user_id)
             DO UPDATE SET preference_vector = EXCLUDED.preference_vector
         """),
         {"user_id": user_id, "vector": vector_str}
     )
+
     db.commit()
     return True

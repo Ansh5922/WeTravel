@@ -28,6 +28,7 @@ const findUserById = async (id) => {
     select: {
       id: true,
       email: true,
+      username: true,
       fullName: true,
       phone: true,
       isPremium: true,
@@ -37,14 +38,27 @@ const findUserById = async (id) => {
 };
 
 /**
+ * Find a user by their unique username.
+ * @param {string} username
+ * @returns {Promise<User|null>}
+ */
+const findUserByUsername = async (username) => {
+  return prisma.user.findUnique({
+    where: { username },
+    select: { id: true, email: true, username: true, fullName: true },
+  });
+};
+
+/**
  * Create a new user record.
  * @param {{ email: string, passwordHash: string, fullName?: string, phone?: string }} data
  * @returns {Promise<User>}
  */
-const createUser = async ({ email, passwordHash, fullName, phone }) => {
+const createUser = async ({ email, username, passwordHash, fullName, phone }) => {
   return prisma.user.create({
     data: {
       email,
+      username,
       passwordHash,
       fullName,
       phone,
@@ -52,6 +66,7 @@ const createUser = async ({ email, passwordHash, fullName, phone }) => {
     select: {
       id: true,
       email: true,
+      username: true,
       fullName: true,
       phone: true,
       isPremium: true,
@@ -63,5 +78,7 @@ const createUser = async ({ email, passwordHash, fullName, phone }) => {
 module.exports = {
   findUserByEmail,
   findUserById,
+  findUserByUsername,
   createUser,
 };
+

@@ -1,6 +1,8 @@
-from fastapi import FastAPI, Depends
+import time
+from fastapi import FastAPI, Depends, Request
 from app.api.deps import get_current_user
 from app.api.routes.embedding import router as embedding_router
+from app.api.routes.consensus import router as consensus_router
 
 """
 WeTravel AI Engine — FastAPI entry point.
@@ -13,8 +15,21 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+# ── Live HTTP Request Logger Middleware ───────────────────────────────────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000
+    print(f"🤖 [AI-HTTP] {request.method} {request.url.path} → {response.status_code} ({process_time:.2f}ms)")
+    return response
+
+
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(embedding_router)
+app.include_router(consensus_router)
+
 
 
 # ── Health Check ──────────────────────────────────────────────────────────────

@@ -17,13 +17,13 @@ const authService = require('../services/auth.service');
  */
 const signup = async (req, res, next) => {
   try {
-    const { email, password, fullName, phone } = req.body;
+    const { email, password, username, fullName, phone } = req.body;
 
     // Basic input validation
-    if (!email || !password) {
+    if (!email || !password || !username) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email and password are required.',
+        message: 'Email, password, and username are required.',
       });
     }
 
@@ -34,7 +34,14 @@ const signup = async (req, res, next) => {
       });
     }
 
-    const { user, token } = await authService.signup({ email, password, fullName, phone });
+    if (!/^[a-zA-Z0-9_]{3,50}$/.test(username)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Username must be 3-50 characters and can only contain letters, numbers, and underscores.',
+      });
+    }
+
+    const { user, token } = await authService.signup({ email, password, username, fullName, phone });
 
     res.status(201).json({
       status: 'success',
