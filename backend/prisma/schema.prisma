@@ -177,6 +177,8 @@ model Message {
   senderId    String?     @map("sender_id") @db.Uuid
   messageType MessageType @default(text) @map("message_type")
   content     String      @db.Text
+  imageUrl    String?     @map("image_url") @db.Text
+  pollId      String?     @map("poll_id") @db.Uuid
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
 
   group  TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -252,11 +254,19 @@ model DestinationCatalog {
 }
 
 model Itinerary {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId     String   @map("group_id") @db.Uuid
-  generatedBy String   @default("ai") @map("generated_by") @db.VarChar(20)
-  version     Int      @default(1)
-  isActive    Boolean  @default(true) @map("is_active")
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String    @map("group_id") @db.Uuid
+  generatedBy String    @default("ai") @map("generated_by") @db.VarChar(20)
+  version     Int       @default(1)
+  isActive    Boolean   @default(true) @map("is_active")
+  variantType String    @default("optimal") @map("variant_type") @db.VarChar(30)
+  parentId    String?   @map("parent_id") @db.Uuid
+  constraints Json?
+  isSelected  Boolean   @default(false) @map("is_selected")
+  selectedAt  DateTime? @map("selected_at") @db.Timestamptz
+  totalCostPerPerson Decimal? @map("total_cost_per_person") @db.Decimal(12,2)
+  summary     String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   group TripGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   items ItineraryItem[]
@@ -268,12 +278,19 @@ model ItineraryItem {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   itineraryId   String   @map("itinerary_id") @db.Uuid
   dayNumber     Int      @map("day_number")
+  startTime     String?  @map("start_time") @db.VarChar(10)
+  endTime       String?  @map("end_time") @db.VarChar(10)
   timeSlot      String   @map("time_slot") @db.VarChar(30)
   activityName  String   @map("activity_name") @db.VarChar(255)
   description   String?  @db.Text
   location      String?  @db.VarChar(255)
   transitMode   String?  @map("transit_mode") @db.VarChar(50)
   estimatedCost Decimal? @map("estimated_cost") @db.Decimal(10, 2)
+  bookingRef    String?  @map("booking_ref") @db.VarChar(100)
+  apiSource     String?  @map("api_source") @db.VarChar(50)
+  rawApiData    Json?    @map("raw_api_data")
+  isMissed      Boolean  @default(false) @map("is_missed")
+  isRescheduled Boolean  @default(false) @map("is_rescheduled")
 
   itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
 

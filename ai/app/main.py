@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, Request
 from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
+from app.api.routes.itinerary import router as itinerary_router
 
 """
 WeTravel AI Engine — FastAPI entry point.
@@ -12,7 +13,7 @@ Architecture: Client → Routes → Middleware → Controllers → Services → 
 app = FastAPI(
     title="WeTravel AI Engine",
     description="AI microservice for WeTravel. JWT tokens issued by Node.js are verified independently.",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 
@@ -29,13 +30,13 @@ async def log_requests(request: Request, call_next):
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(embedding_router)
 app.include_router(consensus_router)
-
+app.include_router(itinerary_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────────────
 @app.get("/health")
 def health_check():
-    return {"status": "online", "service": "WeTravel AI Engine"}
+    return {"status": "online", "service": "WeTravel AI Engine", "version": "2.0.0"}
 
 
 # ── Protected Test Route ──────────────────────────────────────────────────────
