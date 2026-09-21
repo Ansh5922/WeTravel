@@ -110,6 +110,7 @@ const updateProfile = async (userId, data) => {
 
   const userKeys = ['fullName', 'phone'];
   const profileKeys = [
+    'age',
     'dietaryPreference',
     'travelStyle',
     'budgetTier',

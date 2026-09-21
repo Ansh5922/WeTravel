@@ -28,7 +28,7 @@ const signToken = (userId) => {
  * @param {{ email: string, password: string, fullName?: string, phone?: string }} data
  * @returns {Promise<{ user: object, token: string }>}
  */
-const signup = async ({ email, password, fullName, phone }) => {
+const signup = async ({ email, password, username, fullName, phone }) => {
   // 1. Check if email already in use
   const existing = await authRepository.findUserByEmail(email);
   if (existing) {
@@ -37,13 +37,21 @@ const signup = async ({ email, password, fullName, phone }) => {
     throw err;
   }
 
-  // 2. Hash the password
+  // 2. Check if username is already taken
+  const takenUsername = await authRepository.findUserByUsername(username);
+  if (takenUsername) {
+    const err = new Error('Username is already taken. Please choose another.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // 3. Hash the password
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  // 3. Persist new user
-  const user = await authRepository.createUser({ email, passwordHash, fullName, phone });
+  // 4. Persist new user
+  const user = await authRepository.createUser({ email, username, passwordHash, fullName, phone });
 
-  // 4. Issue JWT
+  // 5. Issue JWT
   const token = signToken(user.id);
 
   return { user, token };

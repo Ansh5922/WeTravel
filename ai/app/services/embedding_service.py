@@ -12,12 +12,21 @@ vectors — exactly matching the vector(384) column in user_profiles.
 The model is loaded once at module level (singleton) for performance.
 """
 
+import os
 from sentence_transformers import SentenceTransformer
 
-# Load model once at startup — this avoids reinitializing on every request
-print("[Embedding Service] Loading sentence-transformers model...")
-_model = SentenceTransformer("all-MiniLM-L6-v2")
-print("[Embedding Service] ✅ Model loaded.")
+# Suppress HuggingFace hub symlink warning
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+
+# Load model — tries local disk cache first so it never downloads over network again
+print("[Embedding Service] Loading model from local cache...")
+try:
+    _model = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+except Exception:
+    _model = SentenceTransformer("all-MiniLM-L6-v2")
+
+print("[Embedding Service] ✅ Model ready in RAM.")
+
 
 
 def generate_preference_embedding(text: str) -> list[float]:
