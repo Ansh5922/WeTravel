@@ -1,12 +1,12 @@
 import time
 from fastapi import FastAPI, Depends, Request
-from app.api.deps import get_current_user
+from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
 
 """
 WeTravel AI Engine — FastAPI entry point.
-Architecture: Client → Routes → (Depends middleware) → Services → Repositories → DB
+Architecture: Client → Routes → Middleware → Controllers → Services → Repositories → DB
 """
 
 app = FastAPI(

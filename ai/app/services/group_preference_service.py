@@ -88,43 +88,45 @@ def _compute_group_vector(vectors: list[list[float]]) -> list[float]:
 
 def _compute_budget_stats(profiles: list[dict]) -> dict:
     """
-    For each member's budgetTier, map to (min, max, mid).
-    Return group-level min, max, and average (mid).
-
-    Example for 3 members [budget, moderate, luxury]:
-      mins  = [300, 800, 2000]  →  group_min = 300  (cheapest person's floor)
-      maxes = [1000, 2500, 8000] → group_max = 8000 (richest person's ceiling)
-      mids  = [650, 1650, 5000]  → group_avg = 2433 (mean of midpoints)
+    For each member's single numerical budget preference (or legacy budget_tier fallback),
+    compute group-level min, max, and average daily budget.
     """
-    tiers   = [p["budget_tier"] for p in profiles if p.get("budget_tier")]
-    if not tiers:
-        return {"group_min": None, "group_max": None, "group_avg": None,
-                "members_with_preference": 0, "tier_distribution": {}}
+    user_budgets = []
 
-    mins, maxes, mids = [], [], []
-    tier_distribution: dict[str, int] = {}
+    for p in profiles:
+        b_val = p.get("budget")
+        tier = p.get("budget_tier")
 
-    for tier in tiers:
-        key = (tier or "").lower()
-        min_v, max_v, mid_v = BUDGET_MAP.get(key, DEFAULT_BUDGET)
-        mins.append(min_v)
-        maxes.append(max_v)
-        mids.append(mid_v)
-        tier_distribution[tier] = tier_distribution.get(tier, 0) + 1
+        if b_val is not None:
+            user_budgets.append(float(b_val))
+        elif tier:
+            key = (tier or "").lower()
+            _, _, mid_val = BUDGET_MAP.get(key, DEFAULT_BUDGET)
+            user_budgets.append(float(mid_val))
 
-    group_avg = round(sum(mids) / len(mids), 2)
+    if not user_budgets:
+        return {
+            "group_min": None,
+            "group_max": None,
+            "group_avg": None,
+            "currency": "USD",
+            "members_with_preference": 0,
+        }
+
+    group_min = min(user_budgets)
+    group_max = max(user_budgets)
+    group_avg = round(sum(user_budgets) / len(user_budgets), 2)
 
     return {
-        "group_min":                min(mins),
-        "group_max":                max(maxes),
+        "group_min":                group_min,
+        "group_max":                group_max,
         "group_avg":                group_avg,
         "currency":                 "USD",
-        "members_with_preference":  len(tiers),
-        "tier_distribution":        tier_distribution,
+        "members_with_preference":  len(user_budgets),
         "note": (
-            f"group_min={min(mins)} (cheapest member's floor), "
-            f"group_max={max(maxes)} (richest member's ceiling), "
-            f"group_avg={group_avg} (average daily budget per person)"
+            f"group_min={group_min} (lowest member preference), "
+            f"group_max={group_max} (highest member preference), "
+            f"group_avg={group_avg} (average member preference)"
         ),
     }
 

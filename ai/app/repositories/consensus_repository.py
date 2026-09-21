@@ -59,6 +59,7 @@ def fetch_member_profiles(db: Session, member_ids: list[str]) -> list[dict]:
                 age,
                 dietary_preference,
                 travel_style,
+                budget,
                 budget_tier,
                 pace_preference,
                 health_constraints,
@@ -77,11 +78,12 @@ def fetch_member_profiles(db: Session, member_ids: list[str]) -> list[dict]:
             "age":                   row[1],
             "dietary_preference":    row[2],
             "travel_style":         row[3],
-            "budget_tier":          row[4],
-            "pace_preference":      row[5],
-            "health_constraints":   row[6],    # may be a dict or None
-            "climate_sensitivities": row[7],   # may be a dict or None
-            "raw_preference_notes": row[8],
+            "budget":                float(row[4]) if row[4] is not None else None,
+            "budget_tier":          row[5],
+            "pace_preference":      row[6],
+            "health_constraints":   row[7],    # may be a dict or None
+            "climate_sensitivities": row[8],   # may be a dict or None
+            "raw_preference_notes": row[9],
         })
 
     return profiles
