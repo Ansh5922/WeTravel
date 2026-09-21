@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.api.deps import get_current_user
+from app.middleware.auth import get_current_user
 from app.core.database import get_db
 from app.schemas.embedding import PreferenceEmbeddingRequest, PreferenceEmbeddingResponse
-from app.services.embedding_service import create_and_save_preference_embedding
+from app.controllers.embedding_controller import generate_embedding
 
 """
-Embedding Router — FastAPI AI Backend
-Architecture layer: Routes → Service → Repository → Database
+Embedding Routes — FastAPI AI Backend
+Architecture layer: Routes (defines endpoints, wires middleware → controller)
 
-Endpoint consumed by Node.js backend internally (fire-and-forget).
-Protected by the same JWT that the client holds — Node.js signs
-a short-lived internal token using the shared JWT_SECRET.
+Responsibility:
+  - Define API endpoint paths and HTTP methods
+  - Wire JWT middleware (Depends) and DB session injection
+  - Delegate ALL request handling to the controller
+  - NEVER contain business logic or response construction
 """
 
 router = APIRouter(prefix="/api/ai/embeddings", tags=["Embeddings"])
@@ -35,20 +37,9 @@ This endpoint:
 The client never waits for this — it already received a 200 from Node.js.
     """,
 )
-async def generate_preference_embedding(
+async def handle_generate_preference_embedding(
     payload: PreferenceEmbeddingRequest,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = create_and_save_preference_embedding(
-        db=db,
-        user_id=payload.user_id,
-        preference_text=payload.preference_text,
-    )
-
-    return PreferenceEmbeddingResponse(
-        status="success",
-        message="Preference embedding generated and saved.",
-        user_id=result["user_id"],
-        vector_dimensions=result["vector_dimensions"],
-    )
+    return generate_embedding(payload=payload, db=db)

@@ -92,6 +92,7 @@ model UserProfile {
   age                  Int?
   dietaryPreference    String?  @map("dietary_preference") @db.VarChar(50)
   travelStyle          String?  @map("travel_style") @db.VarChar(50)
+  budget               Float?   @map("budget")
   budgetTier           String?  @map("budget_tier") @db.VarChar(30)
   pacePreference       String?  @map("pace_preference") @db.VarChar(30)
   healthConstraints    Json?    @map("health_constraints")

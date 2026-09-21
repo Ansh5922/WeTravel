@@ -28,6 +28,7 @@ class UserProfile(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     dietary_preference = Column(String(50), nullable=True)
     travel_style = Column(String(50), nullable=True)
+    budget = Column(Numeric(10, 2), nullable=True)
     budget_tier = Column(String(30), nullable=True)
     pace_preference = Column(String(30), nullable=True)
     health_constraints = Column(JSONB, nullable=True)

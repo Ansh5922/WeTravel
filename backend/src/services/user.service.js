@@ -69,7 +69,11 @@ const buildPreferenceText = (profile) => {
   const parts = [];
 
   if (profile.travelStyle) parts.push(`Travel style: ${profile.travelStyle}`);
-  if (profile.budgetTier) parts.push(`Budget tier: ${profile.budgetTier}`);
+  if (profile.budget !== undefined && profile.budget !== null) {
+    parts.push(`Daily budget: $${profile.budget}`);
+  } else if (profile.budgetTier) {
+    parts.push(`Budget tier: ${profile.budgetTier}`);
+  }
   if (profile.pacePreference) parts.push(`Preferred pace: ${profile.pacePreference}`);
   if (profile.dietaryPreference) parts.push(`Dietary preference: ${profile.dietaryPreference}`);
   if (profile.healthConstraints) {
@@ -95,6 +99,7 @@ const buildPreferenceText = (profile) => {
  *   phone?: string,
  *   dietaryPreference?: string,
  *   travelStyle?: string,
+ *   budget?: number,
  *   budgetTier?: string,
  *   pacePreference?: string,
  *   healthConstraints?: object,
@@ -113,6 +118,7 @@ const updateProfile = async (userId, data) => {
     'age',
     'dietaryPreference',
     'travelStyle',
+    'budget',
     'budgetTier',
     'pacePreference',
     'healthConstraints',

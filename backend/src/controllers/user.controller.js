@@ -26,6 +26,9 @@ const updateProfile = async (req, res, next) => {
       phone,
       dietaryPreference,
       travelStyle,
+      budget,
+      dailyBudget,
+      budgetAmount,
       budgetTier,
       pacePreference,
       healthConstraints,
@@ -33,12 +36,16 @@ const updateProfile = async (req, res, next) => {
       rawPreferenceNotes,
     } = req.body;
 
+    // Extract single numerical value for user's budget preference
+    const rawBudget = budget !== undefined ? budget : (dailyBudget !== undefined ? dailyBudget : budgetAmount);
+    const parsedBudget = rawBudget !== undefined && rawBudget !== null ? parseFloat(rawBudget) : undefined;
+
     // Ensure at least one field is being updated
     const hasPayload = [
       fullName, phone, dietaryPreference, travelStyle,
-      budgetTier, pacePreference, healthConstraints,
+      parsedBudget, budgetTier, pacePreference, healthConstraints,
       climateSensitivities, rawPreferenceNotes,
-    ].some((v) => v !== undefined);
+    ].some((v) => v !== undefined && !Number.isNaN(v));
 
     if (!hasPayload) {
       return res.status(400).json({
@@ -52,6 +59,7 @@ const updateProfile = async (req, res, next) => {
       phone,
       dietaryPreference,
       travelStyle,
+      budget: parsedBudget,
       budgetTier,
       pacePreference,
       healthConstraints,
