@@ -28,6 +28,11 @@ except Exception:
 print("[Embedding Service] ✅ Model ready in RAM.")
 
 
+def get_embedding_model():
+    """Return the loaded SentenceTransformer singleton."""
+    return _model
+
+
 
 def generate_preference_embedding(text: str) -> list[float]:
     """
