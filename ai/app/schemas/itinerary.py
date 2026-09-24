@@ -46,6 +46,7 @@ class ItineraryVariant(BaseModel):
     summary: str
     totalCostPerPerson: float
     constraints: Optional[Any] = None
+    dataSources: Optional[Any] = None
     days: List[ItineraryDay]
 
 
