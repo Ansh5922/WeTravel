@@ -5,9 +5,22 @@ const prisma = require('./prisma.client');
  * Layer: Repository → DB
  */
 
+const formatItinerary = (itin) => {
+  if (!itin) return null;
+  const dataSources = itin.constraints?.dataSources || null;
+  return {
+    ...itin,
+    dataSources,
+  };
+};
+
 const saveItineraries = async (groupId, itineraries) => {
   const saved = [];
   for (const itin of itineraries) {
+    const constraintsToSave = {
+      ...(itin.constraints || {}),
+      ...(itin.dataSources ? { dataSources: itin.dataSources } : {}),
+    };
     const created = await prisma.itinerary.create({
       data: {
         groupId,
@@ -16,7 +29,7 @@ const saveItineraries = async (groupId, itineraries) => {
         version: itin.version || 1,
         summary: itin.summary,
         totalCostPerPerson: itin.totalCostPerPerson,
-        constraints: itin.constraints || {},
+        constraints: constraintsToSave,
         items: {
           create: itin.days.flatMap((day) =>
             day.items.map((item) => ({
@@ -38,24 +51,26 @@ const saveItineraries = async (groupId, itineraries) => {
       },
       include: { items: true },
     });
-    saved.push(created);
+    saved.push(formatItinerary(created));
   }
   return saved;
 };
 
 const getItinerariesByGroup = async (groupId) => {
-  return prisma.itinerary.findMany({
+  const itins = await prisma.itinerary.findMany({
     where: { groupId, isActive: true },
     orderBy: { createdAt: 'desc' },
     include: { items: { orderBy: [{ dayNumber: 'asc' }, { startTime: 'asc' }] } },
   });
+  return itins.map(formatItinerary);
 };
 
 const getItineraryById = async (itineraryId) => {
-  return prisma.itinerary.findUnique({
+  const itin = await prisma.itinerary.findUnique({
     where: { id: itineraryId },
     include: { items: { orderBy: [{ dayNumber: 'asc' }, { startTime: 'asc' }] } },
   });
+  return formatItinerary(itin);
 };
 
 const selectItinerary = async (itineraryId, groupId) => {
@@ -64,18 +79,20 @@ const selectItinerary = async (itineraryId, groupId) => {
     where: { groupId, isSelected: true },
     data: { isSelected: false, selectedAt: null },
   });
-  return prisma.itinerary.update({
+  const updated = await prisma.itinerary.update({
     where: { id: itineraryId },
     data: { isSelected: true, selectedAt: new Date() },
     include: { items: { orderBy: [{ dayNumber: 'asc' }, { startTime: 'asc' }] } },
   });
+  return formatItinerary(updated);
 };
 
 const getSelectedItinerary = async (groupId) => {
-  return prisma.itinerary.findFirst({
+  const selected = await prisma.itinerary.findFirst({
     where: { groupId, isSelected: true },
     include: { items: { orderBy: [{ dayNumber: 'asc' }, { startTime: 'asc' }] } },
   });
+  return formatItinerary(selected);
 };
 
 const markItemMissed = async (itemId) => {
