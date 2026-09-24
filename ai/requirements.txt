@@ -9,3 +9,14 @@ pydantic-settings>=2.2.1
 python-dotenv>=1.0.1
 python-jose[cryptography]>=3.3.0
 sentence-transformers>=2.7.0
+# ── OCR dependencies (expense receipt scanning) ──────────────────────────────
+# Pillow: image loading and preprocessing
+Pillow>=10.3.0
+# pytesseract: Python wrapper for Tesseract OCR engine
+# IMPORTANT: also install the Tesseract binary on the system:
+#   Ubuntu/Debian  → sudo apt-get install tesseract-ocr
+#   macOS          → brew install tesseract
+#   Windows        → https://github.com/UB-Mannheim/tesseract/wiki
+pytesseract>=0.3.10
+# httpx: async-capable HTTP client used to fetch receipt images from CDN
+httpx>=0.27.0
