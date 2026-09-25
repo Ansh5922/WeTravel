@@ -44,6 +44,42 @@ ACTIVITY_CATALOG = {
 PACE_SLOTS = {"slow": 2, "moderate": 3, "fast": 4}
 
 
+def _build_data_sources(transport: dict, hotel: dict) -> dict:
+    transport_src = transport.get("source", "mock")
+    hotel_src = hotel.get("source", "mock")
+    is_train = "trainNumber" in transport
+    is_bus = "busOperator" in transport
+
+    train_live = is_train and (transport_src == "railwayapi")
+    hotel_live = (hotel_src == "booking")
+    bus_live = is_bus and (transport_src not in ("mock", None))
+
+    if train_live and hotel_live:
+        status_label = "live"
+        notice = "Live pricing: Hotels from Booking.com & Trains from IRCTC."
+    elif hotel_live:
+        status_label = "partial"
+        notice = "Partial live: Hotels from Booking.com (Trains/buses are simulated)."
+    elif train_live:
+        status_label = "partial"
+        notice = "Partial live: Trains from IRCTC (Hotels are simulated)."
+    else:
+        status_label = "mock"
+        notice = "Simulated demo mode: Using mock data for transport and accommodation."
+
+    return {
+        "status": status_label,
+        "isFullyLive": (hotel_live and (train_live or bus_live)),
+        "hasLiveHotels": hotel_live,
+        "hasLiveTrains": train_live,
+        "hasLiveBuses": bus_live,
+        "trains": "live (IRCTC)" if train_live else ("mock (simulated)" if is_train else "n/a"),
+        "hotels": "live (Booking.com)" if hotel_live else "mock (simulated)",
+        "buses": "live" if bus_live else ("mock (simulated)" if is_bus else "n/a"),
+        "notice": notice,
+    }
+
+
 # ── Core scheduler ────────────────────────────────────────────────────────────
 
 def build_itinerary(
@@ -178,11 +214,16 @@ def build_itinerary(
 
         days.append({"dayNumber": day_num + 1, "date": current_date.isoformat(), "items": items})
 
+    data_sources = _build_data_sources(transport, hotel)
+    merged_constraints = dict(constraints or {})
+    merged_constraints["dataSources"] = data_sources
+
     return {
         "variantType": variant_type,
         "summary": _build_summary(variant_type, destination, transport, hotel, num_days, total_cost),
         "totalCostPerPerson": round(total_cost, 2),
-        "constraints": constraints,
+        "constraints": merged_constraints,
+        "dataSources": data_sources,
         "days": days,
     }
 

@@ -118,11 +118,26 @@ async def recover_itinerary(
         next_available_transport=next_transport,
     )
 
+    transport_src = next_transport.get("source", "mock") if next_transport else "none"
+    train_live = (transport_src == "railwayapi")
+    recovery_data_sources = {
+        "status": "live" if train_live else "mock",
+        "isFullyLive": train_live,
+        "hasLiveHotels": False,
+        "hasLiveTrains": train_live,
+        "hasLiveBuses": False,
+        "trains": "live (IRCTC)" if train_live else "mock (simulated)",
+        "hotels": "n/a",
+        "buses": "n/a",
+        "notice": "Rescheduled with live IRCTC transport." if train_live else "Rescheduled with simulated fallback transport.",
+    }
+
     return {
         "variantType": "mishap_recovery",
         "summary": f"Recovery itinerary — {rescheduled_count} items rescheduled after missed transport.",
         "totalCostPerPerson": sum(float(i.get("estimatedCost") or 0) for i in updated_items),
-        "constraints": {"mishap_recovery": True, "rescheduled_count": rescheduled_count},
+        "constraints": {"mishap_recovery": True, "rescheduled_count": rescheduled_count, "dataSources": recovery_data_sources},
+        "dataSources": recovery_data_sources,
         "days": _group_items_by_day(updated_items),
     }
 

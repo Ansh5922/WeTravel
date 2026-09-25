@@ -10,6 +10,7 @@ const friendRoutes    = require('./routes/friend.routes');
 const tripRoutes      = require('./routes/trip.routes');
 const chatRoutes      = require('./routes/chat.routes');
 const itineraryRoutes = require('./routes/itinerary.routes');
+const expenseRoutes   = require('./routes/expense.routes');
 const { errorHandler }          = require('./middleware/error.middleware');
 const { attachWsServer }        = require('./websocket/ws.server');
 const { startChatRetentionCron } = require('./cron/chat.retention.cron');
@@ -42,8 +43,10 @@ app.use('/api/auth',    authRoutes);
 app.use('/api/users',   userRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/trips',   tripRoutes);
-app.use('/api/trips/:tripId/chat', chatRoutes);
-app.use('/api/trips',   itineraryRoutes);
+app.use('/api/trips/:tripId/chat',     chatRoutes);
+app.use('/api/trips/:tripId/expenses', expenseRoutes);
+app.use('/api/trips',                  itineraryRoutes);
+
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

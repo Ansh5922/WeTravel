@@ -1,10 +1,5 @@
 const prisma = require('./prisma.client');
 
-/**
- * Chat Repository — WeTravel Backend
- * Layer: Repository → DB
- * Handles all DB queries for messages, polls, poll options, and poll votes.
- */
 
 const PAGE_SIZE = 50;
 

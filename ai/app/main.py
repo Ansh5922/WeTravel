@@ -4,6 +4,7 @@ from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
 from app.api.routes.itinerary import router as itinerary_router
+from app.api.routes.ocr      import router as ocr_router
 
 """
 WeTravel AI Engine — FastAPI entry point.
@@ -31,6 +32,8 @@ async def log_requests(request: Request, call_next):
 app.include_router(embedding_router)
 app.include_router(consensus_router)
 app.include_router(itinerary_router)
+app.include_router(ocr_router)
+
 
 
 # ── Health Check ──────────────────────────────────────────────────────────────
