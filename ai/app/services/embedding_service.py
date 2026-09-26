@@ -25,7 +25,7 @@ try:
 except Exception:
     _model = SentenceTransformer("all-MiniLM-L6-v2")
 
-print("[Embedding Service] ✅ Model ready in RAM.")
+print("[Embedding Service] [OK] Model ready in RAM.")
 
 
 def get_embedding_model():

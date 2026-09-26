@@ -24,7 +24,7 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
-    print(f"🤖 [AI-HTTP] {request.method} {request.url.path} → {response.status_code} ({process_time:.2f}ms)")
+    print(f"[AI-HTTP] {request.method} {request.url.path} -> {response.status_code} ({process_time:.2f}ms)")
     return response
 
 
@@ -52,6 +52,6 @@ def test_auth(current_user: dict = Depends(get_current_user)):
     """
     return {
         "status": "success",
-        "message": "JWT verified by FastAPI independently ✅",
+        "message": "JWT verified by FastAPI independently",
         "authenticated_user_id": current_user["id"],
     }
