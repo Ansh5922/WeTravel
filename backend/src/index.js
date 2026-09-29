@@ -9,6 +9,7 @@ const tripRoutes      = require('./routes/trip.routes');
 const chatRoutes      = require('./routes/chat.routes');
 const itineraryRoutes = require('./routes/itinerary.routes');
 const expenseRoutes   = require('./routes/expense.routes');
+const memoryRoutes    = require('./routes/memory.routes');
 const { errorHandler }          = require('./middleware/error.middleware');
 const { attachWsServer }        = require('./websocket/ws.server');
 const { startChatRetentionCron } = require('./cron/chat.retention.cron');
@@ -43,6 +44,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/trips',   tripRoutes);
 app.use('/api/trips/:tripId/chat',     chatRoutes);
 app.use('/api/trips/:tripId/expenses', expenseRoutes);
+app.use('/api/trips/:tripId/memories', memoryRoutes);
 app.use('/api/trips',                  itineraryRoutes);
 
 
