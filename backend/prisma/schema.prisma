@@ -83,6 +83,7 @@ model User {
   payeeSettlements      Settlement[]            @relation("PayeeSettlements")
   sentInvites           TripInvite[]            @relation("SentInvites")
   receivedInvites       TripInvite[]            @relation("ReceivedInvites")
+  uploadedMemories      TripMemory[]            @relation("UploadedMemories")
 
   @@map("users")
 }
@@ -138,6 +139,7 @@ model TripGroup {
   expenses              Expense[]
   settlements           Settlement[]
   invites               TripInvite[]
+  memories              TripMemory[]
 
   @@map("trip_groups")
 }
@@ -380,4 +382,25 @@ model TripInvite {
   invitee  User?     @relation("ReceivedInvites", fields: [inviteeId], references: [id])
 
   @@map("trip_invites")
+}
+
+model TripMemory {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId        String    @map("group_id") @db.Uuid
+  mediaUrl       String    @map("media_url") @db.Text
+  thumbnailUrl   String?   @map("thumbnail_url") @db.Text
+  caption        String?   @db.Text
+  uploadedBy     String    @map("uploaded_by") @db.Uuid
+  capturedAt     DateTime? @map("captured_at") @db.Timestamptz
+  locationTag    String?   @map("location_tag") @db.VarChar(150)
+  latitude       Float?
+  longitude      Float?
+  aiHighlight    Boolean   @default(false) @map("ai_highlight")
+  highlightScore Float?    @map("highlight_score")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  group    TripGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader User      @relation("UploadedMemories", fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("trip_memories")
 }
