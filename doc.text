@@ -1,351 +1,160 @@
-# System Architecture & Technical Specification: WanderSync
+# WeTravel: System Architecture & Complete Backend Documentation
 
 ---
 
 ## 1. Project Overview & System Scope
 
-**WanderSync** is a collaborative, AI-assisted group travel planning, expense tracking, and coordination platform. It resolves common points of friction in group travel—including mismatched member preferences, conflicting budgets, uncoordinated itinerary generation, live chat clutter, multimodal expense receipt splitting, and post-trip financial reconciliation.
+**WeTravel** is a distributed, AI-assisted group travel planning, expense tracking, and coordination platform. It solves common group travel challenges—including divergent travel personas, mismatched budgets, manual receipt calculations, post-trip financial disputes, chat clutter, and dynamic travel disruptions.
 
 ```
-                     ┌───────────────────────────────────────┐
-                     │   Client (React Native / Flutter)     │
-                     └──────────────────┬────────────────────┘
-                                        │ HTTPS / WSS
-                                        ▼
-                     ┌───────────────────────────────────────┐
-                     │          NGINX Reverse Proxy          │
-                     │   (Port 80/443 SSL & Rate Limiting)   │
-                     └──────────┬──────────────────┬─────────┘
-                                │                  │
-                  /api/v1/*, /ws│                  │ /ai/v1/stream/*
-                                ▼                  ▼
-         ┌───────────────────────────────┐  ┌──────────────────────────────────┐
-         │ Node.js Application Server    │  │ FastAPI AI Engine                │
-         │ - Port 3000 (Express)         │  │ - Port 8000 (Uvicorn)            │
-         │ - Prisma ORM (Relational)     │  │ - SQLAlchemy + pgvector-python   │
-         │ - Business Logic & WebSockets │  │ - Local ML / Heuristics / Vision │
-         └──────────────┬────────────────┘  └──────────────────┬───────────────┘
-                        │ Internal HTTP (Docker Network)       │
-                        └──────────────────┬───────────────────┘
-                                           │
-                                           ▼
-                        ┌──────────────────────────────────────┐
-                        │      PostgreSQL 16 + pgvector        │
-                        │    (Relational + Vector Store)       │
-                        └──────────────────────────────────────┘
-
+                     ┌────────────────────────────────────────────────────────┐
+                     │            Client (Web / React Native / Flutter)       │
+                     └───────────────────────────┬────────────────────────────┘
+                                                 │ HTTPS / WSS
+                                                 ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │                  NGINX / API Gateway                   │
+                     └─────────────┬────────────────────────────┬─────────────┘
+                                   │                            │
+                      /api/*, /ws  │                            │ /api/ai/stream/*
+                                   ▼                            ▼
+            ┌───────────────────────────────┐     ┌──────────────────────────────────┐
+            │ Node.js Orchestrator          │     │ FastAPI AI Microservice          │
+            │ - Port 3000 (Express)         │     │ - Port 8000 (Uvicorn)            │
+            │ - Prisma ORM (Relational)     │     │ - SQLAlchemy + pgvector-python   │
+            │ - Business Logic & WebSockets │     │ - In-Memory NLP / Vision / OCR   │
+            └──────────────┬────────────────┘     └──────────────────┬───────────────┘
+                           │ Internal HTTP (Fire-and-forget)         │
+                           └─────────────────────┬───────────────────┘
+                                                 │
+                                                 ▼
+            ┌────────────────────────────────────────────────────────────────┐
+            │              PostgreSQL 16 + pgvector Database                 │
+            │           (Unified Relational + 384-d Vector Store)            │
+            └────────────────────────────────────────────────────────────────┘
 ```
 
 The system separates high-concurrency relational input/output and user session lifecycle management from compute-heavy vector similarity operations, optical character recognition (OCR), and deterministic scheduling algorithms.
 
 ---
 
-## 2. Ingress & Reverse Proxy Specification (NGINX)
+## 2. Layered Architecture Principles
 
-All external client traffic terminates at an **NGINX** reverse proxy on ports `80` (HTTP) and `443` (HTTPS/TLS). NGINX shields internal microservices, offloads SSL certificates (e.g., Let's Encrypt), enforces IP/endpoint-based rate limiting, buffers large multipart file uploads, and handles WebSocket upgrade headers.
-
-### Routing Boundaries & Upstream Mapping
-
-* **Public REST API & WebSockets (`/api/v1/*`, `/ws/*`):** Directed to the **Node.js** upstream (`[http://127.0.0.1:3000](http://127.0.0.1:3000)`). Handles user authentication, profile states, group management, ledger operations, and real-time Socket.io rooms.
-
-
-* **Real-time AI Chat Streaming (`/ai/v1/stream/*`):** Directed directly to the **FastAPI** upstream (`[http://127.0.0.1:8000](http://127.0.0.1:8000)`). Avoids event loop congestion on the Node.js server during progressive token streaming.
-
-
-* **Internal Inter-Service Network:** Node.js communicates with FastAPI over a private Docker network (`http://fastapi-service:8000/api/v1/internal/*`). This endpoint is **never exposed** to the public Internet.
-
-
-
----
-
-## 3. Authentication, Identity, and Authorization Architecture
-
-The platform uses a stateless, decentralized JWT security model with centralized session control.
+Both microservices follow a strict separation of concerns:
 
 ```
-[Client App]             [Node.js Orchestrator]         [FastAPI AI Microservice]
-     │                             │                               │
-     │── 1. POST /api/v1/auth ────>│                               │
-     │      (Google OAuth / Pass)  │                               │
-     │<── 2. JWT Access Token ─────│                               │
-     │       (Holds user_id claim) │                               │
-     │                             │                               │
-     │── 3. Direct Streaming /ai/v1/stream/* (Bearer JWT) ────────>│
-     │                             │                               ├── 4. Decodes via shared JWT_SECRET
-     │                             │                               ├── 5. Checks PostgreSQL group_members
-     │                             │                               └── 6. Streams AI Chat Token-by-Token
-
-```
-
-### 1. Token Lifecycles & Persistence
-
-* **Access Tokens:** Short-lived JSON Web Tokens (15–30 minute expiry) generated exclusively by Node.js. Tokens contain baseline cryptographic identity claims (`user_id`, `email`) and are signed using a symmetric master key (`JWT_SECRET`).
-
-
-* **Refresh Tokens:** Long-lived tokens (30–90 days) stored either in HTTP-only, secure, strict cookies (web) or OS-level encrypted storage (iOS Keychain, Android Keystore).
-
-
-* **Session Storage & Token Revocation:** Revocation lists, blacklists, and active refresh sessions live in **Redis** (or Valkey). Node.js verifies against Redis upon hitting `/api/v1/auth/refresh`.
-
-
-
-### 2. Autonomous FastAPI Direct Authentication
-
-When a mobile client calls FastAPI directly (e.g., streaming conversational travel advice), FastAPI validates identity independently without calling Node.js:
-
-1. FastAPI holds the identical `JWT_SECRET` string in its environment variables.
-
-
-2. Python-native security utilities (`PyJWT` / `HTTPBearer`) verify the signature mathematically.
-
-
-3. For authorization, FastAPI queries the shared database directly:
-```sql
-SELECT 1 FROM group_members WHERE group_id = :group_id AND user_id = :user_id;
-
-```
-
-
-4. If the membership record exists, processing proceeds; otherwise, an immediate `403 Forbidden` status is returned.
-
-
-
-### 3. Role-Based Access Control (RBAC) Matrix
-
-Permissions are assigned per individual trip group:
-
-* `creator`: The creator can promote members to `admin`, demote admins, archive trips, delete groups, and execute all administrative actions. The creator cannot be removed.
-
-
-* `admin`: Admins can approve/reject submitted expense ledger items, trigger and edit AI itineraries, and edit or lock group consensus profiles. Admins can add or remove regular `member` users.
-
-
-* `member`: Regular members can cast votes in polls, send chat messages, submit expenses for approval, and view finalized trip plans. Regular members cannot trigger AI itinerary builds to prevent API quota drain and cost escalation.
-
-
-
----
-
-## 4. Node.js Application Layer (The Orchestrator)
-
-The Node.js server acts as the primary transaction orchestrator. It manages business rules, data structures, and relational state via **Prisma ORM**, without handling vector types or math.
-
-### Layered Architecture
-
-```text
-src/
-├── routes/                      # Route declarations & parameter extraction
-│   ├── auth.routes.js
-│   ├── trip.routes.js
-│   ├── chat.routes.js
-│   ├── itinerary.routes.js
-│   ├── expense.routes.js
-│   ├── memory.routes.js
-│   └── index.js
-├── middlewares/                 # Boundary validation & access control
-│   ├── auth.middleware.js       # JWT signature verification & user hydration
-│   ├── rbac.middleware.js       # Role guard enforcing creator/admin access rules
-│   ├── upload.middleware.js     # Multer handler for local temp disk storage
-│   ├── validate.middleware.js   # Zod schema validation for bodies & query params
-│   └── error.middleware.js      # Global error catchers & status code normalization
-├── controllers/                 # HTTP layer (orchestrator between HTTP & Service)
-│   ├── auth.controller.js
-│   ├── trip.controller.js
-│   ├── chat.controller.js
-│   ├── itinerary.controller.js
-│   ├── expense.controller.js
-│   └── memory.controller.js
-├── services/                    # Domain logic & operational services
-│   ├── auth.service.js          # Credential verification, argon2, token management
-│   ├── trip.service.js          # Trip lifecycle states & RBAC policies
-│   ├── consensus.service.js     # Aggregating health & travel profiles
-│   ├── itinerary.service.js     # Itinerary revisioning & activity indexing
-│   ├── expense.service.js       # Split allocations & debt settlement minimization
-│   ├── chat.service.js          # Message persistence & poll transactions
-│   ├── memory.service.js        # Post-trip media handling
-│   ├── plannerGateway.service.js# Internal HTTP dispatcher talking to FastAPI
-│   ├── socket.service.js        # Socket.io connection state & room broadcasts
-│   └── retention.service.js     # Scheduled cron job purging expired data
-└── repositories/                # Direct database access layer (Prisma ORM)
-    ├── prisma.client.js         # Single instance Prisma Client
-    ├── user.repository.js       # users & user_profiles relational queries
-    ├── trip.repository.js       # trip_groups & group_members relational queries
-    ├── chat.repository.js       # messages, polls, options & votes queries
-    ├── itinerary.repository.js  # itineraries & itinerary_items queries
-    ├── expense.repository.js    # expenses, splits & settlements queries
-    └── memory.repository.js     # trip_memories queries
-
+[HTTP Request / WebSocket]
+         │
+         ▼
+ ┌───────────────┐
+ │    Routes     │  Validates endpoints, extracts path parameters, applies guards.
+ └───────┬───────┘
+         │
+         ▼
+ ┌───────────────┐
+ │  Middleware   │  Validates JWT signatures, enforces RBAC (creator/admin/member).
+ └───────┬───────┘
+         │
+         ▼
+ ┌───────────────┐
+ │  Controllers  │  Parses request bodies, normalizes HTTP response schemas.
+ └───────┬───────┘
+         │
+         ▼
+ ┌───────────────┐
+ │   Services    │  Executes core business logic, algorithms, and WebSocket events.
+ └───────┬───────┘
+         │
+         ▼
+ ┌───────────────┐
+ │ Repositories  │  Direct database queries via Prisma ORM / SQLAlchemy.
+ └───────┬───────┘
+         │
+         ▼
+ ┌───────────────┐
+ │ PostgreSQL DB │  Stores relational records + 384-dimensional vector embeddings.
+ └───────────────┘
 ```
 
 ---
 
-## 5. FastAPI AI/ML Microservice (The Engine)
+## 3. Environment Setup & Getting Started
 
-The **FastAPI** service operates as a stateless machine-learning and heuristic inference microservice. It interacts directly with the PostgreSQL database using **SQLAlchemy** and the `pgvector-python` library, managing all vector columns directly.
+### 3.1 Prerequisites
+- **Node.js**: v18.0.0 or higher (v20+ recommended)
+- **Python**: v3.10 or higher
+- **PostgreSQL**: v16 with `pgvector` extension enabled (e.g. Neon PostgreSQL)
+- **ImageKit**: Free account for direct-upload CDN image storage
 
-```
-           [Node.js Dispatcher]
-                    │ Internal HTTP (POST)
-                    ▼
-┌───────────────────────────────────────────────────────────┐
-│ FastAPI Application Container                             │
-│                                                           │
-│  [1. Ingestion Pipeline]                                  │
-│      ├── /api/v1/internal/embeddings/* (Profile, Poll)    │
-│      ├── /api/v1/internal/ocr/receipt (Multipart Bytes)   │
-│      └── /api/v1/internal/itinerary/plan (JSON)           │
-│                                                           │
-│  [2. Inference & Parsing Engines]                         │
-│      ├── In-Memory Local Sentence-Transformers            │
-│      │   - Model: 'all-MiniLM-L6-v2' (384-d / 1536-d)     │
-│      ├── Local Vision Pipeline                            │
-│      │   - PaddleOCR (CPU text box extraction)            │
-│      │   - Deterministic Regex Engine (Amount & Currency) │
-│      └── Algorithmic Scheduler                            │
-│          - Distance matrices, proximity sorting           │
-│          - Dynamic transit/stay budget boundary slicing   │
-│                                                           │
-│  [3. Persistence]                                         │
-│      └── SQLAlchemy + pgvector (Direct Read/Write)        │
-└───────────────────────────┬───────────────────────────────┘
-                            │ SQL & Cosine Distance (<=>)
-                            ▼
-           [PostgreSQL 16 + pgvector Engine]
+### 3.2 Backend Setup (Node.js Orchestrator)
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   npm install
+   ```
+2. Create `backend/.env` with the following variables:
+   ```env
+   PORT=3000
+   DATABASE_URL="postgresql://<user>:<password>@<host>/<dbname>?sslmode=require"
+   JWT_SECRET="your-super-secret-jwt-key"
+   JWT_EXPIRES_IN="7d"
 
-```
+   AI_SERVICE_URL="http://localhost:8000"
 
-### 1. In-Memory Embeddings Model
+   IMAGEKIT_PUBLIC_KEY="your_imagekit_public_key"
+   IMAGEKIT_PRIVATE_KEY="your_imagekit_private_key"
+   IMAGEKIT_URL_ENDPOINT="https://ik.imagekit.io/your_id"
+   ```
+3. Push Prisma schema to the database:
+   ```bash
+   npx prisma db push
+   ```
+4. Start the Node.js backend server:
+   ```bash
+   npm run dev
+   # Server runs on http://localhost:3000
+   ```
 
-* **Model Selection:** Local sentence embedding models (such as `all-MiniLM-L6-v2` or `bge-small-en-v1.5`) run on server memory.
-
-
-* **Execution:** Model weights are loaded once into application memory on startup (`lifespan` context).
-
-
-* **Performance Profile:** Runs inference on commodity CPU infrastructure in 5–25ms, avoiding third-party API latency, rate limits, and recurring per-token costs.
-
-
-
-### 2. Receipt OCR Pipeline (PaddleOCR + Deterministic Regex)
-
-Rather than relying on non-deterministic external LLMs to extract receipts, the pipeline uses a structured local layout approach:
-
-* **Text Line Detection:** Open-source `PaddleOCR` flattens bounding boxes into clean text lines on the CPU in 50–150ms.
-
-
-* **Deterministic Regex Parsing:** Target patterns extract numerical payment values, accommodating currency markers (`₹`, `Rs.`, `INR`, `Paid`, `Total`):
-
-
-```python
-AMOUNT_REGEX = re.compile(
-    r'(?:[₹]|Rs\.?|INR)?\s*([0-9]{1,6}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)',
-    re.IGNORECASE
-)
-
-```
-
-
-* **Attribution Extraction:** The payer is matched deterministically: Node.js passes the uploader's `user_id` directly from the authenticated session. The user manually inputs the purpose of the expense, removing layout ambiguity.
-
-
-
-### 3. Itinerary Generation Engine: Algorithmic Scheduling vs. LLM
-
-Itinerary builds avoid generative LLM hallucinations (e.g., incorrect train numbers, expired hotel prices, invalid budget totals) by using a deterministic scheduling pipeline:
-
-1. **Live Transit Retrieval:** Connects to real-time aggregators (Indian Railways/IRCTC partner APIs for trains, RedBus/AbhiBus APIs for buses) based on starting city, target location, and calendar dates.
-
-
-2. **Transit Anchor ($T_0$):** Anchors arrival time dynamically to transit schedules.
-
-
-3. **Accommodation Budget Windowing:** Filters partner inventory ([Booking.com/Agoda](https://www.google.com/search?q=https%3A%2F%2FBooking.com%2FAgoda) demand feeds or internal catalog) based on a price ceiling derived from the group's budget:
-
-
-
-$$\text{Max Price Per Night} = \frac{\text{Allocated Lodging Budget}}{\text{Trip Duration in Nights}}$$
-
-
-4. **pgvector Semantic Search:** Runs cosine similarity searches (`<=>`) matching the group's consensus vector against `destinations_catalog`:
-
-
-
-$$\text{Daily Activity Budget} = \text{Total Budget} - (\text{Transit Cost} + \text{Hotel Cost})$$
-
-
-
-5. **Relational Constraints:** Applies strict relational filters to remove invalid options (e.g., eliminating bus legs when a member has motion sickness, or excluding non-air-conditioned venues during high-heat conditions).
-
-
-6. **Spatial Proximity Sorting:** Sorts day-wise stops using spatial calculations (e.g., Haversine distance matrix) to minimize daily travel times.
-
-
-7. **Structured Schedule Output:** Assembles the plan into ordered `Morning`, `Afternoon`, and `Evening` time slots and returns structured JSON to Node.js. An LLM is used only if users request a creative narrative summary of the schedule.
-
-
+### 3.3 AI Microservice Setup (FastAPI)
+1. Navigate to the AI directory:
+   ```bash
+   cd ai
+   python -m venv venv
+   # On Windows:
+   .\venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. Create `ai/.env` with the identical JWT secret:
+   ```env
+   PORT=8000
+   DATABASE_URL="postgresql://<user>:<password>@<host>/<dbname>?sslmode=require"
+   JWT_SECRET="your-super-secret-jwt-key"
+   JWT_ALGORITHM="HS256"
+   ```
+3. Run the AI service:
+   ```bash
+   # On Windows (set UTF-8 to prevent console emoji errors):
+   $env:PYTHONUTF8=1; uvicorn app.main:app --port 8000 --reload
+   # On macOS/Linux:
+   uvicorn app.main:app --port 8000 --reload
+   ```
 
 ---
 
-## 6. End-to-End Multimodal Expense Pipeline
+## 4. Unified Database Schema Architecture
 
-The receipt upload and ledger pipeline uses a non-blocking, asynchronous approach to keep client response times fast.
-
-```
-[Client]             [Node.js Orchestrator]           [FastAPI Engine]       [PostgreSQL DB]
-   │                          │                              │                      │
-   │── 1. Upload Screenshot ─>│                              │                      │
-   │   (multipart/form-data)  ├── 2. Save file to /storage   │                      │
-   │                          ├── 3. INSERT expenses ──────────────────────────────>│
-   │                          │      (status: 'pending')     │                      │
-   │<─ 4. 202 Accepted ───────│                              │                      │
-   │   (Shows 'Parsing...')   │                              │                      │
-   │                          ├── 5. POST /ocr/receipt ─────>│                      │
-   │                          │   (Streams image buffer)     ├── 6. Runs PaddleOCR  │
-   │                          │                              ├── 7. Regex Extract   │
-   │                          │                              ├── 8. Summary Embed   │
-   │                          │                              └── 9. Direct Vector ─>│
-   │                          │<─ 10. Return Parsed JSON ────│      (interaction_   │
-   │                          │       {amount, category}     │       embeddings)    │
-   │                          ├── 11. UPDATE expenses ─────────────────────────────>│
-   │<─ 12. WS: EXPENSE_PARSED │       (Sets parsed fields)   │                      │
-   │   (UI auto-populates)    │                              │                      │
-
-```
-
-1. **Client Upload:** A user uploads a UPI or bill screenshot to Node.js (`multipart/form-data`).
-
-
-2. **Immediate Local Write:** Node.js writes the file to `/storage/receipts/{group_id}/{filename}` and creates a placeholder record in `expenses` with `status = 'pending_approval'`.
-
-
-3. **Immediate Acknowledgement:** The client receives an immediate `202 Accepted` response containing the created `expenseId`. The mobile client displays a pending parsing indicator.
-
-
-4. **Background Service Processing:** Node.js streams the image buffer to FastAPI over the private Docker network (`POST /api/v1/internal/ocr/receipt`).
-
-
-5. **OCR & Extraction:** FastAPI processes the image using PaddleOCR, extracts the numerical total via regex, generates a context embedding, and saves it directly to `interaction_embeddings` in PostgreSQL.
-
-
-6. **Completion & Real-time Update:** FastAPI returns `{ amount, currency, category }` to Node.js. Node.js updates the relational row via Prisma and emits an `EXPENSE_OCR_COMPLETED` WebSocket event to the group's room, updating the mobile UI instantly.
-
-
-7. **Admin Review:** A group admin reviews the parsed entry and approves or rejects it. Only approved expenses are included in post-trip debt settlement calculations.
-
-
-
----
-
-## 7. Unified Database Schema Architecture
-
-The PostgreSQL database maintains relational entities (managed by Prisma) alongside vector columns (managed by FastAPI via SQLAlchemy and `pgvector`).
+PostgreSQL acts as the single source of truth, combining relational tables (managed by Prisma ORM) with vector columns (managed by FastAPI via SQLAlchemy and `pgvector`).
 
 ```
   ┌────────────────────────────────────────────────────────────┐
   │                 users                                      │
   │  - id: UUID (PK)                                           │
-  │  - email: VARCHAR                                          │
-  │  - password_hash: VARCHAR                                  │
+  │  - email: VARCHAR(255) (Unique)                            │
+  │  - password_hash: VARCHAR(255)                             │
+  │  - full_name: VARCHAR(100)                                 │
+  │  - username: VARCHAR(50) (Unique)                          │
   │  - is_premium: BOOLEAN                                     │
   └─────────────┬──────────────────────────────────────────────┘
                 │
@@ -354,648 +163,817 @@ The PostgreSQL database maintains relational entities (managed by Prisma) alongs
                 ▼                                      ▼
   ┌─────────────────────────────┐        ┌─────────────────────────────┐
   │ user_profiles               │        │ group_members               │
-  │  - user_id: UUID (FK)       │        │  - group_id: UUID (FK)      │
+  │  - user_id: UUID (PK, FK)   │        │  - group_id: UUID (FK)      │
   │  - dietary_preference       │        │  - user_id: UUID (FK)       │
-  │  - health_constraints       │        │  - role: 'creator' |        │
-  │  - preference_vector: VECTOR│        │          'admin' | 'member' │
-  └─────────────────────────────┘        └─────────────┬───────────────┘
-                                                       │
-                                                       │ N:1
-                                                       ▼
-  ┌─────────────────────────────┐        ┌─────────────────────────────┐
-  │ group_consensus_profiles    │  1:1   │ trip_groups                 │
-  │  - group_id: UUID (FK, Uni) │<───────┤  - id: UUID (PK)            │
+  │  - travel_style             │        │  - role: 'creator' |        │
+  │  - budget, budget_tier      │        │          'admin' | 'member' │
+  │  - pace_preference          │        └─────────────┬───────────────┘
+  │  - health_constraints       │                      │
+  │  - preference_vector: VECTOR│                      │ N:1
+  └─────────────────────────────┘                      ▼
+                                         ┌─────────────────────────────┐
+  ┌─────────────────────────────┐  1:1   │ trip_groups                 │
+  │ group_consensus_profiles    │<───────┤  - id: UUID (PK)            │
+  │  - group_id: UUID (FK, Uni) │        │  - name: VARCHAR(150)       │
   │  - computed_budget_range    │        │  - status: 'planning' |     │
   │  - hard_constraints         │        │    'ongoing' | 'completed'  │
   │  - consensus_vector: VECTOR │        │  - chat_retention_deadline  │
   │  - is_locked_by_admin       │        │  - preserve_chat: BOOLEAN   │
   └─────────────────────────────┘        └─────────────┬───────────────┘
                                                        │
-                     ┌───────────────────┬─────────────┴──────┬───────────────────┐
-                     │ 1:N               │ 1:N                │ 1:N               │ 1:N
-                     ▼                   ▼                    ▼                   ▼
-      ┌────────────────────────┐ ┌───────────────┐ ┌────────────────────┐ ┌──────────────┐
-      │ messages               │ │ polls         │ │ expenses           │ │ itineraries  │
-      │  - content             │ │  - question   │ │  - amount          │ │  - version   │
-      │  - created_at          │ │  - poll_vector│ │  - status: approved│ │  - is_active │
-      │  (Purged on retention) │ └───────────────┘ └──────────┬─────────┘ └──────┬───────┘
-      └────────────────────────┘                              │                  │
-                                                              │ 1:N              │ 1:N
-                                                              ▼                  ▼
-                                                   ┌────────────────────┐ ┌──────────────┐
-                                                   │ expense_splits     │ │itinerary_item│
-                                                   │  - user_id (FK)    │ │ - day_number │
-                                                   │  - amount_owed     │ │ - activity   │
-                                                   └────────────────────┘ └──────────────┘
-
+                      ┌───────────────────┬────────────┴───────┬───────────────────┐
+                      │ 1:N               │ 1:N                │ 1:N               │ 1:N
+                      ▼                   ▼                    ▼                   ▼
+       ┌────────────────────────┐ ┌───────────────┐ ┌────────────────────┐ ┌──────────────┐
+       │ messages               │ │ polls         │ │ expenses           │ │ itineraries  │
+       │  - content             │ │  - question   │ │  - amount          │ │  - version   │
+       │  - created_at          │ │  - poll_vector│ │  - status: approved│ │  - is_active │
+       │  (Purged on retention) │ └───────────────┘ └──────────┬─────────┘ └──────┬───────┘
+       └────────────────────────┘                              │                  │
+                                                               │ 1:N              │ 1:N
+                                                               ▼                  ▼
+                                                    ┌────────────────────┐ ┌──────────────┐
+                                                    │ expense_splits     │ │itinerary_item│
+                                                    │  - user_id (FK)    │ │ - day_number │
+                                                    │  - amount_owed     │ │ - activity   │
+                                                    └────────────────────┘ └──────────────┘
 ```
 
-### Complete Conceptual Data Model
-
-#### 1. Identity & Profile Layer
-
-* **`users`**
-
-* `id`: UUID (Primary Key)
-
-
-* `email`: VARCHAR(255) (Unique, Indexed)
-
-
-* `password_hash`: VARCHAR(255) (Nullable for OAuth users)
-
-
-* `full_name`: VARCHAR(100)
-
-
-* `phone`: VARCHAR(20)
-
-
-* `is_premium`: BOOLEAN (Default: `false` — permits extended chat retention)
-
-
-* `created_at`, `updated_at`: TIMESTAMPTZ
-
-
-
-
-* **`user_profiles`** (Managed relationally by Node.js, vector generated by FastAPI)
-
-
-* `user_id`: UUID (Primary Key, Foreign Key $\to$ `users.id` ON DELETE CASCADE)
-
-
-* `dietary_preference`: VARCHAR(50) (e.g., `veg`, `non-veg`, `vegan`, `jain`)
-
-
-* `travel_style`: VARCHAR(50) (e.g., `backpacking`, `luxury`, `adventure`, `leisure`)
-
-
-* `budget_tier`: VARCHAR(30) (e.g., `budget`, `moderate`, `luxury`)
-
-
-* `pace_preference`: VARCHAR(30) (e.g., `relaxed`, `fast-paced`)
-
-
-* `health_constraints`: JSONB (e.g., `["motion_sickness_bus", "asthma", "limited_mobility"]`)
-
-
-* `climate_sensitivities`: JSONB (e.g., `["extreme_heat_avoidance", "high_humidity_sensitive"]`)
-
-
-* `raw_preference_notes`: TEXT
-
-
-* `preference_vector`: VECTOR(384) (Direct updates via FastAPI using SQLAlchemy)
-
-
-
-
-* **`friendships`**
-
-* `id`: UUID (Primary Key)
-
-
-* `user_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `friend_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `status`: VARCHAR(20) (`pending`, `accepted`, `blocked`)
-
-
-
-
-
-#### 2. Group Coordination & Dynamic Consensus Layer
-
-* **`trip_groups`**
-
-* `id`: UUID (Primary Key)
-
-
-* `name`: VARCHAR(150)
-
-
-* `cover_image_url`: TEXT
-
-
-* `created_by`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `status`: VARCHAR(30) (`planning`, `ongoing`, `completed`, `archived`)
-
-
-* `trip_start_date`: DATE
-
-
-* `trip_end_date`: DATE
-
-
-* `chat_retention_deadline`: DATE (Calculated on write: `trip_end_date + INTERVAL '5 days'`)
-
-
-* `preserve_chat`: BOOLEAN (Default: `false`)
-
-
-
-
-* **`group_members`**
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id` ON DELETE CASCADE)
-
-
-* `user_id`: UUID (Foreign Key $\to$ `users.id` ON DELETE CASCADE)
-
-
-* `role`: VARCHAR(20) (`creator`, `admin`, `member`)
-
-
-* `joined_at`: TIMESTAMPTZ
-
-
-
-
-* **`group_consensus_profiles`** (Shared view; updated only by AI or trip admins)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`, Unique)
-
-
-* `computed_budget_range`: JSONB
-
-
-* `hard_constraints`: JSONB (Aggregated health, dietary, and transit limits)
-
-
-* `consensus_vector`: VECTOR(384) (Centroid vector computed by FastAPI)
-
-
-* `last_edited_by`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `is_locked_by_admin`: BOOLEAN (Default: `false`)
-
-
-
-
-
-#### 3. Ephemeral Chat, Media & Persistent AI Knowledge Base
-
-* **`messages`** (Purged automatically by the daily retention worker)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `sender_id`: UUID (Foreign Key $\to$ `users.id`, Nullable for system notifications)
-
-
-* `message_type`: VARCHAR(30) (`text`, `image`, `receipt_upload`, `poll`, `ai_system`)
-
-
-* `content`: TEXT
-
-
-* `created_at`: TIMESTAMPTZ
-
-
-
-
-* **`polls`**
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `created_by`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `question`: TEXT
-
-
-* `status`: VARCHAR(20) (`open`, `closed`)
-
-
-* `poll_vector`: VECTOR(384) (Generated by FastAPI on close)
-
-
-
-
-* **`poll_options`**
-
-* `id`: UUID (Primary Key)
-
-
-* `poll_id`: UUID (Foreign Key $\to$ `polls.id` ON DELETE CASCADE)
-
-
-* `option_text`: VARCHAR(255)
-
-
-
-
-* **`poll_votes`**
-
-* `id`: UUID (Primary Key)
-
-
-* `poll_id`: UUID (Foreign Key $\to$ `polls.id`)
-
-
-* `option_id`: UUID (Foreign Key $\to` `poll_options.id`)
-
-
-* `user_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-
-
-* **`interaction_embeddings`** (Retained permanently for group context after chats expire)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `source_type`: VARCHAR(50) (`poll_result`, `chat_preference_snippet`, `receipt_summary`)
-
-
-* `source_id`: UUID (Reference to `poll_id` or `expense_id`)
-
-
-* `summary_text`: TEXT (Plain-text summary generated prior to embedding)
-
-
-* `context_vector`: VECTOR(384)
-
-
-
-
-
-#### 4. Catalog & Structured Itinerary Domain
-
-* **`destinations_catalog`** (System reference knowledge base)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `name`: VARCHAR(150)
-
-
-* `state`: VARCHAR(100)
-
-
-* `country`: VARCHAR(100)
-
-
-* `tags`: JSONB (e.g., `["hills", "cafe", "peaceful", "trekking"]`)
-
-
-* `climate_type`: VARCHAR(50)
-
-
-* `avg_daily_cost`: NUMERIC(10, 2)
-
-
-* `destination_vector`: VECTOR(384) (Used for `<=>` cosine distance matching)
-
-
-
-
-* **`itineraries`**
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `generated_by`: VARCHAR(20) (`ai`, `admin`)
-
-
-* `version`: INTEGER (Default: `1`)
-
-
-* `is_active`: BOOLEAN (Default: `true`)
-
-
-
-
-* **`itinerary_items`**
-
-* `id`: UUID (Primary Key)
-
-
-* `itinerary_id`: UUID (Foreign Key $\to$ `itineraries.id` ON DELETE CASCADE)
-
-
-* `day_number`: INTEGER
-
-
-* `time_slot`: VARCHAR(30) (`morning`, `afternoon`, `evening`)
-
-
-* `activity_name`: VARCHAR(255)
-
-
-* `description`: TEXT
-
-
-* `location`: VARCHAR(255)
-
-
-* `transit_mode`: VARCHAR(50) (e.g., `train`, `walking`, `cab` — verified against constraints)
-
-
-* `estimated_cost`: NUMERIC(10, 2)
-
-
-
-
-
-#### 5. Financial Ledger & Settlement Domain
-
-* **`expenses`**
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `created_by`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `source`: VARCHAR(30) (`manual_entry`, `ai_screenshot_ocr`)
-
-
-* `amount`: NUMERIC(12, 2)
-
-
-* `currency`: VARCHAR(10) (Default: `INR`)
-
-
-* `category`: VARCHAR(50) (`stay`, `transit`, `food`, `activities`, `misc`)
-
-
-* `receipt_image_url`: TEXT (Local storage path on Node.js)
-
-
-* `ocr_raw_metadata`: JSONB (Raw parsed response returned by FastAPI)
-
-
-* `status`: VARCHAR(30) (`pending_approval`, `approved`, `rejected`)
-
-
-* `approved_by`: UUID (Foreign Key $\to$ `users.id`, Nullable until admin signs off)
-
-
-* `approved_at`: TIMESTAMPTZ
-
-
-
-
-* **`expense_splits`** (Created once an expense is approved)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `expense_id`: UUID (Foreign Key $\to$ `expenses.id` ON DELETE CASCADE)
-
-
-* `user_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `amount_owed`: NUMERIC(12, 2)
-
-
-
-
-* **`settlements`** (Computed post-trip using debt minimization)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `payer_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `payee_id`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `amount`: NUMERIC(12, 2)
-
-
-* `status`: VARCHAR(20) (`pending`, `settled`)
-
-
-
-
-
-#### 6. Post-Trip Media & Memories Layer
-
-* **`trip_memories`** (Retained permanently after trips conclude)
-
-
-* `id`: UUID (Primary Key)
-
-
-* `group_id`: UUID (Foreign Key $\to$ `trip_groups.id`)
-
-
-* `media_url`: TEXT
-
-
-* `uploaded_by`: UUID (Foreign Key $\to$ `users.id`)
-
-
-* `captured_at`: TIMESTAMPTZ (Extracted from EXIF metadata)
-
-
-* `location_tag`: VARCHAR(150)
-
-
-* `ai_highlight`: BOOLEAN (Default: `false`)
-
-
-
-
+### 4.1 Data Retention & Privacy Engine
+* **Ephemeral Data:** Raw rows in `messages` and local receipt buffers are automatically deleted by the daily retention cron job (`02:00 AM`) 5 days after `trip_end_date`, unless `preserve_chat = true`.
+* **Permanent Data:** `trip_memories` (the photo vault), `expenses`, `expense_splits`, `settlements`, `itineraries`, and `interaction_embeddings` (vector context) are **permanently retained**.
 
 ---
 
-## 8. Ephemeral Data Lifecycle & Retention Cron Engine
+## 5. Complete API Reference
 
-To minimize long-term storage costs while maintaining privacy, the platform uses an automated data-purging pipeline:
-
-```
-[Cron Trigger: 00:00 UTC Daily]
-             │
-             ▼
-[Query Expired & Unpreserved Trips]
-  SELECT id FROM trip_groups 
-  WHERE CURRENT_DATE > chat_retention_deadline 
-    AND preserve_chat = false;
-             │
-             ▼
-[Step 1: Delete Local Disk Files]
-  Scan /storage/receipts/{group_id}/* 
-  Unlink media files via fs.promises.unlink
-             │
-             ▼
-[Step 2: Relational Purge via Prisma]
-  DELETE FROM messages WHERE group_id IN (...);
-             │
-             ▼
-[Step 3: Preserve System Integrity]
-  Retain:
-  - interaction_embeddings (Preserves AI context vectors)
-  - expenses, splits & settlements (Preserves accounting)
-  - itineraries & trip_memories (Preserves trip history)
-
+All protected endpoints require the following header:
+```http
+Authorization: Bearer <your_jwt_token>
 ```
 
-1. **Scheduled Execution:** A Node.js cron worker (`retention.service.js`) runs daily at 00:00 UTC.
+---
 
+### 5.1 Authentication API (`/api/auth`)
 
-2. **Identification:** It queries for trips that have passed their retention period:
+Mounted at `/api/auth`. Public endpoints require no authentication.
+
+#### `POST /api/auth/signup`
+Creates a new user account.
+* **Access:** Public
+* **Body:**
+  ```json
+  {
+    "email": "alice@example.com",
+    "password": "SecurePassword123!",
+    "fullName": "Alice Smith",
+    "username": "alicesmith"
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  {
+    "status": "success",
+    "message": "User registered successfully.",
+    "data": {
+      "user": { "id": "uuid", "email": "alice@example.com", "fullName": "Alice Smith", "username": "alicesmith" },
+      "token": "eyJhbGciOi..."
+    }
+  }
+  ```
+
+#### `POST /api/auth/login`
+Authenticates user and returns JWT.
+* **Access:** Public
+* **Body:**
+  ```json
+  {
+    "email": "alice@example.com",
+    "password": "SecurePassword123!"
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "user": { "id": "uuid", "email": "alice@example.com", "fullName": "Alice Smith", "username": "alicesmith" },
+      "token": "eyJhbGciOi..."
+    }
+  }
+  ```
+
+#### `GET /api/auth/me`
+Fetches authenticated user identity.
+* **Access:** Protected (Self)
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": { "user": { "id": "uuid", "email": "alice@example.com", "fullName": "Alice Smith", "username": "alicesmith" } }
+  }
+  ```
+
+---
+
+### 5.2 User & Travel Profile API (`/api/users`)
+
+Mounted at `/api/users`.
+
+#### `GET /api/users/profile`
+Retrieves current user's travel persona, budget, dietary restrictions, and health constraints.
+* **Access:** Protected (Self)
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "user": { "id": "uuid", "email": "alice@example.com", "fullName": "Alice Smith" },
+      "profile": {
+        "travelStyle": "adventure",
+        "budgetTier": "moderate",
+        "budget": 25000.0,
+        "pacePreference": "fast-paced",
+        "dietaryPreference": "vegetarian",
+        "healthConstraints": ["motion_sickness_bus"],
+        "climateSensitivities": ["extreme_heat_avoidance"],
+        "rawPreferenceNotes": "Loves hiking and mountain cafes."
+      }
+    }
+  }
+  ```
+
+#### `PATCH /api/users/profile`
+Updates profile and triggers an asynchronous background call to FastAPI to update the 384-dimensional `preference_vector`.
+* **Access:** Protected (Self)
+* **Body:**
+  ```json
+  {
+    "travelStyle": "adventure",
+    "budgetTier": "moderate",
+    "budget": 30000.0,
+    "pacePreference": "moderate",
+    "dietaryPreference": "vegan",
+    "healthConstraints": ["motion_sickness_bus"],
+    "climateSensitivities": ["high_humidity_sensitive"],
+    "rawPreferenceNotes": "Vegan options mandatory, loves sunrise treks."
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "message": "Profile updated successfully.",
+    "data": { "profile": { ... } }
+  }
+  ```
+
+---
+
+### 5.3 Friends API (`/api/friends`)
+
+Mounted at `/api/friends`.
+
+#### `POST /api/friends/request`
+Sends a friend invitation to a user by username.
+* **Access:** Protected
+* **Body:** `{ "username": "bobsmith" }`
+* **Response (201 Created):**
+  ```json
+  { "status": "success", "message": "Friend request sent.", "data": { "friendship": { "id": "uuid", "status": "pending" } } }
+  ```
+
+#### `GET /api/friends/requests`
+Lists all incoming pending friend invitations.
+* **Access:** Protected
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "data": { "requests": [ { "id": "uuid", "user": { "username": "bobsmith", "fullName": "Bob" } } ] } }
+  ```
+
+#### `PATCH /api/friends/request/:friendshipId`
+Accepts or rejects an incoming friend request.
+* **Access:** Protected
+* **Body:** `{ "action": "accept" }` or `{ "action": "reject" }`
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "message": "Friend request accepted." }
+  ```
+
+#### `GET /api/friends`
+Lists all accepted friends.
+* **Access:** Protected
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "data": { "friends": [ { "id": "uuid", "username": "bobsmith", "fullName": "Bob" } ] } }
+  ```
+
+---
+
+### 5.4 Trip Management & Consensus API (`/api/trips`)
+
+Mounted at `/api/trips`.
+
+#### `POST /api/trips`
+Creates a trip group. Creator automatically becomes `admin` and `creator`.
+* **Access:** Protected
+* **Body:**
+  ```json
+  {
+    "name": "Goa Summer Getaway 2026",
+    "tripStartDate": "2026-10-15",
+    "tripEndDate": "2026-10-20",
+    "coverImageUrl": "https://ik.imagekit.io/..."
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  {
+    "status": "success",
+    "message": "Trip created successfully.",
+    "data": {
+      "trip": {
+        "id": "c1f7a-...",
+        "name": "Goa Summer Getaway 2026",
+        "chatRetentionDeadline": "2026-10-25T00:00:00.000Z",
+        "members": [ { "userId": "...", "role": "creator" } ]
+      }
+    }
+  }
+  ```
+
+#### `GET /api/trips`
+Returns trips belonging to the authenticated user.
+* **Access:** Protected
+* **Query Parameters:** `?status=upcoming|ongoing|completed|archived` (optional)
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "data": { "trips": [ ... ] } }
+  ```
+
+#### `GET /api/trips/:tripId`
+Fetches complete trip details including member list, roles, and consensus profile.
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "trip": {
+        "id": "c1f7a-...",
+        "name": "Goa Summer Getaway 2026",
+        "status": "planning",
+        "members": [ ... ],
+        "consensusProfile": { ... }
+      }
+    }
+  }
+  ```
+
+#### `POST /api/trips/:tripId/invite`
+Invites a user via direct friend invite, email, WhatsApp, or generates a join token.
+* **Access:** Trip Member / Admin
+* **Body:**
+  ```json
+  {
+    "inviteType": "link"
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "invite": {
+        "inviteToken": "e7b93a...",
+        "joinUrl": "https://wetravel.app/join/e7b93a..."
+      }
+    }
+  }
+  ```
+
+#### `POST /api/trips/join/:token`
+Joins a trip using an invite token.
+* **Access:** Protected
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "message": "Successfully joined trip." }
+  ```
+
+#### `GET /api/trips/:tripId/consensus`
+Views the group consensus profile (synthesized budget ceiling, hard constraints, travel style).
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "consensus": {
+        "computedBudgetRange": { "min": 20000, "max": 35000, "recommended": 28000 },
+        "hardConstraints": { "dietary": ["vegan", "veg"], "health": ["motion_sickness_bus"] },
+        "isLockedByAdmin": false
+      }
+    }
+  }
+  ```
+
+#### `PATCH /api/trips/:tripId/consensus`
+Admin manually overrides or locks the group consensus.
+* **Access:** Trip Admin Only
+* **Body:**
+  ```json
+  {
+    "computedBudgetRange": { "recommended": 30000 },
+    "isLockedByAdmin": true
+  }
+  ```
+
+#### `PATCH /api/trips/:tripId/members/:targetUserId/role`
+Promotes or demotes a member's role (`admin` or `member`).
+* **Access:** Trip Creator Only
+* **Body:** `{ "role": "admin" }`
+
+---
+
+### 5.5 Ephemeral Chat & In-Chat Polls API (`/api/trips/:tripId/chat`)
+
+Mounted at `/api/trips/:tripId/chat`. All messages are scoped to the trip.
+
+#### `GET /api/trips/:tripId/chat/messages`
+Retrieves chat history.
+* **Access:** Trip Member
+* **Query Parameters:** `?before=2026-10-15T12:00:00.000Z` (for cursor pagination)
+* **Response (200 OK):**
+  ```json
+  { "status": "success", "data": { "messages": [ { "id": "...", "content": "Hey team!", "sender": { ... } } ] } }
+  ```
+
+#### `GET /api/trips/:tripId/chat/imagekit-auth`
+Generates HMAC-SHA1 upload credentials for direct client-to-CDN media uploads.
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "token": "uuid",
+      "expire": 1769829392,
+      "signature": "a6b1...",
+      "publicKey": "...",
+      "urlEndpoint": "https://ik.imagekit.io/..."
+    }
+  }
+  ```
+
+#### `POST /api/trips/:tripId/chat/image`
+Confirms an ImageKit photo upload and persists it as an image chat message.
+* **Access:** Trip Member
+* **Body:** `{ "imageUrl": "https://ik.imagekit.io/...", "fileName": "sunset.jpg" }`
+
+#### `POST /api/trips/:tripId/chat/polls`
+Creates an in-chat voting poll.
+* **Access:** Trip Member
+* **Body:**
+  ```json
+  {
+    "question": "Which beach should we visit on Day 2?",
+    "options": ["Baga Beach", "Anjuna Beach", "Palolem Beach"]
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  { "status": "success", "data": { "poll": { "id": "poll_uuid", "question": "...", "options": [ ... ] } } }
+  ```
+
+#### `GET /api/trips/:tripId/chat/polls`
+Lists all active and closed polls in the trip.
+* **Access:** Trip Member
+
+#### `POST /api/trips/:tripId/chat/polls/:pollId/vote`
+Casts or updates a user vote on a poll option.
+* **Access:** Trip Member
+* **Body:** `{ "optionId": "option_uuid" }`
+
+#### `PATCH /api/trips/:tripId/chat/polls/:pollId/close`
+Closes a poll and fires a background call to FastAPI to embed the winning result into `interaction_embeddings`.
+* **Access:** Poll Creator or Trip Admin
+
+---
+
+### 5.6 Expense Vault & Settlement Engine API (`/api/trips/:tripId/expenses`)
+
+Mounted at `/api/trips/:tripId/expenses`.
+
+#### `GET /api/trips/:tripId/expenses/imagekit-auth`
+Returns HMAC credentials to upload receipt images.
+* **Access:** Trip Member
+
+#### `GET /api/trips/:tripId/expenses/summary/me`
+Personal financial snapshot: how much the authenticated user has paid vs. how much they owe.
+* **Access:** Self (Trip Member)
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "summary": {
+        "userId": "uuid",
+        "totalPaid": 4200.0,
+        "totalOwed": 2800.0,
+        "netBalance": 1400.0,
+        "status": "creditor"
+      }
+    }
+  }
+  ```
+
+#### `GET /api/trips/:tripId/expenses/ledger`
+Group ledger: per-member totals, total group spend, and net balances.
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "totalGroupSpend": 12600.0,
+      "memberBalances": [
+        { "userId": "alice_id", "fullName": "Alice", "totalPaid": 6000.0, "totalOwed": 3150.0, "netBalance": 2850.0 },
+        { "userId": "bob_id", "fullName": "Bob", "totalPaid": 1200.0, "totalOwed": 3150.0, "netBalance": -1950.0 }
+      ]
+    }
+  }
+  ```
+
+#### `POST /api/trips/:tripId/expenses`
+Creates an expense.
+* **Hybrid Auto-Approval:** Manual entries are auto-approved (`status: 'approved'`).
+* **Receipt OCR Flow:** If `receiptImageUrl` is passed without `amount`, status is `pending_approval` while the background AI extracts the amount. Once extracted, it auto-approves and creates equal splits among `splitMemberIds`.
+* **Access:** Any Trip Member
+* **Body (Manual Entry):**
+  ```json
+  {
+    "amount": 1500.00,
+    "description": "Seafood Dinner at Fisherman's Wharf",
+    "category": "food",
+    "splitMemberIds": ["alice_id", "bob_id", "charlie_id"]
+  }
+  ```
+* **Body (OCR Screenshot Entry):**
+  ```json
+  {
+    "receiptImageUrl": "https://ik.imagekit.io/wetravel/receipts/bill123.jpg",
+    "description": "Dinner Bill",
+    "category": "food",
+    "splitMemberIds": []
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  {
+    "status": "success",
+    "message": "Expense submitted and auto-approved.",
+    "data": { "expense": { "id": "exp_123", "amount": 1500.0, "status": "approved", "splits": [ ... ] } }
+  }
+  ```
+
+#### `GET /api/trips/:tripId/expenses`
+Lists all expenses.
+* **Query Parameters:** `?status=pending_approval|approved|rejected` (optional)
+* **Access:** Trip Member
+
+#### `GET /api/trips/:tripId/expenses/:expenseId`
+Fetches a single expense with its creator, approver, and split records.
+* **Access:** Trip Member
+
+#### `PUT /api/trips/:tripId/expenses/:expenseId`
+**Admin Override:** Admin modifies an expense (amount, description, category, or liable split members). Splits are automatically recalculated.
+* **Access:** Trip Admin Only
+* **Body:**
+  ```json
+  {
+    "amount": 1200.00,
+    "description": "Seafood Dinner (Excluding Charlie)",
+    "splitMemberIds": ["alice_id", "bob_id"]
+  }
+  ```
+
+#### `DELETE /api/trips/:tripId/expenses/:expenseId`
+**Admin Override:** Deletes an expense from the ledger. Splits cascade-delete.
+* **Access:** Trip Admin Only
+
+#### `POST /api/trips/:tripId/expenses/:expenseId/discuss`
+Shares a questioned expense directly into the trip chat with **automatic tagging of the payer (`@payer`)**.
+* **Access:** Trip Member
+* **Body:**
+  ```json
+  {
+    "message": "Hey Alice, was I charged for drinks here? I didn't drink alcohol."
+  }
+  ```
+* **What happens:**
+  1. Formats message: `@alice 🧾 Objection/Query regarding "Seafood Dinner" (Total: ₹1,500.00, My share: ₹500.00): "Hey Alice, was I charged for drinks here?"`
+  2. Saves record to `messages` table.
+  3. Broadcasts WebSocket event `message` (chat feed) and `EXPENSE_DISPUTED` (flags expense card).
+
+#### `GET /api/trips/:tripId/expenses/settlements`
+Fetches the current debt settlement plan (who pays whom).
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "settlements": [
+        {
+          "id": "set_1",
+          "payer": { "id": "bob_id", "fullName": "Bob" },
+          "payee": { "id": "alice_id", "fullName": "Alice" },
+          "amount": 1950.0,
+          "status": "pending"
+        }
+      ]
+    }
+  }
+  ```
+
+#### `POST /api/trips/:tripId/expenses/settlements/calculate`
+Runs the **Greedy Min-Cash-Flow Algorithm** to calculate and store the optimal debt settlement plan.
+* **Access:** Trip Admin Only
+
+#### `PATCH /api/trips/:tripId/expenses/settlements/:settlementId/complete`
+Marks an individual debt transaction as settled.
+* **Access:** Payer or Trip Admin
+
+---
+
+### 5.7 Structured Itinerary Engine API (`/api/trips`)
+
+Mounted at `/api/trips`.
+
+#### `POST /api/trips/:tripId/itinerary/generate`
+Admin triggers multi-variant itinerary generation. Node.js calls FastAPI (`/api/ai/itinerary/generate`), which retrieves transit, lodging budget windows, and destination catalog matches.
+* **Access:** Trip Admin Only
+* **Response (201 Created):** Returns generated variants (`optimal`, `budget_flex_20`, `duration_extend_2d`, `night_travel`, `budget_strict`).
+
+#### `GET /api/trips/:tripId/itineraries`
+Lists all generated itinerary versions for the trip.
+* **Access:** Trip Member
+
+#### `GET /api/trips/:tripId/itineraries/:id`
+Retrieves day-by-day itinerary schedule with morning, afternoon, and evening slots.
+* **Access:** Trip Member
+
+#### `PATCH /api/trips/:tripId/itineraries/:id/select`
+Admin selects a specific variant as the **active master plan**.
+* **Access:** Trip Admin Only
+
+#### `POST /api/trips/:tripId/itineraries/:id/suggest`
+Admin requests a re-generation with specific custom constraints.
+* **Access:** Trip Admin Only
+* **Body:** `{ "customConstraints": "Avoid long bus rides, add more beach cafes." }`
+
+#### `POST /api/trips/:tripId/itineraries/mishap`
+**Mishap Recovery:** Any member reports a missed transport connection or delayed flight. FastAPI dynamically shifts subsequent activities, checks alternative schedules, and returns a repaired timeline.
+* **Access:** Trip Member
+* **Body:**
+  ```json
+  {
+    "missedItemId": "item_uuid",
+    "currentTime": "2026-10-16T14:30:00Z",
+    "notes": "Train 12051 was missed due to traffic delay."
+  }
+  ```
+
+---
+
+### 5.8 Post-Trip Memory Vault API (`/api/trips/:tripId/memories`)
+
+Mounted at `/api/trips/:tripId/memories`. **Photos in this vault are permanently preserved.**
+
+#### `GET /api/trips/:tripId/memories/imagekit-auth`
+Generates direct CDN upload credentials for photo files.
+* **Access:** Trip Member
+
+#### `POST /api/trips/:tripId/memories`
+Uploads one or multiple photos to the Memory Vault. Automatically extracts EXIF date and GPS coordinates via `exifr`, cross-references scheduled activities in `itinerary_items`, and scores highlight relevance.
+* **Access:** Trip Member
+* **Body:**
+  ```json
+  {
+    "photos": [
+      {
+        "mediaUrl": "https://ik.imagekit.io/wetravel/memories/baga_crew.jpg",
+        "thumbnailUrl": "https://ik.imagekit.io/wetravel/memories/tr:w-300/baga_crew.jpg",
+        "caption": "Sunset at Baga Beach with the crew!",
+        "locationTag": "Baga Beach",
+        "latitude": 15.5523,
+        "longitude": 73.7517,
+        "capturedAt": "2026-10-15T18:30:00Z"
+      }
+    ]
+  }
+  ```
+* **Response (201 Created):**
+  ```json
+  {
+    "status": "success",
+    "message": "1 photo(s) added to the Memory Vault.",
+    "data": {
+      "memories": [
+        {
+          "id": "mem_uuid",
+          "mediaUrl": "https://ik.imagekit.io/...",
+          "aiHighlight": true,
+          "highlightScore": 0.85
+        }
+      ]
+    }
+  }
+  ```
+
+#### `GET /api/trips/:tripId/memories`
+Fetches all photos grouped chronologically by trip day (`Day 1`, `Day 2`), along with a curated highlight list.
+* **Access:** Trip Member
+* **Response (200 OK):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "totalMemories": 45,
+      "highlightsCount": 8,
+      "highlights": [ ... ],
+      "timeline": [
+        {
+          "dayNumber": 1,
+          "date": "2026-10-15",
+          "totalPhotos": 18,
+          "photos": [ ... ]
+        }
+      ]
+    }
+  }
+  ```
+
+#### `GET /api/trips/:tripId/memories/highlights`
+Returns only curated highlight photos for story/reel playback.
+* **Access:** Trip Member
+
+#### `PATCH /api/trips/:tripId/memories/:memoryId/highlight`
+Manually stars or unstars a photo as a highlight.
+* **Access:** Trip Member
+* **Body:** `{ "isHighlight": true }`
+
+#### `DELETE /api/trips/:tripId/memories/:memoryId`
+Deletes a photo.
+* **Access:** Photo Uploader or Trip Admin
+
+---
+
+### 5.9 FastAPI AI Microservice API (Port 8000)
+
+Internal service endpoints called by Node.js or verified mobile clients.
+
+#### `GET /health`
+Returns service status.
+* **Response (200 OK):** `{"status": "online", "service": "WeTravel AI Engine", "version": "2.0.0"}`
+
+#### `POST /api/ai/embeddings/preferences`
+Embeds a user profile using `all-MiniLM-L6-v2` and writes the 384-dimensional vector directly to `user_profiles.preference_vector` in Postgres.
+
+#### `POST /api/ai/consensus/group-preference`
+Computes the normalized centroid vector from all group member vectors and writes it to `group_consensus_profiles.consensus_vector`.
+
+#### `POST /api/ai/embeddings/interaction`
+Embeds a poll result summary text and writes to `interaction_embeddings`.
+
+#### `POST /api/ai/ocr/receipt`
+Accepts a receipt image CDN URL. Runs Tesseract OCR on CPU, executes regex extraction for payment totals, guesses expense category, stores a context embedding, and returns `{ "amount": 1450.0, "category": "food" }`.
+
+#### `POST /api/ai/itinerary/generate`
+Generates 5 constraint-filtered, proximity-sorted itinerary variants.
+
+#### `POST /api/ai/itinerary/recover`
+Recovers itinerary timeline after a missed travel event.
+
+---
+
+## 6. Real-Time WebSocket Protocol
+
+### 6.1 Connection Handshake
+Clients connect over standard WebSockets with authentication query parameters:
+```text
+ws://localhost:3000/ws?token=<JWT_ACCESS_TOKEN>&tripId=<TRIP_UUID>
+```
+* The server validates the JWT using `JWT_SECRET`.
+* Connections are automatically joined to an isolated room corresponding to `tripId`.
+
+### 6.2 Client-to-Server Event Payloads
+Clients send JSON strings:
+
+#### Send Text Message
+```json
+{
+  "type": "message",
+  "content": "Hey everyone, let's meet at the lobby at 9 AM!"
+}
+```
+
+#### Confirm Image Upload
+```json
+{
+  "type": "image",
+  "imageUrl": "https://ik.imagekit.io/wetravel/photos/lobby.jpg",
+  "fileName": "lobby.jpg"
+}
+```
+
+#### Typing Indicator
+```json
+{
+  "type": "typing"
+}
+```
+
+### 6.3 Server-to-Client Broadcast Events
+
+| Event Type | Trigger | Key Payload Fields |
+| :--- | :--- | :--- |
+| `message` | User sends chat text or photo | `{ id, sender, content, imageUrl, createdAt, expenseContext }` |
+| `typing` | Member is typing in chat | `{ userId, fullName }` |
+| `poll_created` | Member creates in-chat poll | `{ poll: { id, question, options } }` |
+| `poll_vote_cast` | Member votes on option | `{ pollId, optionId, userId }` |
+| `poll_closed` | Admin or creator closes poll | `{ pollId, status: "closed" }` |
+| `EXPENSE_OCR_COMPLETED` | AI completes receipt scan | `{ expense: { id, amount, status: "approved", splits } }` |
+| `EXPENSE_UPDATED` | Admin modifies amount/splits | `{ expense: { id, amount, splits }, updatedBy }` |
+| `EXPENSE_DELETED` | Admin removes expense | `{ expenseId, deletedBy }` |
+| `EXPENSE_DISPUTED` | Member queries payment | `{ expenseId, disputedBy, payer, note }` |
+| `NEW_MEMORIES_UPLOADED` | Photos added to vault | `{ count, uploadedBy, memories }` |
+| `MEMORY_HIGHLIGHT_TOGGLED`| Photo starred/unstarred | `{ memoryId, aiHighlight }` |
+| `MEMORY_DELETED` | Photo removed from vault | `{ memoryId }` |
+
+---
+
+## 7. Core Algorithmic Engines
+
+### 7.1 Group Consensus Modeling (Centroid Math)
+Individual preference vectors $\vec{v}_i \in \mathbb{R}^{384}$ are generated by local sentence-transformers. The group consensus vector $\vec{C}$ is calculated as the normalized centroid:
+
+$$\vec{C} = \frac{\sum_{i=1}^{N} \vec{v}_i}{\left\| \sum_{i=1}^{N} \vec{v}_i \right\|}$$
+
+This centroid maximizes the average cosine similarity across all group members:
+
+$$\arg\max_{\vec{C}} \frac{1}{N} \sum_{i=1}^{N} \cos(\vec{C}, \vec{v}_i)$$
+
+FastAPI searches destination catalogs using cosine distance operator `<=>`:
 ```sql
-SELECT id FROM trip_groups 
-WHERE CURRENT_DATE > chat_retention_deadline 
-  AND preserve_chat = false;
-
-```
-
-
-3. **Storage Cleanup:** For matching trips, the worker scans local disk storage (`/storage/receipts/{group_id}`) and removes receipt screenshots using `fs.promises.unlink`.
-
-
-4. **Message Deletion:** Prisma deletes all records in `messages` associated with those `group_id` values.
-
-
-5. **Context Preservation:** Financial records (`expenses`, `expense_splits`, `settlements`), the photo gallery (`trip_memories`), the scheduled plan (`itineraries`), and semantic embeddings (`interaction_embeddings`) are **never deleted**, preserving trip history without retaining raw chat messages.
-
-
-
----
-
-## 9. Client Application Information Architecture
-
-The client application (built with React Native or Flutter) uses a two-hub information architecture: a **Profile Hub** for personal configuration and a **Trips Hub** for trip coordination.
-
-```
-================================================================================
-                    CLIENT WORKSPACE ARCHITECTURE (2-HUB)
-================================================================================
-
-[App Launch / JWT Check]
-       │
-       ▼
-[Main Navigation Bar]
-       │
-       ├──► [1. PROFILE HUB]
-       │        ├── User Details & Identity
-       │        ├── Travel Persona (Diet, Pace, Budget Tier)
-       │        ├── Health & Climate Constraints (Motion Sickness, Heat Sensitivities)
-       │        └── Friends Management
-       │                 ├── Active Friends List
-       │                 ├── Search & Add Users
-       │                 └── Pending Friend Invitations
-       │
-       └──► [2. TRIPS HUB]
-                ├── "Create Trip" Action
-                │        ├── Add from Friends List
-                │        └── Generate Shareable Link / Invitation Code
-                ├── Status-Filtered Trip Lists:
-                │        ├── Upcoming (Planning / Dates in Future)
-                │        ├── Happening (Active / En Route)
-                │        └── Completed (Finished / In Archive)
-                └── Selected Trip Workspace (State: Upcoming | Happening | Completed)
-                         │
-                         ├──► [Tab 1: Chat Hub]
-                         │        ├── Realtime Chat & WebSockets
-                         │        ├── In-Chat Polls (All members vote)
-                         │        ├── Ephemeral Alert Banner (5-day purge warning)
-                         │        └── (If Completed):
-                         │                 ├── Memory Vault (Shared photo grid)
-                         │                 └── Saved Chat Archive (If preserved)
-                         │
-                         ├──► [Tab 2: Group Preferences]
-                         │        ├── Auto-computed by AI (Aggregated preferences)
-                         │        ├── Visible to ALL group members
-                         │        └── [Admin Only]: Edit / Override / Lock
-                         │
-                         ├──► [Tab 3: Itinerary Space]
-                         │        ├── Master Day-wise Plan & Transit Routes
-                         │        └── [Admin Only Actions]:
-                         │                 ├── Trigger AI Generation (Controls costs)
-                         │                 └── Edit & Publish Changes
-                         │
-                         └──► [Tab 4: Expense Vault]
-                                  ├── Expense Ledger (Manual & OCR parsed entries)
-                                  ├── Add Expense (+) (Accessible to all members)
-                                  ├── [Admin Only]: Approve / Reject Submissions
-                                  └── (If Completed):
-                                           └── Final Settlements (Debt minimization)
-================================================================================
-
+SELECT id, name, avg_daily_cost, (destination_vector <=> :consensus_vector) AS distance
+FROM destinations_catalog
+ORDER BY distance ASC
+LIMIT 10;
 ```
 
 ---
 
-## 10. Node.js to FastAPI Inter-Service Communication Contract
+### 7.2 Greedy Min-Cash-Flow Settlement Algorithm
+At the end of a trip, pairwise transaction reconciliation can result in circular debt (e.g., A owes B, B owes C, C owes A).
 
-All inter-service communication over the private Docker network uses structured JSON or multipart form payloads with shared internal token headers (`X-Internal-Token`).
+1. For every member $i$, compute net balance:
+   $$\text{netBalance}_i = \text{totalPaid}_i - \text{totalOwed}_i$$
+   * $\sum_{i=1}^{N} \text{netBalance}_i = 0$ *(Zero-sum invariant guaranteed)*
+2. Separate members into two priority heaps:
+   - **Creditors:** Members with $\text{netBalance} > 0$, sorted descending by credit.
+   - **Debtors:** Members with $\text{netBalance} < 0$, sorted descending by absolute debt.
+3. Greedily match the largest debtor with the largest creditor:
+   $$\text{settledAmount} = \min(\text{credit}_{\max}, \text{debt}_{\max})$$
+4. Record transaction: `Debtor pays Creditor settledAmount`.
+5. Deduct from balances and repeat until all debts reach $0.00$.
 
-| Internal Endpoint | Method | Node.js Payload | FastAPI Processing & Database Impact | Response to Node.js |
-| --- | --- | --- | --- | --- |
-| `/api/v1/internal/embeddings/user`<br> | `POST`<br> | `JSON: { userId, rawText, constraints }`<br> | Computes embedding; updates `user_profiles.preference_vector` via SQLAlchemy.
-
- | `{ "success": true }`<br> |
-| `/api/v1/internal/embeddings/consensus`<br> | `POST`<br> | `JSON: { groupId, members: [...] }`<br> | Computes group centroid; updates `group_consensus_profiles.consensus_vector`.
-
- | `{ "success": true }`<br> |
-| `/api/v1/internal/embeddings/interaction`<br> | `POST`<br> | `JSON: { groupId, pollId, summaryText }`<br> | Computes vector; inserts into `interaction_embeddings` and updates `polls.poll_vector`.
-
- | `{ "success": true }`<br> |
-| `/api/v1/internal/ocr/receipt`<br> | `POST`<br> | `Multipart: file (bytes), groupId, expenseId`<br> | Runs PaddleOCR + regex; inserts summary into `interaction_embeddings`.
-
- | `{ "amount": float, "currency": str, "category": str, "metadata": dict }`<br> |
-| `/api/v1/internal/itinerary/plan`<br> | `POST`<br> | `JSON: { groupId }`<br> | Queries catalog via `<=>` distance; checks live transit APIs; returns schedule.
-
- | `{ "days": [ { "day": 1, "items": [...] } ] }`<br> |
+> **Result:** Resolves an $N$-person debt graph in at most $N-1$ transactions.
 
 ---
 
-## 11. Operational Guardrails
+### 7.3 Multimodal Receipt OCR Pipeline
+1. Client uploads receipt screenshot to ImageKit CDN.
+2. Node.js sends fire-and-forget POST to FastAPI `/api/ai/ocr/receipt`.
+3. Image buffer is decoded into grayscale.
+4. Line detection isolates numerical totals using regex patterns accommodating Indian and international markers:
+   ```python
+   _AMOUNT_RE = re.compile(
+       r'(?:[₹]|Rs\.?|INR|Total|Grand\s*Total|Amount\s*Paid|Net\s*Amount|Paid)'
+       r'\s*:?\s*([0-9]{1,6}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)',
+       re.IGNORECASE,
+   )
+   ```
+5. Returns extracted numerical value. Node.js updates expense record to `approved`, creates equal splits, and emits `EXPENSE_OCR_COMPLETED` over WebSockets.
 
-1. **Single Vector Authority:** Node.js never interacts directly with vector columns (`preference_vector`, `consensus_vector`, `destination_vector`, `poll_vector`). All vector operations are isolated to FastAPI using SQLAlchemy and `pgvector`.
+---
 
-
-2. **Deterministic Financial Extractions:** Receipt OCR uses deterministic line detection and regex patterns for numerical totals, avoiding generative hallucination risks.
-
-
-3. **Restricted Itinerary Generation:** Only trip creators and admins can trigger itinerary builds, preventing excess API usage and resource exhaustion.
-
-
-4. **Two-Tier Expense Approval:** User-submitted and OCR-parsed expenses remain in a `pending_approval` state until verified by an admin, ensuring the ledger remains accurate before calculating final settlements[cite: 1, 2, 3].
-5. **Decoupled Chat & Context Retention:** When the 5-day retention deadline expires, raw chat rows are purged, but their mathematical embeddings (`interaction_embeddings`) are preserved, maintaining group context for future trips[cite: 1, 2, 3].
+### 7.4 Algorithmic Memory Highlight Scoring
+100% internal logic running on local server CPU:
+* **EXIF Metadata Parsing:** Extracts binary camera headers (`DateTimeOriginal`, GPS coordinates) in ~2ms using `exifr`.
+* **Heuristic Scoring Function ($0.0 \to 1.0$):**
+  - Base score: `0.50`
+  - Descriptive user caption: `+0.15`
+  - Location or GPS tag: `+0.10`
+  - Matches scheduled itinerary activity: `+0.15`
+* Photos with `highlightScore >= 0.70` automatically become `aiHighlight = true` and populate the top story reel.

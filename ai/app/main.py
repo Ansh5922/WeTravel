@@ -4,12 +4,7 @@ from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
 from app.api.routes.itinerary import router as itinerary_router
-from app.api.routes.ocr      import router as ocr_router
-
-"""
-WeTravel AI Engine — FastAPI entry point.
-Architecture: Client → Routes → Middleware → Controllers → Services → Repositories → DB
-"""
+from app.api.routes.ocr import router as ocr_router
 
 app = FastAPI(
     title="WeTravel AI Engine",
