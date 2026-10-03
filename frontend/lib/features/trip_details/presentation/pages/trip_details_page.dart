@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
 class TripDetailsPage extends StatelessWidget {
-  const TripDetailsPage({super.key});
+  final String tripId;
+
+  const TripDetailsPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TripDetails'),
+        title: const Text('Trip Details'),
       ),
-      body: const Center(
-        child: Text('TripDetails Screen Placeholder'),
+      body: Center(
+        child: Text('Trip Details ($tripId)'),
       ),
     );
   }

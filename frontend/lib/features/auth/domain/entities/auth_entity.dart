@@ -1,5 +1,6 @@
-class AuthEntity {
-  final String? id;
+import 'user_entity.dart';
 
-  const AuthEntity({this.id});
-}
+export 'user_entity.dart';
+export 'auth_response_entity.dart';
+
+typedef AuthEntity = UserEntity;

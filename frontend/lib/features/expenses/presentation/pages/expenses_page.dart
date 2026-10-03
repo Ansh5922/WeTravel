@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class ExpensesPage extends StatelessWidget {
-  const ExpensesPage({super.key});
+  final String tripId;
+
+  const ExpensesPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -9,8 +14,8 @@ class ExpensesPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Expenses'),
       ),
-      body: const Center(
-        child: Text('Expenses Screen Placeholder'),
+      body: Center(
+        child: Text('Expenses ($tripId)'),
       ),
     );
   }

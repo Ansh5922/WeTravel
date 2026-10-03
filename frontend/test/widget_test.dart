@@ -10,6 +10,9 @@ void main() {
       ),
     );
 
+    // Allow startup initialization timers to complete
+    await tester.pump(const Duration(milliseconds: 350));
+
     expect(find.byType(WeTravelApp), findsOneWidget);
   });
 }
