@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class PollsPage extends StatelessWidget {
-  const PollsPage({super.key});
+  final String tripId;
+
+  const PollsPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -9,8 +14,8 @@ class PollsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Polls'),
       ),
-      body: const Center(
-        child: Text('Polls Screen Placeholder'),
+      body: Center(
+        child: Text('Polls ($tripId)'),
       ),
     );
   }

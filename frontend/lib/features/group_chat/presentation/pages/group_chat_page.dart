@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
 class GroupChatPage extends StatelessWidget {
-  const GroupChatPage({super.key});
+  final String tripId;
+
+  const GroupChatPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GroupChat'),
+        title: const Text('Group Chat'),
       ),
-      body: const Center(
-        child: Text('GroupChat Screen Placeholder'),
+      body: Center(
+        child: Text('Group Chat ($tripId)'),
       ),
     );
   }

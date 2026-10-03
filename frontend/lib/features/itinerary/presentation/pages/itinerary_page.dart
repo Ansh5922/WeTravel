@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class ItineraryPage extends StatelessWidget {
-  const ItineraryPage({super.key});
+  final String tripId;
+
+  const ItineraryPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -9,8 +14,8 @@ class ItineraryPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Itinerary'),
       ),
-      body: const Center(
-        child: Text('Itinerary Screen Placeholder'),
+      body: Center(
+        child: Text('Itinerary ($tripId)'),
       ),
     );
   }

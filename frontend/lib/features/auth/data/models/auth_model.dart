@@ -1,17 +1,6 @@
-import '../../domain/entities/auth_entity.dart';
+import 'user_model.dart';
 
-class AuthModel extends AuthEntity {
-  const AuthModel({super.id});
+export 'user_model.dart';
+export 'auth_response_model.dart';
 
-  factory AuthModel.fromJson(Map<String, dynamic> json) {
-    return AuthModel(
-      id: json['id'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-    };
-  }
-}
+typedef AuthModel = UserModel;

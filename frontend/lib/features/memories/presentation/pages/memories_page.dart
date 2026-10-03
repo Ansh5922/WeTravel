@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class MemoriesPage extends StatelessWidget {
-  const MemoriesPage({super.key});
+  final String tripId;
+
+  const MemoriesPage({
+    super.key,
+    required this.tripId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -9,8 +14,8 @@ class MemoriesPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Memories'),
       ),
-      body: const Center(
-        child: Text('Memories Screen Placeholder'),
+      body: Center(
+        child: Text('Memories ($tripId)'),
       ),
     );
   }
