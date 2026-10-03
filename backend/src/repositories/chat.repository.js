@@ -1,10 +1,10 @@
 const prisma = require('./prisma.client');
 
+// Chat repository for messages, polls, and message retention
 
 const PAGE_SIZE = 50;
 
-// ── Messages ────────────────────────────────────────────────────────────────
-
+// Get paginated messages for a trip group
 const getMessages = async (groupId, before = null) => {
   return prisma.message.findMany({
     where: {
@@ -19,6 +19,7 @@ const getMessages = async (groupId, before = null) => {
   });
 };
 
+// Save a new chat message to database
 const saveMessage = async ({ groupId, senderId, messageType, content, imageUrl = null, pollId = null }) => {
   return prisma.message.create({
     data: { groupId, senderId, messageType, content, imageUrl, pollId },
@@ -28,8 +29,7 @@ const saveMessage = async ({ groupId, senderId, messageType, content, imageUrl =
   });
 };
 
-// ── Polls ───────────────────────────────────────────────────────────────────
-
+// Create a new poll with options
 const createPoll = async ({ groupId, createdBy, question, options }) => {
   return prisma.poll.create({
     data: {
@@ -44,6 +44,7 @@ const createPoll = async ({ groupId, createdBy, question, options }) => {
   });
 };
 
+// Get a poll by ID with options and votes
 const getPollById = async (pollId) => {
   return prisma.poll.findUnique({
     where: { id: pollId },
@@ -55,6 +56,7 @@ const getPollById = async (pollId) => {
   });
 };
 
+// Get all polls for a trip group
 const getPollsByGroup = async (groupId) => {
   return prisma.poll.findMany({
     where: { groupId },
@@ -66,8 +68,8 @@ const getPollsByGroup = async (groupId) => {
   });
 };
 
+// Record or update a user's vote on a poll
 const castVote = async ({ pollId, optionId, userId }) => {
-  // Upsert: one vote per user per poll (update if they re-vote)
   const existing = await prisma.pollVote.findFirst({ where: { pollId, userId } });
   if (existing) {
     return prisma.pollVote.update({
@@ -78,6 +80,7 @@ const castVote = async ({ pollId, optionId, userId }) => {
   return prisma.pollVote.create({ data: { pollId, optionId, userId } });
 };
 
+// Close an active poll
 const closePoll = async (pollId) => {
   return prisma.poll.update({
     where: { id: pollId },
@@ -89,12 +92,12 @@ const closePoll = async (pollId) => {
   });
 };
 
+// Delete a user's vote from a poll
 const deletePollUserVote = async (pollId, userId) => {
   return prisma.pollVote.deleteMany({ where: { pollId, userId } });
 };
 
-// ── Retention ───────────────────────────────────────────────────────────────
-
+// Delete expired chat messages for non-preserved trips
 const deleteExpiredMessages = async () => {
   const now = new Date();
   const expiredGroups = await prisma.tripGroup.findMany({

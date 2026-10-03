@@ -1,14 +1,7 @@
 const cron = require('node-cron');
 const chatRepo = require('../repositories/chat.repository');
 
-/**
- * Chat Retention Cron — WeTravel Backend
- * Runs daily at 02:00 AM.
- * Deletes messages for trips where:
- *   - chatRetentionDeadline has passed
- *   - preserveChat is false (no premium member in trip)
- */
-
+// Schedule daily 02:00 AM cron to delete expired chat messages for non-preserved trips
 const startChatRetentionCron = () => {
   cron.schedule('0 2 * * *', async () => {
     console.log('[CRON] Running chat retention cleanup...');

@@ -3,11 +3,6 @@ from datetime import date, datetime
 from app.services import travel_api_service as travel
 from app.services import scheduler_service as scheduler
 
-"""
-Itinerary Service — WeTravel AI Backend
-Layer: Service (main orchestrator for itinerary generation and mishap recovery)
-"""
-
 
 async def generate_itineraries(
     *,
@@ -20,30 +15,21 @@ async def generate_itineraries(
     group_stats: dict,
     constraints: dict,
 ) -> list[dict]:
-    """
-    Orchestrates the full itinerary generation pipeline:
-      1. Parse dates
-      2. Fetch trains, buses, hotels in parallel
-      3. Generate 5 variants using the scheduler
-    """
+    # Orchestrate parallel travel data fetching and multi-variant itinerary generation
     s_date = date.fromisoformat(start_date)
     e_date = date.fromisoformat(end_date)
 
     if e_date <= s_date:
         raise ValueError("end_date must be after start_date.")
 
-    # Date format for RailwayAPI: YYYYMMDD
     dep_date_fmt = s_date.strftime("%Y%m%d")
-    ret_date_fmt = e_date.strftime("%Y%m%d")
 
-    # Budget for hotel filter (per night cap = group_avg per day)
     budget_avg = _safe_float(
         (group_stats or {}).get("budget", {}).get("group_avg") or
         (group_stats or {}).get("budget", {}).get("group_avg"),
         default=2000
     )
 
-    # Fetch travel data in parallel
     trains, buses, hotels = await asyncio.gather(
         travel.fetch_trains(origin, destination, dep_date_fmt),
         travel.fetch_buses(origin, destination, dep_date_fmt),
@@ -59,7 +45,6 @@ async def generate_itineraries(
     if not hotels:
         raise RuntimeError("No hotels found for the destination and dates provided.")
 
-    # Generate variants
     variants = scheduler.generate_variants(
         start_date=s_date,
         end_date=e_date,
@@ -82,29 +67,23 @@ async def recover_itinerary(
     missed_item_id: str,
     current_time: str,
 ) -> dict:
-    """
-    Mishap recovery: re-schedules remaining trip after a missed transport.
-    """
+    # Reschedule itinerary items dynamically when a transport event is missed
     current_dt = datetime.fromisoformat(current_time)
 
-    # Flatten all items from the itinerary
     all_items = []
     for day in itinerary.get("items", []):
         all_items.append(day)
 
-    # Find the missed item to determine the route and fetch next available transport
     missed_item = next((i for i in all_items if str(i.get("id", "")) == missed_item_id), None)
 
     next_transport = None
     if missed_item and missed_item.get("transitMode") in ("train", "bus"):
-        # Try to fetch next available transport for today
         dep_date_fmt = current_dt.strftime("%Y%m%d")
         trains, buses = await asyncio.gather(
             travel.fetch_trains("", itinerary.get("destination", ""), dep_date_fmt),
             travel.fetch_buses("", itinerary.get("destination", ""), dep_date_fmt),
         )
         all_transport = trains + buses
-        # Pick the next transport departing after current time
         current_time_str = current_dt.strftime("%H:%M")
         next_transport = next(
             (t for t in all_transport if (t.get("departureTime") or "00:00") > current_time_str),
@@ -143,6 +122,7 @@ async def recover_itinerary(
 
 
 def _group_items_by_day(items: list[dict]) -> list[dict]:
+    # Group flat list of itinerary items by day number
     days_map = {}
     for item in items:
         day_num = item.get("dayNumber", 1)
@@ -154,6 +134,7 @@ def _group_items_by_day(items: list[dict]) -> list[dict]:
 
 
 def _safe_float(val, default: float = 0.0) -> float:
+    # Safely convert value to float with fallback
     try:
         return float(val)
     except (TypeError, ValueError):

@@ -1,12 +1,8 @@
 const tripService = require('../services/trip.service');
 
-/**
- * Trip Controller
- * Responsibility: HTTP request/response handling for trip endpoints.
- * Architecture layer: Controller
- */
+// Trip controller handling group trips, invitations, roles, and consensus
 
-/** POST /api/trips */
+// POST /api/trips
 const createTrip = async (req, res, next) => {
   try {
     const { name, tripStartDate, tripEndDate, coverImageUrl } = req.body;
@@ -18,7 +14,7 @@ const createTrip = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips  — optional ?status=upcoming|ongoing|completed */
+// GET /api/trips — optional ?status=upcoming|ongoing|completed
 const getMyTrips = async (req, res, next) => {
   try {
     const trips = await tripService.getMyTrips(req.user.id, req.query.status);
@@ -26,7 +22,7 @@ const getMyTrips = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/:tripId */
+// GET /api/trips/:tripId
 const getTripDetails = async (req, res, next) => {
   try {
     const trip = await tripService.getTripDetails(req.user.id, req.params.tripId);
@@ -34,7 +30,7 @@ const getTripDetails = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/trips/:tripId/invite */
+// POST /api/trips/:tripId/invite
 const inviteMember = async (req, res, next) => {
   try {
     const { type, friendId, email, phone } = req.body;
@@ -48,7 +44,7 @@ const inviteMember = async (req, res, next) => {
 
     const invite = await tripService.inviteMember(req.user.id, req.params.tripId, { type, friendId, email, phone });
 
-    // Build the shareable join URL (frontend deep link)
+    // Build the shareable join URL
     const joinUrl = `${process.env.APP_BASE_URL || 'https://wetravel.app'}/trips/join/${invite.inviteToken}`;
 
     res.status(201).json({
@@ -61,7 +57,7 @@ const inviteMember = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/trips/join/:token */
+// POST /api/trips/join/:token
 const joinViaToken = async (req, res, next) => {
   try {
     const result = await tripService.joinViaToken(req.user.id, req.params.token);
@@ -69,7 +65,7 @@ const joinViaToken = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** PATCH /api/trips/invites/:inviteId */
+// PATCH /api/trips/invites/:inviteId
 const respondToInvite = async (req, res, next) => {
   try {
     const { action } = req.body;
@@ -81,7 +77,7 @@ const respondToInvite = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/:tripId/invites */
+// GET /api/trips/:tripId/invites
 const getTripInvites = async (req, res, next) => {
   try {
     const invites = await tripService.getTripInvites(req.user.id, req.params.tripId);
@@ -89,7 +85,7 @@ const getTripInvites = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/invites/me */
+// GET /api/trips/invites/me
 const getMyInvites = async (req, res, next) => {
   try {
     const invites = await tripService.getMyInvites(req.user.id);
@@ -97,7 +93,7 @@ const getMyInvites = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/:tripId/consensus */
+// GET /api/trips/:tripId/consensus
 const getConsensus = async (req, res, next) => {
   try {
     const consensus = await tripService.getConsensus(req.user.id, req.params.tripId);
@@ -105,7 +101,7 @@ const getConsensus = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** PATCH /api/trips/:tripId/consensus  — admin only */
+// PATCH /api/trips/:tripId/consensus — admin only
 const updateConsensus = async (req, res, next) => {
   try {
     const { computedBudgetRange, hardConstraints } = req.body;
@@ -117,7 +113,7 @@ const updateConsensus = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** PATCH /api/trips/:tripId/members/:targetUserId/role  — admin only */
+// PATCH /api/trips/:tripId/members/:targetUserId/role — admin only
 const assignRole = async (req, res, next) => {
   try {
     const { role } = req.body;

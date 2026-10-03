@@ -1,26 +1,11 @@
 const tripRepository   = require('../repositories/trip.repository');
 const friendRepository = require('../repositories/friend.repository');
 
-/**
- * Trip Service
- * Responsibility: Business logic for trip creation, membership, invites,
- *                 group consensus profiles, and member role management.
- * Architecture layer: Service
- */
+// Trip service handling trip groups, memberships, invitations, and consensus sync
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
-// ── Fire-and-Forget: Group Preference Computation ─────────────────────────────
-/**
- * Trigger the AI server in the background to (re-)compute the group preference
- * vector using cosine-similarity averaging of all members' individual vectors.
- *
- * Called:
- *  - After trip creation  (just the admin's vector → initial consensus)
- *  - After any member joins the trip  (all members recomputed)
- *
- * Node.js DOES NOT wait for this. The HTTP response was already sent.
- */
+// Trigger AI server in background to recompute group preference consensus
 const triggerGroupPreference = (tripId, memberIds, internalToken) => {
   fetch(`${AI_SERVICE_URL}/api/ai/consensus/group-preference`, {
     method:  'POST',
@@ -38,15 +23,13 @@ const triggerGroupPreference = (tripId, memberIds, internalToken) => {
     .catch((err) => console.error(`[Group Preference] Network error for trip ${tripId}:`, err.message));
 };
 
-/** Build a short-lived internal JWT signed with the shared secret. */
+// Build a short-lived internal JWT signed with shared secret
 const makeInternalToken = (userId) => {
   const jwt = require('jsonwebtoken');
   return jwt.sign({ sub: userId, internal: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
 };
 
-// ── Trip CRUD ─────────────────────────────────────────────────────────────────
-
-/** Create a new trip. Creator is automatically added as admin. */
+// Create a new trip; creator is automatically assigned admin role
 const createTrip = async (userId, data) => {
   const trip = await tripRepository.createTrip(userId, data);
 
@@ -57,18 +40,14 @@ const createTrip = async (userId, data) => {
   return trip;
 };
 
-/**
- * Get trips the authenticated user belongs to.
- * @param {string} status - 'upcoming' | 'ongoing' | 'completed' | undefined (all)
- */
+// Get trips the authenticated user belongs to
 const getMyTrips = async (userId, status) => {
-  // Map friendly names → Prisma TripStatus enum values
   const STATUS_MAP = { upcoming: 'planning', ongoing: 'ongoing', completed: 'completed' };
   const prismaStatus = STATUS_MAP[status] || undefined;
   return tripRepository.getUserTrips(userId, prismaStatus);
 };
 
-/** Get trip details including members. */
+// Get trip details including members
 const getTripDetails = async (userId, tripId) => {
   const trip = await tripRepository.findTripById(tripId);
   if (!trip) {
@@ -87,18 +66,7 @@ const getTripDetails = async (userId, tripId) => {
   return trip;
 };
 
-/**
- * Invite someone to a trip.
- *
- * Types:
- *  - 'friend'   → invite by friendId (must be friends with inviter)
- *  - 'email'    → invite by email address (generates shareable token)
- *  - 'whatsapp' → invite by phone number (generates shareable token)
- *  - 'link'     → generate a shareable join link (no specific recipient)
- *
- * Returns the invite record. For link/email/whatsapp also returns the `inviteToken`
- * which the client uses to build the shareable URL.
- */
+// Invite someone to a trip via friend, email, whatsapp, or shareable link
 const inviteMember = async (inviterId, tripId, { type, friendId, email, phone }) => {
   // 1. Verify inviter is a member of the trip
   const membership = await tripRepository.findMembership(inviterId, tripId);
@@ -146,10 +114,7 @@ const inviteMember = async (inviterId, tripId, { type, friendId, email, phone })
   return invite;
 };
 
-/**
- * Join a trip using an invite token (from link / email / whatsapp).
- * Any authenticated user can use this endpoint with a valid token.
- */
+// Join a trip using an invite token (from link, email, or whatsapp)
 const joinViaToken = async (userId, token) => {
   // 1. Find valid invite
   const invite = await tripRepository.findInviteByToken(token);
@@ -171,7 +136,7 @@ const joinViaToken = async (userId, token) => {
   await tripRepository.addMember(userId, invite.groupId);
   await tripRepository.updateInviteStatus(invite.id, 'accepted');
 
-  // 4. Fire-and-forget: re-compute group preference with all current members
+  // 4. Fire-and-forget: recompute group preference with all current members
   const updatedTrip = await tripRepository.findTripById(invite.groupId);
   const allMemberIds = updatedTrip.members.map((m) => m.userId);
   triggerGroupPreference(invite.groupId, allMemberIds, makeInternalToken(userId));
@@ -179,9 +144,7 @@ const joinViaToken = async (userId, token) => {
   return { trip: invite.group };
 };
 
-/**
- * Respond to a direct (friend) invite — accept or reject.
- */
+// Respond to a direct friend invite — accept or reject
 const respondToInvite = async (userId, inviteId, action) => {
   const invite = await tripRepository.findDirectInviteById(inviteId, userId);
   if (!invite) {
@@ -197,7 +160,7 @@ const respondToInvite = async (userId, inviteId, action) => {
     }
     await tripRepository.updateInviteStatus(inviteId, 'accepted');
 
-    // Fire-and-forget: re-compute group preference
+    // Fire-and-forget: recompute group preference
     const updatedTrip = await tripRepository.findTripById(invite.groupId);
     const allMemberIds = updatedTrip.members.map((m) => m.userId);
     triggerGroupPreference(invite.groupId, allMemberIds, makeInternalToken(userId));
@@ -209,7 +172,7 @@ const respondToInvite = async (userId, inviteId, action) => {
   return { message: 'Invite declined.' };
 };
 
-/** Get all pending invites for a trip (visible to trip members). */
+// Get all pending invites for a trip (visible to trip members)
 const getTripInvites = async (userId, tripId) => {
   const membership = await tripRepository.findMembership(userId, tripId);
   if (!membership) {
@@ -220,14 +183,12 @@ const getTripInvites = async (userId, tripId) => {
   return tripRepository.getTripInvites(tripId);
 };
 
-/** Get all pending direct invites received by the current user. */
+// Get all pending direct invites received by the current user
 const getMyInvites = async (userId) => {
   return tripRepository.getMyInvites(userId);
 };
 
-// ── Group Consensus ───────────────────────────────────────────────────────────
-
-/** Get the saved group consensus profile for a trip. */
+// Get the saved group consensus profile for a trip
 const getConsensus = async (userId, tripId) => {
   const membership = await tripRepository.findMembership(userId, tripId);
   if (!membership) {
@@ -244,10 +205,7 @@ const getConsensus = async (userId, tripId) => {
   return consensus;
 };
 
-/**
- * Admin manually overrides the group consensus profile.
- * Sets isLockedByAdmin = true so AI re-computation won't overwrite it.
- */
+// Admin manually overrides the group consensus profile
 const updateConsensus = async (userId, tripId, data) => {
   const membership = await tripRepository.findMembership(userId, tripId);
   if (!membership || !['admin', 'creator'].includes(membership.role)) {
@@ -258,12 +216,7 @@ const updateConsensus = async (userId, tripId, data) => {
   return tripRepository.upsertConsensus(tripId, userId, data);
 };
 
-// ── Role Management ───────────────────────────────────────────────────────────
-
-/**
- * Admin assigns the 'admin' role to another member.
- * Both the current and target user must be members of the trip.
- */
+// Admin assigns the admin role to another member
 const assignRole = async (requestingUserId, tripId, targetUserId, role) => {
   // 1. Requesting user must be admin
   const requesterMembership = await tripRepository.findMembership(requestingUserId, tripId);

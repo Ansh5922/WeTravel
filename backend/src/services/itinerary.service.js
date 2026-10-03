@@ -3,11 +3,7 @@ const jwt   = require('jsonwebtoken');
 const prisma = require('../repositories/prisma.client');
 const itineraryRepo = require('../repositories/itinerary.repository');
 
-/**
- * Itinerary Service — WeTravel Backend
- * Layer: Service
- * Orchestrates itinerary generation: verifies admin, calls AI engine, saves results.
- */
+// Itinerary service orchestrating AI generation, selection, and mishap recovery
 
 const AI_URL = () => process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
@@ -21,8 +17,7 @@ const getAdminMember = async (userId, groupId) => {
   return member;
 };
 
-// ── Generate Itineraries (call AI engine) ─────────────────────────────────────
-
+// Generate itinerary variants by calling FastAPI AI engine and persisting results
 const generateItineraries = async (userId, tripId, { origin, destination, startDate, endDate, memberCount, constraints = {} }) => {
   await getAdminMember(userId, tripId);
 
@@ -62,17 +57,14 @@ const generateItineraries = async (userId, tripId, { origin, destination, startD
   }
 };
 
-
-// ── List all itineraries for a trip ──────────────────────────────────────────
-
+// List all itineraries for a trip
 const getItineraries = async (userId, tripId) => {
-  const member = await prisma.groupMember.findFirst({ where: { groupId: tripId, userId } });
+  const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
   return itineraryRepo.getItinerariesByGroup(tripId);
 };
 
-// ── Get single itinerary detail ───────────────────────────────────────────────
-
+// Get single itinerary detail
 const getItineraryById = async (userId, tripId, itineraryId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId: tripId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
@@ -81,8 +73,7 @@ const getItineraryById = async (userId, tripId, itineraryId) => {
   return itin;
 };
 
-// ── Admin selects an itinerary ────────────────────────────────────────────────
-
+// Admin selects an itinerary as the official trip plan
 const selectItinerary = async (userId, tripId, itineraryId) => {
   await getAdminMember(userId, tripId);
   const itin = await itineraryRepo.getItineraryById(itineraryId);
@@ -90,15 +81,13 @@ const selectItinerary = async (userId, tripId, itineraryId) => {
   return itineraryRepo.selectItinerary(itineraryId, tripId);
 };
 
-// ── Admin suggests changes, re-generate ──────────────────────────────────────
-
+// Admin suggests changes and triggers itinerary re-generation
 const suggestChanges = async (userId, tripId, itineraryId, { origin, destination, startDate, endDate, memberCount, constraints }) => {
   await getAdminMember(userId, tripId);
   return generateItineraries(userId, tripId, { origin, destination, startDate, endDate, memberCount, constraints });
 };
 
-// ── Mishap recovery ───────────────────────────────────────────────────────────
-
+// Dynamically recover and re-schedule trip itinerary upon a missed event
 const recoverFromMishap = async (userId, tripId, { itineraryId, missedItemId, currentTime }) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId: tripId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });

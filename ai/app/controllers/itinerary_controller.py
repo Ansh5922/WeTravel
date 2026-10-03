@@ -7,12 +7,7 @@ from app.schemas.itinerary import (
 from app.services.interaction_service import create_interaction_embedding
 from app.services import itinerary_service
 
-"""
-Itinerary & Interaction Controllers — WeTravel AI Backend
-Layer: Controller (Routes → Controller → Service)
-"""
-
-
+# Handle interaction embedding, itinerary generation, and mishap recovery
 def handle_interaction_embedding(
     payload: InteractionEmbeddingRequest,
     db: Session,

@@ -3,27 +3,24 @@ const chatRepo = require('../repositories/chat.repository');
 const imagekitService = require('./imagekit.service');
 const axios = require('axios');
 
-/**
- * Chat Service — WeTravel Backend
- * Layer: Service (business logic for chat, polls, images, retention)
- */
+// Chat service handling message retrieval, image uploads, poll voting, and AI interaction embeddings
 
-// ── Messages ────────────────────────────────────────────────────────────────
-
+// Get messages for a trip group, reversed to chronological order for client
 const getMessages = async (userId, groupId, before) => {
-  // Verify user is a member of the group
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
 
   const messages = await chatRepo.getMessages(groupId, before);
-  return messages.reverse(); // Return oldest-first for the client
+  return messages.reverse();
 };
 
+// Save a text message
 const saveTextMessage = async (groupId, senderId, content) => {
   if (!content || !content.trim()) throw Object.assign(new Error('Message content cannot be empty.'), { statusCode: 400 });
   return chatRepo.saveMessage({ groupId, senderId, messageType: 'text', content: content.trim() });
 };
 
+// Save an image message
 const saveImageMessage = async (groupId, senderId, imageUrl, fileName) => {
   if (!imageUrl) throw Object.assign(new Error('imageUrl is required.'), { statusCode: 400 });
   return chatRepo.saveMessage({
@@ -35,16 +32,14 @@ const saveImageMessage = async (groupId, senderId, imageUrl, fileName) => {
   });
 };
 
-// ── ImageKit Auth ────────────────────────────────────────────────────────────
-
+// Generate ImageKit auth parameters for chat image upload
 const getImageKitAuth = async (userId, groupId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
   return imagekitService.getAuthParams();
 };
 
-// ── Polls ────────────────────────────────────────────────────────────────────
-
+// Create a new poll with minimum 2 options
 const createPoll = async (userId, groupId, { question, options }) => {
   if (!question || !question.trim()) throw Object.assign(new Error('Poll question is required.'), { statusCode: 400 });
   if (!options || options.length < 2) throw Object.assign(new Error('At least 2 options are required.'), { statusCode: 400 });
@@ -55,6 +50,7 @@ const createPoll = async (userId, groupId, { question, options }) => {
   return chatRepo.createPoll({ groupId, createdBy: userId, question: question.trim(), options });
 };
 
+// Cast a vote on an active poll
 const voteOnPoll = async (userId, groupId, pollId, optionId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
@@ -70,6 +66,7 @@ const voteOnPoll = async (userId, groupId, pollId, optionId) => {
   return chatRepo.castVote({ pollId, optionId, userId });
 };
 
+// Close poll and trigger AI interaction embedding in background
 const closePoll = async (userId, groupId, pollId) => {
   const poll = await chatRepo.getPollById(pollId);
   if (!poll) throw Object.assign(new Error('Poll not found.'), { statusCode: 404 });
@@ -92,14 +89,14 @@ const closePoll = async (userId, groupId, pollId) => {
   return closedPoll;
 };
 
+// Get all polls for a trip group
 const getPolls = async (userId, groupId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
   return chatRepo.getPollsByGroup(groupId);
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
+// Format poll results into summary string
 const buildPollResultSummary = (poll) => {
   const allVotes = (poll.options || []).flatMap((opt) => opt.votes || []);
   const totalVotes = allVotes.length;
@@ -111,10 +108,9 @@ const buildPollResultSummary = (poll) => {
   return `Trip poll result — "${poll.question}": ${optionSummaries.join(', ')}. Total votes: ${totalVotes}.`;
 };
 
-
+// Fire interaction embedding request to AI service
 const fireInteractionEmbedding = async (groupId, pollId, summaryText) => {
   const AI_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-  // Use the admin token from the shared secret for internal service calls
   const jwt = require('jsonwebtoken');
   const token = jwt.sign({ sub: 'internal-service' }, process.env.JWT_SECRET, { expiresIn: '5m' });
   await axios.post(

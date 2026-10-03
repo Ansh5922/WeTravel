@@ -2,32 +2,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authRepository = require('../repositories/auth.repository');
 
-/**
- * Auth Service
- * Responsibility: Business logic for signup/login.
- * Architecture layer: Service (calls Repository, returns domain objects)
- */
+// Auth service handling business logic for authentication and token generation
 
 const SALT_ROUNDS = 12;
 
-/**
- * Sign a JWT containing the user's id.
- * @param {string} userId
- * @returns {string} signed JWT
- */
+// Sign a JWT containing the user's id
 const signToken = (userId) => {
   return jwt.sign(
-    { sub: userId },                    // payload — sub = subject (standard JWT claim)
+    { sub: userId },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
 
-/**
- * Register a new user.
- * @param {{ email: string, password: string, fullName?: string, phone?: string }} data
- * @returns {Promise<{ user: object, token: string }>}
- */
+// Register a new user
 const signup = async ({ email, password, username, fullName, phone }) => {
   // 1. Check if email already in use
   const existing = await authRepository.findUserByEmail(email);
@@ -57,11 +45,7 @@ const signup = async ({ email, password, username, fullName, phone }) => {
   return { user, token };
 };
 
-/**
- * Log in an existing user.
- * @param {{ email: string, password: string }} credentials
- * @returns {Promise<{ user: object, token: string }>}
- */
+// Log in an existing user
 const login = async ({ email, password }) => {
   // 1. Find user (include passwordHash for comparison)
   const userWithHash = await authRepository.findUserByEmail(email);
@@ -101,11 +85,7 @@ const login = async ({ email, password }) => {
   return { user, token };
 };
 
-/**
- * Get the authenticated user's profile.
- * @param {string} userId
- * @returns {Promise<object>}
- */
+// Get the authenticated user's profile
 const getMe = async (userId) => {
   const user = await authRepository.findUserById(userId);
   if (!user) {

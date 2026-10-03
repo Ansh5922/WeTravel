@@ -1,11 +1,8 @@
 const itineraryService = require('../services/itinerary.service');
 
-/**
- * Itinerary Controller — WeTravel Backend
- * Layer: Controller
- */
+// Itinerary controller handling generation, retrieval, selection, and mishap recovery
 
-/** POST /api/trips/:tripId/itinerary/generate */
+// POST /api/trips/:tripId/itinerary/generate
 const generateItineraries = async (req, res, next) => {
   try {
     const { origin, destination, startDate, endDate, memberCount, constraints } = req.body;
@@ -20,7 +17,7 @@ const generateItineraries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/:tripId/itineraries */
+// GET /api/trips/:tripId/itineraries
 const getItineraries = async (req, res, next) => {
   try {
     const itineraries = await itineraryService.getItineraries(req.user.id, req.params.tripId);
@@ -28,7 +25,7 @@ const getItineraries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/trips/:tripId/itineraries/:id */
+// GET /api/trips/:tripId/itineraries/:id
 const getItinerary = async (req, res, next) => {
   try {
     const itinerary = await itineraryService.getItineraryById(req.user.id, req.params.tripId, req.params.id);
@@ -36,7 +33,7 @@ const getItinerary = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** PATCH /api/trips/:tripId/itineraries/:id/select */
+// PATCH /api/trips/:tripId/itineraries/:id/select
 const selectItinerary = async (req, res, next) => {
   try {
     const itinerary = await itineraryService.selectItinerary(req.user.id, req.params.tripId, req.params.id);
@@ -44,7 +41,7 @@ const selectItinerary = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/trips/:tripId/itineraries/:id/suggest */
+// POST /api/trips/:tripId/itineraries/:id/suggest
 const suggestChanges = async (req, res, next) => {
   try {
     const { origin, destination, startDate, endDate, memberCount, constraints } = req.body;
@@ -55,7 +52,7 @@ const suggestChanges = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/trips/:tripId/itineraries/mishap */
+// POST /api/trips/:tripId/itineraries/mishap
 const recoverFromMishap = async (req, res, next) => {
   try {
     const { itineraryId, missedItemId, currentTime } = req.body;
