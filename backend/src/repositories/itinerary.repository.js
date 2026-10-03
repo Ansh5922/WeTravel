@@ -1,9 +1,6 @@
 const prisma = require('./prisma.client');
 
-/**
- * Itinerary Repository — WeTravel Backend
- * Layer: Repository → DB
- */
+// Itinerary repository for database persistence of itinerary variants and items
 
 const formatItinerary = (itin) => {
   if (!itin) return null;
@@ -14,6 +11,7 @@ const formatItinerary = (itin) => {
   };
 };
 
+// Batch create and persist itinerary variants with daily schedule items
 const saveItineraries = async (groupId, itineraries) => {
   const saved = [];
   for (const itin of itineraries) {
@@ -56,6 +54,7 @@ const saveItineraries = async (groupId, itineraries) => {
   return saved;
 };
 
+// Fetch active itineraries for a trip group
 const getItinerariesByGroup = async (groupId) => {
   const itins = await prisma.itinerary.findMany({
     where: { groupId, isActive: true },
@@ -65,6 +64,7 @@ const getItinerariesByGroup = async (groupId) => {
   return itins.map(formatItinerary);
 };
 
+// Fetch an itinerary by ID with ordered schedule items
 const getItineraryById = async (itineraryId) => {
   const itin = await prisma.itinerary.findUnique({
     where: { id: itineraryId },
@@ -73,8 +73,8 @@ const getItineraryById = async (itineraryId) => {
   return formatItinerary(itin);
 };
 
+// Select a specific itinerary as the trip's chosen plan
 const selectItinerary = async (itineraryId, groupId) => {
-  // Deselect all others for the group, then select this one
   await prisma.itinerary.updateMany({
     where: { groupId, isSelected: true },
     data: { isSelected: false, selectedAt: null },
@@ -87,6 +87,7 @@ const selectItinerary = async (itineraryId, groupId) => {
   return formatItinerary(updated);
 };
 
+// Fetch the currently selected itinerary for a group
 const getSelectedItinerary = async (groupId) => {
   const selected = await prisma.itinerary.findFirst({
     where: { groupId, isSelected: true },
@@ -95,6 +96,7 @@ const getSelectedItinerary = async (groupId) => {
   return formatItinerary(selected);
 };
 
+// Flag an individual itinerary item as missed
 const markItemMissed = async (itemId) => {
   return prisma.itineraryItem.update({
     where: { id: itemId },

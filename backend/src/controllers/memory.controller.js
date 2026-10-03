@@ -1,11 +1,8 @@
 const memoryService = require('../services/memory.service');
 
-/**
- * Memory Controller — WeTravel Backend
- * Layer: Controller (orchestrator between HTTP & Service)
- */
+// Memory controller handling photo uploads, timelines, and highlights
 
-/** GET /api/trips/:tripId/memories/imagekit-auth */
+// GET /api/trips/:tripId/memories/imagekit-auth
 const getImageKitAuth = async (req, res, next) => {
   try {
     const auth = await memoryService.getImageKitAuth(req.user.id, req.params.tripId);
@@ -15,7 +12,7 @@ const getImageKitAuth = async (req, res, next) => {
   }
 };
 
-/** POST /api/trips/:tripId/memories */
+// POST /api/trips/:tripId/memories
 const uploadMemories = async (req, res, next) => {
   try {
     const { photos } = req.body;
@@ -40,7 +37,7 @@ const uploadMemories = async (req, res, next) => {
   }
 };
 
-/** GET /api/trips/:tripId/memories */
+// GET /api/trips/:tripId/memories
 const getMemoriesTimeline = async (req, res, next) => {
   try {
     const result = await memoryService.getMemoriesTimeline(req.user.id, req.params.tripId);
@@ -53,7 +50,7 @@ const getMemoriesTimeline = async (req, res, next) => {
   }
 };
 
-/** GET /api/trips/:tripId/memories/highlights */
+// GET /api/trips/:tripId/memories/highlights
 const getHighlights = async (req, res, next) => {
   try {
     const highlights = await memoryService.getHighlights(req.user.id, req.params.tripId);
@@ -66,7 +63,7 @@ const getHighlights = async (req, res, next) => {
   }
 };
 
-/** PATCH /api/trips/:tripId/memories/:memoryId/highlight */
+// PATCH /api/trips/:tripId/memories/:memoryId/highlight
 const toggleHighlight = async (req, res, next) => {
   try {
     const { isHighlight } = req.body;
@@ -86,7 +83,7 @@ const toggleHighlight = async (req, res, next) => {
   }
 };
 
-/** DELETE /api/trips/:tripId/memories/:memoryId */
+// DELETE /api/trips/:tripId/memories/:memoryId
 const deleteMemory = async (req, res, next) => {
   try {
     const result = await memoryService.deleteMemory(

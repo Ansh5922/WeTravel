@@ -1,9 +1,6 @@
 const prisma = require('./prisma.client');
 
-/**
- * Memory Repository — WeTravel Backend
- * Layer: Repository (direct Prisma database access for trip_memories)
- */
+// Memory repository for TripMemory table database operations
 
 const memoryInclude = {
   uploader: {
@@ -11,9 +8,7 @@ const memoryInclude = {
   },
 };
 
-/**
- * Insert a single trip memory record.
- */
+// Insert a single trip memory record
 const createMemory = async ({
   groupId,
   uploadedBy,
@@ -45,9 +40,7 @@ const createMemory = async ({
   });
 };
 
-/**
- * Batch insert multiple memory records.
- */
+// Batch insert multiple memory records
 const createManyMemories = async (memoriesData) => {
   return prisma.$transaction(
     memoriesData.map((data) =>
@@ -71,9 +64,7 @@ const createManyMemories = async (memoriesData) => {
   );
 };
 
-/**
- * Fetch all memories for a trip group, ordered chronologically.
- */
+// Fetch all memories for a trip group, ordered chronologically
 const getMemoriesByGroup = async (groupId) => {
   return prisma.tripMemory.findMany({
     where: { groupId },
@@ -85,9 +76,7 @@ const getMemoriesByGroup = async (groupId) => {
   });
 };
 
-/**
- * Fetch only curated highlights for a trip.
- */
+// Fetch only curated highlights for a trip
 const getHighlights = async (groupId) => {
   return prisma.tripMemory.findMany({
     where: {
@@ -102,9 +91,7 @@ const getHighlights = async (groupId) => {
   });
 };
 
-/**
- * Fetch single memory by ID.
- */
+// Fetch single memory by ID
 const getMemoryById = async (id) => {
   return prisma.tripMemory.findUnique({
     where: { id },
@@ -112,9 +99,7 @@ const getMemoryById = async (id) => {
   });
 };
 
-/**
- * Update memory record (e.g., caption or manual highlight toggle).
- */
+// Update memory record (e.g., caption or manual highlight toggle)
 const updateMemory = async (id, data) => {
   return prisma.tripMemory.update({
     where: { id },
@@ -123,18 +108,14 @@ const updateMemory = async (id, data) => {
   });
 };
 
-/**
- * Delete a memory record.
- */
+// Delete a memory record
 const deleteMemory = async (id) => {
   return prisma.tripMemory.delete({
     where: { id },
   });
 };
 
-/**
- * Fetch selected/active itinerary items for spatial and temporal milestone correlation.
- */
+// Fetch selected/active itinerary items for spatial and temporal milestone correlation
 const getItineraryItemsForTrip = async (groupId) => {
   const activeItinerary = await prisma.itinerary.findFirst({
     where: { groupId, isSelected: true },
@@ -143,7 +124,6 @@ const getItineraryItemsForTrip = async (groupId) => {
 
   if (activeItinerary) return activeItinerary.items;
 
-  // Fallback to latest active itinerary
   const fallback = await prisma.itinerary.findFirst({
     where: { groupId, isActive: true },
     orderBy: { createdAt: 'desc' },

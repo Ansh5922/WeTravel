@@ -2,12 +2,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.services.embedding_service import get_embedding_model
 
-"""
-Interaction Service — WeTravel AI Backend
-Layer: Service
-Generates embeddings for poll results / chat interactions and saves to interaction_embeddings table.
-"""
-
 
 def create_interaction_embedding(
     *,
@@ -17,16 +11,11 @@ def create_interaction_embedding(
     source_id: str | None,
     summary_text: str,
 ) -> dict:
-    """
-    Generate a 384-dim embedding for a poll result or interaction summary,
-    save it to the interaction_embeddings table, and update the group consensus vector
-    by averaging with existing interaction embeddings (weighted update).
-    """
+    # Generate embedding for interaction summary and save to interaction_embeddings table
     model = get_embedding_model()
     embedding = model.encode(summary_text).tolist()
     vector_str = "[" + ",".join(str(v) for v in embedding) + "]"
 
-    # Upsert into interaction_embeddings
     db.execute(text("""
         INSERT INTO interaction_embeddings
             (id, group_id, source_type, source_id, summary_text, context_vector)

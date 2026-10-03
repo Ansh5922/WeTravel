@@ -1,22 +1,8 @@
 const userService = require('../services/user.service');
 
-/**
- * User Controller
- * Responsibility: HTTP request/response handling for user profile endpoints.
- * Architecture layer: Controller (between Routes ↔ Service)
- *
- * Rules:
- *  - Extract and validate input from req.body
- *  - Call service methods
- *  - Send HTTP response
- *  - NEVER contain business logic
- */
+// User profile controller handling profile views and preference updates
 
-/**
- * PATCH /api/users/profile
- * Update authenticated user's profile and preferences.
- * Returns immediately after DB save. AI embedding runs in background.
- */
+// PATCH /api/users/profile — update profile and trigger background AI embedding
 const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -80,10 +66,7 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/users/profile
- * Get authenticated user's current profile and preferences.
- */
+// GET /api/users/profile — get authenticated user's current profile and preferences
 const getProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;

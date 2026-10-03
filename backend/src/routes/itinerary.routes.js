@@ -2,11 +2,7 @@ const express = require('express');
 const itineraryController = require('../controllers/itinerary.controller');
 const { protect } = require('../middleware/auth.middleware');
 
-/**
- * Itinerary Routes — WeTravel Backend
- * Layer: Routes
- */
-
+// Itinerary generation, selection, and mishap recovery routes
 const router = express.Router();
 router.use(protect);
 

@@ -3,10 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """
-    Application configuration loaded from environment variables / .env file.
-    Architecture layer: Core config (shared across all layers)
-    """
+    # Application settings loaded from environment variables
     PROJECT_NAME: str = "WeTravel AI Engine"
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
@@ -14,7 +11,7 @@ class Settings(BaseSettings):
     )
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
-    # ── Shared JWT config (must match Node.js backend exactly) ────────────────
+    # Shared JWT config (must match Node.js backend exactly)
     JWT_SECRET: str = os.getenv("JWT_SECRET", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 

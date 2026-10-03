@@ -3,35 +3,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from app.core.security import verify_token
 
-"""
-Auth Middleware — FastAPI AI Backend
-Architecture layer: Middleware (authentication guard)
-
-Responsibility:
-  - Extract Bearer token from Authorization header (handled by HTTPBearer)
-  - Call verify_token from core/security.py
-  - Return the authenticated user identity dict to the controller
-  - Raise HTTP 401 if anything is wrong
-
-Usage in any route:
-    @router.get("/protected-endpoint")
-    def my_route(current_user: dict = Depends(get_current_user)):
-        user_id = current_user["id"]
-"""
-
-# HTTPBearer automatically reads the Authorization: Bearer <token> header
 bearer_scheme = HTTPBearer()
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
-    """
-    FastAPI dependency that validates the JWT and returns the user identity.
-
-    Returns:
-        dict with 'id' (user_id as string) and 'sub' (same value, JWT standard)
-    """
+    # Validate JWT token and return authenticated user identity
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials. Please log in again.",
@@ -46,5 +24,4 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    # Return minimal identity — controllers/services fetch full profile as needed
     return {"id": user_id, "sub": user_id}

@@ -1,27 +1,15 @@
 const prisma = require('./prisma.client');
 
-/**
- * Auth Repository
- * Responsibility: Raw database operations for User model.
- * Architecture layer: Repository (bottom of the chain above DB)
- */
+// Auth repository for User table database queries
 
-/**
- * Find a user by their email address.
- * @param {string} email
- * @returns {Promise<User|null>}
- */
+// Find a user by their email address
 const findUserByEmail = async (email) => {
   return prisma.user.findUnique({
     where: { email },
   });
 };
 
-/**
- * Find a user by their UUID.
- * @param {string} id
- * @returns {Promise<User|null>}
- */
+// Find a user by their UUID
 const findUserById = async (id) => {
   return prisma.user.findUnique({
     where: { id },
@@ -37,11 +25,7 @@ const findUserById = async (id) => {
   });
 };
 
-/**
- * Find a user by their unique username.
- * @param {string} username
- * @returns {Promise<User|null>}
- */
+// Find a user by their unique username
 const findUserByUsername = async (username) => {
   return prisma.user.findUnique({
     where: { username },
@@ -49,11 +33,7 @@ const findUserByUsername = async (username) => {
   });
 };
 
-/**
- * Create a new user record.
- * @param {{ email: string, passwordHash: string, fullName?: string, phone?: string }} data
- * @returns {Promise<User>}
- */
+// Create a new user record
 const createUser = async ({ email, username, passwordHash, fullName, phone }) => {
   return prisma.user.create({
     data: {
@@ -81,4 +61,3 @@ module.exports = {
   findUserByUsername,
   createUser,
 };
-

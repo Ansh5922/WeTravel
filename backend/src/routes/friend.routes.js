@@ -2,10 +2,7 @@ const express = require('express');
 const friendController = require('../controllers/friend.controller');
 const { protect } = require('../middleware/auth.middleware');
 
-/**
- * Friend Router
- * All routes protected — require valid JWT.
- */
+// Friend request and friendship management routes
 const router = express.Router();
 router.use(protect);
 

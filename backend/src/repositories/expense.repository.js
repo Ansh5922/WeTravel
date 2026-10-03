@@ -1,14 +1,7 @@
 const prisma = require('./prisma.client');
 
-/**
- * Expense Repository — WeTravel Backend
- * Layer: Repository → DB
- * Handles all DB queries for expenses, expense_splits, and settlements.
- */
+// Expense repository for expenses, expense_splits, and debt settlements
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Standard include block reused across all expense queries */
 const expenseInclude = {
   creator:  { select: { id: true, fullName: true, username: true } },
   approver: { select: { id: true, fullName: true, username: true } },
@@ -17,12 +10,7 @@ const expenseInclude = {
   },
 };
 
-/**
- * Compute equal split amounts, absorbing any rounding difference in the last slot.
- * @param {number} totalAmount
- * @param {string[]} memberIds
- * @returns {{ userId: string, amountOwed: number }[]}
- */
+// Compute equal split amounts, absorbing rounding difference in the last slot
 const buildEqualSplits = (totalAmount, memberIds) => {
   const n = memberIds.length;
   if (n === 0) return [];
@@ -31,20 +19,12 @@ const buildEqualSplits = (totalAmount, memberIds) => {
     userId,
     amountOwed:
       idx === n - 1
-        ? parseFloat((totalAmount - perPerson * (n - 1)).toFixed(2)) // absorb rounding
+        ? parseFloat((totalAmount - perPerson * (n - 1)).toFixed(2))
         : perPerson,
   }));
 };
 
-// ── Expense CRUD ──────────────────────────────────────────────────────────────
-
-/**
- * Create a new expense.
- *
- * For manual_entry: amount is known → splits are created immediately.
- * For ai_screenshot_ocr: amount is null → splitMemberIds are stored in
- *   ocrRawMetadata.pendingSplitMemberIds so they can be used once the AI returns.
- */
+// Create a new expense record with splits
 const createExpense = async ({
   groupId, createdBy, source, amount, currency,
   category, description, receiptImageUrl, splitMemberIds,
@@ -63,11 +43,9 @@ const createExpense = async ({
       description:     description || null,
       receiptImageUrl: receiptImageUrl || null,
       status:          isOcr ? 'pending_approval' : 'approved',
-      // For OCR flow: store the chosen split members for later resolution
       ocrRawMetadata: isOcr
         ? { pendingSplitMemberIds: splitMemberIds || [] }
         : null,
-      // For manual flow: create splits immediately
       splits: (!isOcr && parsedAmount && splitMemberIds?.length > 0) ? {
         create: buildEqualSplits(parsedAmount, splitMemberIds),
       } : undefined,
@@ -76,12 +54,8 @@ const createExpense = async ({
   });
 };
 
-/**
- * Update an expense after the AI OCR service has returned an amount.
- * Reads pendingSplitMemberIds from ocrRawMetadata, creates splits, and marks approved.
- */
+// Update an expense after AI OCR extraction has completed
 const updateExpenseAfterOcr = async (expenseId, { amount, category, ocrRawText }) => {
-  // Fetch current metadata to retrieve the stored member IDs
   const existing = await prisma.expense.findUnique({
     where:  { id: expenseId },
     select: { ocrRawMetadata: true },
@@ -90,7 +64,6 @@ const updateExpenseAfterOcr = async (expenseId, { amount, category, ocrRawText }
   const pendingIds = existing?.ocrRawMetadata?.pendingSplitMemberIds ?? [];
   const parsedAmount = parseFloat(amount);
 
-  // Update expense record — auto-approve if valid amount extracted
   await prisma.expense.update({
     where: { id: expenseId },
     data: {
@@ -101,9 +74,8 @@ const updateExpenseAfterOcr = async (expenseId, { amount, category, ocrRawText }
     },
   });
 
-  // Create the splits now that the amount is resolved
   if (pendingIds.length > 0) {
-    await prisma.expenseSplit.deleteMany({ where: { expenseId } }); // idempotent
+    await prisma.expenseSplit.deleteMany({ where: { expenseId } });
     await prisma.expenseSplit.createMany({
       data: buildEqualSplits(parsedAmount, pendingIds).map((s) => ({
         expenseId, ...s,
@@ -114,7 +86,7 @@ const updateExpenseAfterOcr = async (expenseId, { amount, category, ocrRawText }
   return prisma.expense.findUnique({ where: { id: expenseId }, include: expenseInclude });
 };
 
-/** Admin modifies an expense (amount, description, category, and/or splits) */
+// Admin modifies an expense (amount, description, category, and splits)
 const updateExpense = async (expenseId, { amount, description, category, splitMemberIds }) => {
   const data = {};
   if (description !== undefined) data.description = description;
@@ -150,14 +122,14 @@ const updateExpense = async (expenseId, { amount, description, category, splitMe
   return prisma.expense.findUnique({ where: { id: expenseId }, include: expenseInclude });
 };
 
-/** Admin deletes an expense */
+// Admin deletes an expense
 const deleteExpense = async (expenseId) => {
   return prisma.expense.delete({
     where: { id: expenseId },
   });
 };
 
-/** Admin approves an expense */
+// Admin approves an expense
 const approveExpense = async (expenseId, approvedBy) =>
   prisma.expense.update({
     where: { id: expenseId },
@@ -165,7 +137,7 @@ const approveExpense = async (expenseId, approvedBy) =>
     include: expenseInclude,
   });
 
-/** Admin rejects an expense */
+// Admin rejects an expense
 const rejectExpense = async (expenseId, approvedBy) =>
   prisma.expense.update({
     where: { id: expenseId },
@@ -173,7 +145,7 @@ const rejectExpense = async (expenseId, approvedBy) =>
     include: expenseInclude,
   });
 
-/** Fetch all expenses for a trip, optionally filtered by status */
+// Fetch all expenses for a trip, optionally filtered by status
 const getGroupExpenses = async (groupId, status) => {
   const where = { groupId };
   if (status) where.status = status;
@@ -184,30 +156,25 @@ const getGroupExpenses = async (groupId, status) => {
   });
 };
 
-/** Fetch a single expense by ID */
+// Fetch a single expense by ID
 const getExpenseById = async (expenseId) =>
   prisma.expense.findUnique({ where: { id: expenseId }, include: expenseInclude });
 
-/** Fetch only approved expenses — used for ledger and settlement calculations */
+// Fetch only approved expenses — used for ledger and settlement calculations
 const getApprovedExpenses = async (groupId) =>
   prisma.expense.findMany({
     where:   { groupId, status: 'approved' },
     include: { splits: true },
   });
 
-/** Fetch all group members (userId + display name) */
+// Fetch all group members (userId + display name)
 const getGroupMembers = async (groupId) =>
   prisma.groupMember.findMany({
     where:   { groupId },
     include: { user: { select: { id: true, fullName: true, username: true } } },
   });
 
-// ── Settlements ───────────────────────────────────────────────────────────────
-
-/**
- * Atomically replace all pending settlements for the group with a fresh calculation.
- * Completed settlements are never touched.
- */
+// Atomically replace all pending settlements for the group with a fresh calculation
 const saveSettlements = async (groupId, settlements) => {
   await prisma.settlement.deleteMany({ where: { groupId, status: 'pending' } });
   if (settlements.length === 0) return [];
@@ -232,7 +199,7 @@ const saveSettlements = async (groupId, settlements) => {
   });
 };
 
-/** Fetch all settlements (pending + completed) for a trip */
+// Fetch all settlements for a trip
 const getSettlements = async (groupId) =>
   prisma.settlement.findMany({
     where:   { groupId },
@@ -243,10 +210,10 @@ const getSettlements = async (groupId) =>
     orderBy: { amount: 'desc' },
   });
 
-/** Mark a settlement as completed (payer has paid) */
+// Mark a settlement as completed
 const completeSettlement = async (settlementId, groupId) =>
   prisma.settlement.update({
-    where: { id: settlementId, groupId },       // scoped to group for safety
+    where: { id: settlementId, groupId },
     data:  { status: 'completed' },
     include: {
       payer: { select: { id: true, fullName: true, username: true } },

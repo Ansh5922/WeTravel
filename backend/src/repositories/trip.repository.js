@@ -1,11 +1,7 @@
 const crypto = require('crypto');
 const prisma  = require('./prisma.client');
 
-/**
- * Trip Repository
- * Responsibility: Raw DB operations for TripGroup, GroupMember, TripInvite.
- * Architecture layer: Repository → Database
- */
+// Trip repository for TripGroup, GroupMember, and TripInvite queries
 
 const SAFE_USER_SELECT = {
   id: true,
@@ -14,7 +10,7 @@ const SAFE_USER_SELECT = {
   fullName: true,
 };
 
-/** Create a trip and add the creator as admin in a single transaction. */
+// Create a trip and add the creator as admin in a single transaction
 const createTrip = async (userId, { name, tripStartDate, tripEndDate, coverImageUrl }) => {
   return prisma.$transaction(async (tx) => {
     const trip = await tx.tripGroup.create({
@@ -35,7 +31,7 @@ const createTrip = async (userId, { name, tripStartDate, tripEndDate, coverImage
   });
 };
 
-/** Find trip by ID with its member list. */
+// Find trip by ID with its member list
 const findTripById = async (tripId) => {
   return prisma.tripGroup.findUnique({
     where: { id: tripId },
@@ -45,7 +41,7 @@ const findTripById = async (tripId) => {
   });
 };
 
-/** Get all trips a user belongs to, optionally filtered by TripStatus. */
+// Get all trips a user belongs to, optionally filtered by status
 const getUserTrips = async (userId, status) => {
   const where = { members: { some: { userId } } };
   if (status) where.status = status;
@@ -59,20 +55,20 @@ const getUserTrips = async (userId, status) => {
   });
 };
 
-/** Check if a user is a member of a trip. */
+// Check if a user is a member of a trip
 const findMembership = async (userId, groupId) => {
   return prisma.groupMember.findFirst({ where: { userId, groupId } });
 };
 
-/** Add a user as a member (default role: member). */
+// Add a user as a member (default role: member)
 const addMember = async (userId, groupId, role = 'member') => {
   return prisma.groupMember.create({ data: { userId, groupId, role } });
 };
 
-/** Create an invite record with a unique 64-char hex token. */
+// Create an invite record with a unique 64-char hex token
 const createInvite = async ({ groupId, invitedBy, inviteType, inviteeId, inviteeEmail, inviteePhone }) => {
-  const inviteToken = crypto.randomBytes(32).toString('hex'); // 64-char unique token
-  const expiresAt   = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const inviteToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt   = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   return prisma.tripInvite.create({
     data: {
@@ -92,7 +88,7 @@ const createInvite = async ({ groupId, invitedBy, inviteType, inviteeId, invitee
   });
 };
 
-/** Find a valid (pending + not expired) invite by token. */
+// Find a valid (pending and unexpired) invite by token
 const findInviteByToken = async (token) => {
   return prisma.tripInvite.findFirst({
     where: {
@@ -107,7 +103,7 @@ const findInviteByToken = async (token) => {
   });
 };
 
-/** Find a direct invite by ID for a specific recipient. */
+// Find a direct invite by ID for a specific recipient
 const findDirectInviteById = async (inviteId, userId) => {
   return prisma.tripInvite.findFirst({
     where: {
@@ -120,7 +116,7 @@ const findDirectInviteById = async (inviteId, userId) => {
   });
 };
 
-/** Get all pending invites for a trip (admin view). */
+// Get all pending invites for a trip
 const getTripInvites = async (groupId) => {
   return prisma.tripInvite.findMany({
     where:   { groupId, status: 'pending' },
@@ -131,7 +127,7 @@ const getTripInvites = async (groupId) => {
   });
 };
 
-/** Get all pending direct invites received by a user. */
+// Get all pending direct invites received by a user
 const getMyInvites = async (userId) => {
   return prisma.tripInvite.findMany({
     where: { inviteeId: userId, status: 'pending', expiresAt: { gt: new Date() } },
@@ -142,20 +138,17 @@ const getMyInvites = async (userId) => {
   });
 };
 
-/** Update invite status. */
+// Update invite status
 const updateInviteStatus = async (inviteId, status) => {
   return prisma.tripInvite.update({ where: { id: inviteId }, data: { status } });
 };
 
-/** Find the group consensus profile for a trip. */
+// Find the group consensus profile for a trip
 const findConsensus = async (groupId) => {
   return prisma.groupConsensusProfile.findUnique({ where: { groupId } });
 };
 
-/**
- * Upsert the group consensus profile with admin-overridden fields.
- * Admin can set computedBudgetRange, hardConstraints and lock the profile.
- */
+// Upsert the group consensus profile with admin overrides
 const upsertConsensus = async (groupId, lastEditedBy, data) => {
   return prisma.groupConsensusProfile.upsert({
     where:  { groupId },
@@ -164,7 +157,7 @@ const upsertConsensus = async (groupId, lastEditedBy, data) => {
   });
 };
 
-/** Update a group member's role (e.g. promote to admin). */
+// Update a group member's role
 const updateMemberRole = async (groupId, targetUserId, role) => {
   return prisma.groupMember.updateMany({
     where: { groupId, userId: targetUserId },

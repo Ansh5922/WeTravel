@@ -18,11 +18,10 @@ const { attachWsServer } = require('./websocket/ws.server');
 const { startChatRetentionCron } = require('./cron/chat.retention.cron');
 
 const app = express();
-const server = http.createServer(app); // Wrap in HTTP server for WebSocket upgrade
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// ── Global Middleware ─────────────────────────────────────────────────────────
-// CORS Middleware — Allow all frontend origins and preflights
+// CORS middleware allowing cross-origin requests and preflight handling
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
@@ -39,7 +38,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Live HTTP Request Logger
+// HTTP request duration logger
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -49,12 +48,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Health Check ──────────────────────────────────────────────────────────────
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'WeTravel Backend', timestamp: new Date().toISOString() });
 });
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Register API route handlers
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
@@ -64,22 +63,21 @@ app.use('/api/trips/:tripId/expenses', expenseRoutes);
 app.use('/api/trips/:tripId/memories', memoryRoutes);
 app.use('/api/trips', itineraryRoutes);
 
-
-// ── 404 Handler ───────────────────────────────────────────────────────────────
+// Catch-all 404 handler
 app.use((req, res) => {
   res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found.` });
 });
 
-// ── Global Error Handler ──────────────────────────────────────────────────────
+// Global error handler
 app.use(errorHandler);
 
-// ── WebSocket Server ──────────────────────────────────────────────────────────
+// Attach WebSocket server instance
 attachWsServer(server);
 
-// ── Cron Jobs ─────────────────────────────────────────────────────────────────
+// Start chat message retention cron job
 startChatRetentionCron();
 
-// ── Start Server ──────────────────────────────────────────────────────────────
+// Start HTTP server listener
 server.listen(PORT, () => {
   console.log(`✅  WeTravel Backend running on http://localhost:${PORT}`);
   console.log(`🔌  WebSocket ready at ws://localhost:${PORT}/ws?token=<JWT>&tripId=<UUID>`);
