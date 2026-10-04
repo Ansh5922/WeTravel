@@ -1,9 +1,9 @@
-const jwt       = require('jsonwebtoken');
-const prisma     = require('../repositories/prisma.client');
+const jwt = require('jsonwebtoken');
+const prisma = require('../repositories/prisma.client');
 const expenseRepo = require('../repositories/expense.repository');
-const chatRepo    = require('../repositories/chat.repository');
+const chatRepo = require('../repositories/chat.repository');
 const imagekitService = require('./imagekit.service');
-const { rooms }     = require('../websocket/ws.server');
+const { rooms } = require('../websocket/ws.server');
 const { broadcast } = require('../websocket/ws.handler');
 
 /**
@@ -47,6 +47,7 @@ const requireAdmin = async (userId, groupId) => {
   if (member.role === 'member') {
     throw Object.assign(new Error('Only a trip admin can perform this action.'), { statusCode: 403 });
   }
+  console.log(member);
   return member;
 };
 
@@ -86,14 +87,14 @@ const createExpense = async (userId, groupId, {
 
   const expense = await expenseRepo.createExpense({
     groupId,
-    createdBy:       userId,
-    source:          isOcr ? 'ai_screenshot_ocr' : 'manual_entry',
-    amount:          amount  || null,
-    currency:        currency || 'INR',
-    category:        category || null,
-    description:     description || null,
+    createdBy: userId,
+    source: isOcr ? 'ai_screenshot_ocr' : 'manual_entry',
+    amount: amount || null,
+    currency: currency || 'INR',
+    category: category || null,
+    description: description || null,
     receiptImageUrl: receiptImageUrl || null,
-    splitMemberIds:  targetIds,
+    splitMemberIds: targetIds,
   });
 
   // For OCR uploads: fire-and-forget call to AI server in the background.
@@ -113,9 +114,9 @@ const _fireOcrRequest = (expenseId, imageUrl, groupId) => {
   const token = makeInternalToken();
 
   fetch(`${AI_URL()}/api/ai/ocr/receipt`, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body:    JSON.stringify({ expense_id: expenseId, image_url: imageUrl, group_id: groupId }),
+    body: JSON.stringify({ expense_id: expenseId, image_url: imageUrl, group_id: groupId }),
   })
     .then(async (res) => {
       if (!res.ok) {
@@ -132,18 +133,18 @@ const _fireOcrRequest = (expenseId, imageUrl, groupId) => {
 
       // Update expense with extracted amount + recreate splits
       const updated = await expenseRepo.updateExpenseAfterOcr(expenseId, {
-        amount:     data.amount,
-        category:   data.category || null,
+        amount: data.amount,
+        category: data.category || null,
         ocrRawText: data.raw_text || null,
       });
 
       // Notify all clients in the trip room
       broadcast(rooms, groupId, {
-        type:      'EXPENSE_OCR_COMPLETED',
+        type: 'EXPENSE_OCR_COMPLETED',
         expenseId: expenseId,
-        amount:    data.amount,
-        category:  data.category,
-        expense:   updated,
+        amount: data.amount,
+        category: data.category,
+        expense: updated,
       });
 
       console.log(`[OCR] ✅ Expense ${expenseId} updated — amount: ₹${data.amount}`);
@@ -218,8 +219,8 @@ const rejectExpense = async (userId, groupId, expenseId) => {
  * @returns {object[]} Array of { userId, user, totalPaid, totalOwed, netBalance }
  */
 const _buildLedger = (expenses, members) => {
-  const paid  = {}; // userId → sum of amounts the user paid (created)
-  const owed  = {}; // userId → sum of amounts the user owes (splits)
+  const paid = {}; // userId → sum of amounts the user paid (created)
+  const owed = {}; // userId → sum of amounts the user owes (splits)
 
   members.forEach(({ userId }) => { paid[userId] = 0; owed[userId] = 0; });
 
@@ -239,8 +240,8 @@ const _buildLedger = (expenses, members) => {
   return members.map(({ userId, user }) => ({
     userId,
     user,
-    totalPaid:  parseFloat(paid[userId].toFixed(2)),
-    totalOwed:  parseFloat(owed[userId].toFixed(2)),
+    totalPaid: parseFloat(paid[userId].toFixed(2)),
+    totalOwed: parseFloat(owed[userId].toFixed(2)),
     netBalance: parseFloat((paid[userId] - owed[userId]).toFixed(2)),
   }));
 };
@@ -307,20 +308,20 @@ const _calculateSettlements = (ledger) => {
 
   while (i < debtors.length && j < creditors.length) {
     const payAmount = Math.min(debtors[i].amount, creditors[j].amount);
-    const rounded   = parseFloat(payAmount.toFixed(2));
+    const rounded = parseFloat(payAmount.toFixed(2));
 
     if (rounded > 0.01) {
       settlements.push({
         payerId: debtors[i].userId,   // person who owes
         payeeId: creditors[j].userId, // person who is owed
-        amount:  rounded,
+        amount: rounded,
       });
     }
 
-    debtors[i].amount   -= payAmount;
+    debtors[i].amount -= payAmount;
     creditors[j].amount -= payAmount;
 
-    if (debtors[i].amount   < 0.01) i++;
+    if (debtors[i].amount < 0.01) i++;
     if (creditors[j].amount < 0.01) j++;
   }
 
@@ -337,7 +338,7 @@ const calculateAndSaveSettlements = async (userId, groupId) => {
     expenseRepo.getApprovedExpenses(groupId),
     expenseRepo.getGroupMembers(groupId),
   ]);
-  const ledger      = _buildLedger(expenses, members);
+  const ledger = _buildLedger(expenses, members);
   const settlements = _calculateSettlements(ledger);
   return expenseRepo.saveSettlements(groupId, settlements);
 };
@@ -357,8 +358,8 @@ const completeSettlement = async (userId, groupId, settlementId) => {
   }
   // Only the payer themselves or an admin can mark it complete
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
-  const isAdmin  = member?.role !== 'member';
-  const isPayer  = settlement.payerId === userId;
+  const isAdmin = member?.role !== 'member';
+  const isPayer = settlement.payerId === userId;
   if (!isPayer && !isAdmin) {
     throw Object.assign(
       new Error('Only the payer or a trip admin can mark this settlement as completed.'),
