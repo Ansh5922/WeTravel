@@ -24,3 +24,6 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# Agent guidelines
+AGENTS.md
