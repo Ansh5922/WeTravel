@@ -80,6 +80,32 @@ const login = async (req, res, next) => {
 };
 
 /**
+ * POST /api/auth/google
+ */
+const googleLogin = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Google idToken is required.',
+      });
+    }
+
+    const { user, token } = await authService.googleLogin(idToken);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Logged in with Google successfully.',
+      data: { user, token },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/auth/me  — protected route, requires valid JWT
  */
 const getMe = async (req, res, next) => {
@@ -96,4 +122,4 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { signup, login, getMe };
+module.exports = { signup, login, googleLogin, getMe };

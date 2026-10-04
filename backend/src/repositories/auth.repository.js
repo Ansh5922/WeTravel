@@ -76,10 +76,74 @@ const createUser = async ({ email, username, passwordHash, fullName, phone }) =>
   });
 };
 
+/**
+ * Find a user by their Google ID.
+ * @param {string} googleId
+ * @returns {Promise<User|null>}
+ */
+const findUserByGoogleId = async (googleId) => {
+  return prisma.user.findUnique({
+    where: { googleId },
+  });
+};
+
+/**
+ * Link a Google ID to an existing user record.
+ * @param {string} id
+ * @param {string} googleId
+ * @returns {Promise<User>}
+ */
+const updateUserGoogleId = async (id, googleId) => {
+  return prisma.user.update({
+    where: { id },
+    data: { googleId },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      fullName: true,
+      avatarUrl: true,
+      phone: true,
+      isPremium: true,
+      createdAt: true,
+    },
+  });
+};
+
+/**
+ * Create a new user from Google profile.
+ * @param {{ email: string, username: string, googleId: string, fullName?: string, avatarUrl?: string }} data
+ * @returns {Promise<User>}
+ */
+const createGoogleUser = async ({ email, username, googleId, fullName, avatarUrl }) => {
+  return prisma.user.create({
+    data: {
+      email,
+      username,
+      googleId,
+      fullName,
+      avatarUrl,
+    },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      fullName: true,
+      avatarUrl: true,
+      phone: true,
+      isPremium: true,
+      createdAt: true,
+    },
+  });
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
   findUserByUsername,
+  findUserByGoogleId,
+  updateUserGoogleId,
+  createGoogleUser,
   createUser,
 };
 

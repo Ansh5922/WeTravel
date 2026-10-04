@@ -179,7 +179,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       },
                     ),
 
-                    const SizedBox(height: AppSpacing.xxl),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // ── Primary Action: "Log in" ──────────────────────────────
                     SizedBox(
@@ -215,6 +215,50 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   color: AppColors.surfaceWhite,
                                 ).copyWith(fontWeight: FontWeight.w600),
                               ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── OR Divider ──────────────────────────────────────────
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: AppColors.borderWarm)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          child: Text(
+                            'OR',
+                            style: AppTypography.bodySmall(
+                              color: AppColors.textSecondary,
+                            ).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: AppColors.borderWarm)),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Google Sign In Button ────────────────────────────────
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () => ref.read(authControllerProvider.notifier).googleSignIn(),
+                        icon: const Icon(Icons.g_mobiledata_rounded, size: 28, color: AppColors.primaryDeepTeal),
+                        label: Text(
+                          'Continue with Google',
+                          style: AppTypography.labelLarge(
+                            color: AppColors.textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.borderWarm),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AppRadius.button,
+                          ),
+                        ),
                       ),
                     ),
 

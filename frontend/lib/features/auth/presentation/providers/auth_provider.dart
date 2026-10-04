@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../data/datasources/auth_local_data_source.dart';
@@ -210,6 +211,43 @@ class AuthController extends Notifier<AuthState> {
         fullName: fullName,
         phone: phone,
       );
+      if (result.token != null && result.token!.isNotEmpty) {
+        await localDataSource.saveToken(result.token!);
+      }
+      state = AuthAuthenticated(result.user);
+    } on Failure catch (e) {
+      state = AuthError(e.message);
+    } catch (e) {
+      state = AuthError(e.toString());
+    }
+  }
+
+  /// Authenticates using Google OAuth 2.0.
+  Future<void> googleSignIn({String? webClientId}) async {
+    state = const AuthLoading();
+    try {
+      const defaultWebClientId = '651498220095-lr27c795r377789g01htoptt5c61c9rl.apps.googleusercontent.com';
+      final GoogleSignIn googleSignInClient = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: webClientId ?? defaultWebClientId,
+      );
+
+      final googleUser = await googleSignInClient.signIn();
+      if (googleUser == null) {
+        // User cancelled Google sign-in dialog
+        state = const AuthUnauthenticated();
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        state = const AuthError('Could not retrieve Google ID Token.');
+        return;
+      }
+
+      final result = await authRepository.googleLogin(idToken: idToken);
       if (result.token != null && result.token!.isNotEmpty) {
         await localDataSource.saveToken(result.token!);
       }

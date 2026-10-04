@@ -19,6 +19,10 @@ abstract class AuthRemoteDataSource {
     String? phone,
   });
 
+  Future<AuthResponseModel> googleLogin({
+    required String idToken,
+  });
+
   Future<UserModel> getCurrentUser(String token);
 }
 
@@ -26,6 +30,40 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final Dio dio;
 
   AuthRemoteDataSourceImpl({required this.dio});
+
+  @override
+  Future<AuthResponseModel> googleLogin({
+    required String idToken,
+  }) async {
+    try {
+      final response = await dio.post(
+        ApiConstants.googleSignIn,
+        data: {
+          'idToken': idToken,
+        },
+      );
+
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        return AuthResponseModel.fromJson(data);
+      } else {
+        throw const ServerException('Invalid response format from server.');
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      if (e is AuthException || e is ServerException || e is NetworkException) {
+        rethrow;
+      }
+      throw ServerException(e.toString());
+    }
+  }
 
   @override
   Future<AuthResponseModel> login({

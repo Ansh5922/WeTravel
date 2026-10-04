@@ -101,6 +101,87 @@ const login = async ({ email, password }) => {
   return { user, token };
 };
 
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+/**
+ * Log in or register a user via Google OAuth ID Token.
+ * @param {string} idToken Google ID Token from client
+ * @returns {Promise<{ user: object, token: string }>}
+ */
+const googleLogin = async (idToken) => {
+  let googleId, email, fullName, avatarUrl;
+
+  try {
+    // 1. Verify Google ID Token
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID || undefined,
+    });
+    const payload = ticket.getPayload();
+    
+    googleId = payload.sub;
+    email = payload.email;
+    fullName = payload.name;
+    avatarUrl = payload.picture;
+
+    // Security Enforcement: Ensure email is verified by Google
+    if (!payload.email_verified) {
+      const err = new Error('Google account email is not verified.');
+      err.statusCode = 400;
+      throw err;
+    }
+  } catch (error) {
+    if (error.statusCode) throw error;
+    const err = new Error('Invalid or expired Google ID Token.');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (!email) {
+    const err = new Error('Google account does not provide a valid email.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 2. Check if user already exists by googleId
+  let user = await authRepository.findUserByGoogleId(googleId);
+
+  if (!user) {
+    // 3. Check if user exists by email (Account Linking)
+    const existingByEmail = await authRepository.findUserByEmail(email);
+
+    if (existingByEmail) {
+      // Link Google ID to existing account
+      user = await authRepository.updateUserGoogleId(existingByEmail.id, googleId);
+    } else {
+      // 4. Create new user with Google profile details
+      const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      let username = baseUsername.substring(0, 40);
+      
+      // Ensure unique username
+      const existingUsername = await authRepository.findUserByUsername(username);
+      if (existingUsername) {
+        username = `${username}_${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+
+      user = await authRepository.createGoogleUser({
+        email,
+        username,
+        googleId,
+        fullName,
+        avatarUrl,
+      });
+    }
+  }
+
+  // 5. Issue WeTravel app JWT
+  const token = signToken(user.id);
+
+  return { user, token };
+};
+
 /**
  * Get the authenticated user's profile.
  * @param {string} userId
@@ -116,4 +197,4 @@ const getMe = async (userId) => {
   return user;
 };
 
-module.exports = { signup, login, getMe };
+module.exports = { signup, login, googleLogin, getMe };

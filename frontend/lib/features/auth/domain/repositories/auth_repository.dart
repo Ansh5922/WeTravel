@@ -15,5 +15,9 @@ abstract class AuthRepository {
     String? phone,
   });
 
+  Future<AuthResponseEntity> googleLogin({
+    required String idToken,
+  });
+
   Future<UserEntity> getCurrentUser(String token);
 }

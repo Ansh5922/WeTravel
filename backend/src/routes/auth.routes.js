@@ -14,6 +14,7 @@ const router = express.Router();
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
+router.post('/google', authController.googleLogin);
 
 // ── Protected ─────────────────────────────────────────────────────────────────
 router.get('/me', protect, authController.getMe);

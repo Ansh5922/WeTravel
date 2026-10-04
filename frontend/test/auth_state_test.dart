@@ -154,6 +154,21 @@ class FakeAuthRepository implements AuthRepository {
           token: 'signed_up_jwt',
         );
   }
+
+  @override
+  Future<AuthResponseEntity> googleLogin({
+    required String idToken,
+  }) async {
+    return loginResult ??
+        const AuthResponseEntity(
+          user: UserEntity(
+            id: 'google_user_id',
+            email: 'google@wetravel.test',
+            username: 'google_user',
+          ),
+          token: 'google_jwt',
+        );
+  }
 }
 
 void main() {

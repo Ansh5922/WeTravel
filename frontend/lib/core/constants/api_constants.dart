@@ -15,6 +15,7 @@ class ApiConstants {
   // Auth endpoints
   static const String login = '/api/auth/login';
   static const String signup = '/api/auth/signup';
+  static const String googleSignIn = '/api/auth/google';
   static const String me = '/api/auth/me';
 
   // User endpoints

@@ -75,9 +75,20 @@ The platform uses a stateless, decentralized JWT security model with centralized
      │                             │                               ├── 5. Checks PostgreSQL group_members
      │                             │                               └── 6. Streams AI Chat Token-by-Token
 
-```
+### 1. Google OAuth 2.0 / OpenID Connect (OIDC) Authentication
 
-### 1. Token Lifecycles & Persistence
+The platform supports passwordless Single Sign-On (SSO) via Google OAuth 2.0 and OpenID Connect (OIDC).
+
+* **Authentication Endpoint:** `POST /api/auth/google` (Payload: `{ "idToken": "<google_id_token>" }`)
+* **Cryptographic Verification:** Server-side verification using `google-auth-library` against Google's public key certificates. Verifies signature, expiration, and audience (`GOOGLE_CLIENT_ID`).
+* **Security Controls:** Enforces `payload.email_verified === true` to prevent unverified email impersonation attacks.
+* **Account Provisioning & Linking:**
+  * Matches user by `google_id` if returning SSO user.
+  * Links `google_id` to existing email/password account if email matches.
+  * Provision new `User` record with email, full name, avatar URL, and auto-generated username if first-time user.
+* **Session Issuance:** Returns standard signed WeTravel JWT session token for seamless client authorization.
+
+### 2. Token Lifecycles & Persistence
 
 * **Access Tokens:** Short-lived JSON Web Tokens (15–30 minute expiry) generated exclusively by Node.js. Tokens contain baseline cryptographic identity claims (`user_id`, `email`) and are signed using a symmetric master key (`JWT_SECRET`).
 

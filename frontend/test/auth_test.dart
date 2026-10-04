@@ -82,7 +82,11 @@ void main() {
     expect(find.text('Sign up'), findsOneWidget);
 
     // Test form validation on empty submit
-    await tester.tap(find.text('Log in'));
+    await tester.enterText(find.byType(TextFormField).at(0), '');
+    await tester.enterText(find.byType(TextFormField).at(1), '');
+    final loginButtonFinder = find.widgetWithText(ElevatedButton, 'Log in');
+    await tester.ensureVisible(loginButtonFinder);
+    await tester.tap(loginButtonFinder);
     await tester.pumpAndSettle();
 
     expect(find.text('Email is required.'), findsOneWidget);
@@ -95,7 +99,9 @@ void main() {
     expect(find.byTooltip('Hide password'), findsOneWidget);
 
     // Test navigation to Signup
-    await tester.tap(find.text('Sign up'));
+    final signupFinder = find.text('Sign up');
+    await tester.ensureVisible(signupFinder);
+    await tester.tap(signupFinder);
     await tester.pumpAndSettle();
 
     expect(find.byType(SignupPage), findsOneWidget);
