@@ -64,7 +64,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     // Listen for auth state transitions (one-time side-effects)
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next is AuthAuthenticated) {
-        context.go(RouteNames.home);
+        // Redirect new registered users to Preferences Setup first!
+        context.go(RouteNames.preferences);
       }
     });
 
@@ -210,6 +211,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                         color: AppColors.textSecondary,
                         size: 20,
                       ),
+                      validator: AuthValidators.validateFullName,
                     ),
 
                     const SizedBox(height: AppSpacing.md),
@@ -227,9 +229,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                         color: AppColors.textSecondary,
                         size: 20,
                       ),
+                      validator: AuthValidators.validatePhone,
                     ),
 
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // ── Primary Action: "Create account" ─────────────────────
                     SizedBox(
@@ -265,6 +268,50 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                                   color: AppColors.surfaceWhite,
                                 ).copyWith(fontWeight: FontWeight.w600),
                               ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── OR Divider ──────────────────────────────────────────
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: AppColors.borderWarm)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          child: Text(
+                            'OR',
+                            style: AppTypography.bodySmall(
+                              color: AppColors.textSecondary,
+                            ).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: AppColors.borderWarm)),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Google Sign In Button ────────────────────────────────
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () => ref.read(authControllerProvider.notifier).googleSignIn(),
+                        icon: const Icon(Icons.g_mobiledata_rounded, size: 28, color: AppColors.primaryDeepTeal),
+                        label: Text(
+                          'Continue with Google',
+                          style: AppTypography.labelLarge(
+                            color: AppColors.textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.borderWarm),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AppRadius.button,
+                          ),
+                        ),
                       ),
                     ),
 

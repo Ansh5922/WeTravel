@@ -10,6 +10,7 @@ import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/home/presentation/pages/home_page.dart';
+import 'package:frontend/features/preferences/presentation/pages/preferences_page.dart';
 
 class TestAuthController extends AuthController {
   final AuthState initialState;
@@ -412,7 +413,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.byType(PreferencesPage), findsOneWidget);
     });
   });
 }
+

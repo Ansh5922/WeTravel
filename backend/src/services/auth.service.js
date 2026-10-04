@@ -114,27 +114,50 @@ const googleLogin = async (idToken) => {
   let googleId, email, fullName, avatarUrl;
 
   try {
-    // 1. Verify Google ID Token
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID || undefined,
-    });
-    const payload = ticket.getPayload();
-    
-    googleId = payload.sub;
-    email = payload.email;
-    fullName = payload.name;
-    avatarUrl = payload.picture;
+    if (idToken.startsWith('ya29.')) {
+      // Access Token flow (Flutter Web / OAuth Popup)
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!response.ok) {
+        const err = new Error('Invalid or expired Google Access Token.');
+        err.statusCode = 401;
+        throw err;
+      }
+      const data = await response.json();
+      googleId = data.sub;
+      email = data.email;
+      fullName = data.name;
+      avatarUrl = data.picture;
 
-    // Security Enforcement: Ensure email is verified by Google
-    if (!payload.email_verified) {
-      const err = new Error('Google account email is not verified.');
-      err.statusCode = 400;
-      throw err;
+      if (data.email_verified === false) {
+        const err = new Error('Google account email is not verified.');
+        err.statusCode = 400;
+        throw err;
+      }
+    } else {
+      // 1. Verify Google ID Token (Mobile flow)
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID || undefined,
+      });
+      const payload = ticket.getPayload();
+      
+      googleId = payload.sub;
+      email = payload.email;
+      fullName = payload.name;
+      avatarUrl = payload.picture;
+
+      // Security Enforcement: Ensure email is verified by Google
+      if (!payload.email_verified) {
+        const err = new Error('Google account email is not verified.');
+        err.statusCode = 400;
+        throw err;
+      }
     }
   } catch (error) {
     if (error.statusCode) throw error;
-    const err = new Error('Invalid or expired Google ID Token.');
+    const err = new Error('Invalid or expired Google Token.');
     err.statusCode = 401;
     throw err;
   }

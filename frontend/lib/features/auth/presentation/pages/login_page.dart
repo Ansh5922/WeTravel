@@ -171,12 +171,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         tooltip:
                             _obscurePassword ? 'Show password' : 'Hide password',
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password is required.';
-                        }
-                        return null;
-                      },
+                      validator: AuthValidators.validatePassword,
                     ),
 
                     const SizedBox(height: AppSpacing.lg),

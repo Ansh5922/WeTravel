@@ -40,6 +40,9 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
         duration: const Duration(seconds: 2),
       ),
     );
+
+    // Always navigate to Home screen after saving preferences
+    context.go(RouteNames.home);
   }
 
   void _showEditSheet(String title, List<String> options, String currentValue, ValueChanged<String> onSelected) {
@@ -414,9 +417,7 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
                           size: 24,
                         ),
                         onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          }
+                          context.go(RouteNames.home);
                         },
                       ),
                       const SizedBox(width: 4),

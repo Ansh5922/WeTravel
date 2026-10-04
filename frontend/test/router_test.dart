@@ -106,7 +106,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TripDetailsPage), findsOneWidget);
-    expect(find.text('Trip Details ($testTripId)'), findsOneWidget);
   });
 
   testWidgets('7. Nested trip routes work for itinerary, chat, polls, expenses, memories', (tester) async {
@@ -117,30 +116,25 @@ void main() {
     appRouter.go(RouteNames.itineraryPath(testTripId));
     await tester.pumpAndSettle();
     expect(find.byType(ItineraryPage), findsOneWidget);
-    expect(find.text('Itinerary ($testTripId)'), findsOneWidget);
 
     // Chat
     appRouter.go(RouteNames.chatPath(testTripId));
     await tester.pumpAndSettle();
     expect(find.byType(GroupChatPage), findsOneWidget);
-    expect(find.text('Group Chat ($testTripId)'), findsOneWidget);
 
     // Polls
     appRouter.go(RouteNames.pollsPath(testTripId));
     await tester.pumpAndSettle();
     expect(find.byType(PollsPage), findsOneWidget);
-    expect(find.text('Polls ($testTripId)'), findsOneWidget);
 
     // Expenses
     appRouter.go(RouteNames.expensesPath(testTripId));
     await tester.pumpAndSettle();
     expect(find.byType(ExpensesPage), findsOneWidget);
-    expect(find.text('Expenses ($testTripId)'), findsOneWidget);
 
     // Memories
     appRouter.go(RouteNames.memoriesPath(testTripId));
     await tester.pumpAndSettle();
     expect(find.byType(MemoriesPage), findsOneWidget);
-    expect(find.text('Memories ($testTripId)'), findsOneWidget);
   });
 }

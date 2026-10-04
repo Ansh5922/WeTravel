@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
 import '../../domain/entities/user_travel_preferences.dart';
 import '../widgets/preferences_category_card.dart';
@@ -66,14 +67,12 @@ class _PreferencesPageState extends State<PreferencesPage> {
         backgroundColor: const Color(0xFF004E64),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
       ),
     );
 
-    // Navigate back to previous screen
-    if (context.canPop()) {
-      context.pop(prefs);
-    }
+    // Always navigate to Home screen after saving preferences
+    context.go(RouteNames.home);
   }
 
   @override
@@ -319,9 +318,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
                           size: 24,
                         ),
                         onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          }
+                          context.go(RouteNames.home);
                         },
                       ),
                       const SizedBox(width: 4),
@@ -341,9 +338,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
                           size: 22,
                         ),
                         onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          }
+                          context.go(RouteNames.home);
                         },
                       ),
                     ],

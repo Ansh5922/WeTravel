@@ -46,4 +46,32 @@ class AuthValidators {
     }
     return null;
   }
+
+  static final RegExp _phoneRegExp = RegExp(
+    r'^\+?[0-9\s\-]{7,15}$',
+  );
+
+  /// Validates phone number (optional field validator).
+  static String? validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null; // Optional field
+    }
+    final trimmed = value.trim();
+    if (!_phoneRegExp.hasMatch(trimmed)) {
+      return 'Please enter a valid phone number (e.g. +91 9876543210).';
+    }
+    return null;
+  }
+
+  /// Validates full name (optional field validator).
+  static String? validateFullName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null; // Optional field
+    }
+    final trimmed = value.trim();
+    if (trimmed.length < 2) {
+      return 'Full name must be at least 2 characters long.';
+    }
+    return null;
+  }
 }

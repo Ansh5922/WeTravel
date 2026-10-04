@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../domain/entities/user_entity.dart';
@@ -229,7 +230,8 @@ class AuthController extends Notifier<AuthState> {
       const defaultWebClientId = '651498220095-lr27c795r377789g01htoptt5c61c9rl.apps.googleusercontent.com';
       final GoogleSignIn googleSignInClient = GoogleSignIn(
         scopes: ['email', 'profile'],
-        serverClientId: webClientId ?? defaultWebClientId,
+        clientId: kIsWeb ? (webClientId ?? defaultWebClientId) : null,
+        serverClientId: kIsWeb ? null : (webClientId ?? defaultWebClientId),
       );
 
       final googleUser = await googleSignInClient.signIn();
@@ -240,14 +242,14 @@ class AuthController extends Notifier<AuthState> {
       }
 
       final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
+      final token = googleAuth.idToken ?? googleAuth.accessToken;
 
-      if (idToken == null || idToken.isEmpty) {
-        state = const AuthError('Could not retrieve Google ID Token.');
+      if (token == null || token.isEmpty) {
+        state = const AuthError('Could not retrieve Google authentication token.');
         return;
       }
 
-      final result = await authRepository.googleLogin(idToken: idToken);
+      final result = await authRepository.googleLogin(idToken: token);
       if (result.token != null && result.token!.isNotEmpty) {
         await localDataSource.saveToken(result.token!);
       }

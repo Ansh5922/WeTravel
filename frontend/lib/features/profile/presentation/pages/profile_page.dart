@@ -507,36 +507,39 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      onTap: onTap,
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: const BoxDecoration(
-          color: Color(0xFFDEF2F1),
-          shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: const BoxDecoration(
+            color: Color(0xFFDEF2F1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFF004E64), size: 20),
         ),
-        child: Icon(icon, color: const Color(0xFF004E64), size: 20),
-      ),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF004E64),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF004E64),
+          ),
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          color: const Color(0xFF64748B),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: const Color(0xFF64748B),
+          ),
         ),
-      ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        color: Color(0xFF94A3B8),
-        size: 20,
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: Color(0xFF94A3B8),
+          size: 20,
+        ),
       ),
     );
   }
