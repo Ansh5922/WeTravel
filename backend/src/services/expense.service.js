@@ -48,6 +48,7 @@ const requireAdmin = async (userId, groupId) => {
     throw Object.assign(new Error('Only a trip admin can perform this action.'), { statusCode: 403 });
   }
   console.log(member);
+  console.log(member.role);
   return member;
 };
 
