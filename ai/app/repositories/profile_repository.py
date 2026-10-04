@@ -1,9 +1,30 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
+"""
+Profile Repository — FastAPI AI Backend
+Responsibility: Raw database write operations for user_profiles table.
+Architecture layer: Repository → Database
+
+Uses raw SQL with pgvector's vector casting because SQLAlchemy ORM
+doesn't natively handle the vector(384) column type.
+"""
+
 
 def update_preference_vector(db: Session, user_id: str, vector: list[float]) -> bool:
-    # Upsert 384-dimensional preference vector for a user profile in database
+    """
+    Upsert the preference_vector in the user_profiles table.
+    Inserts the row if it doesn't exist, or updates the vector if it does.
+
+    Args:
+        db:      SQLAlchemy session
+        user_id: UUID string of the user
+        vector:  List of 384 floats (the embedding)
+
+    Returns:
+        True if successful
+    """
+    # Convert Python list to PostgreSQL vector literal: '[0.1, 0.2, ...]'
     vector_str = '[' + ','.join(str(v) for v in vector) + ']'
 
     db.execute(

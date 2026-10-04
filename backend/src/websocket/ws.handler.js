@@ -1,24 +1,46 @@
 const jwt = require('jsonwebtoken');
 const chatRepo = require('../repositories/chat.repository');
 
-// Verify JWT token from WebSocket connection query parameter
+/**
+ * WebSocket Message Handler — WeTravel Backend
+ * Layer: WebSocket Handler (processes incoming WS messages, broadcasts to room)
+ *
+ * Handles:
+ *   - text messages
+ *   - image messages (confirmed imageUrl from ImageKit)
+ *   - typing indicators
+ */
+
+/**
+ * Verify JWT from WebSocket connection query param.
+ * @param {string} token
+ * @returns {{ id: string, email: string }}
+ */
 const verifyWsToken = (token) => {
   return jwt.verify(token, process.env.JWT_SECRET);
 };
 
-// Broadcast JSON payload to active clients in a trip room, optionally skipping sender
+/**
+ * Broadcast a JSON payload to all authenticated clients in a specific trip room.
+ * @param {Map} rooms - Map<tripId, Set<ws>>
+ * @param {string} tripId
+ * @param {object} payload
+ * @param {WebSocket} [skipWs] - Optionally skip the sender
+ */
 const broadcast = (rooms, tripId, payload, skipWs = null) => {
   const room = rooms.get(tripId);
   if (!room) return;
   const data = JSON.stringify(payload);
   for (const client of room) {
-    if (client !== skipWs && client.readyState === 1) {
+    if (client !== skipWs && client.readyState === 1 /* OPEN */) {
       client.send(data);
     }
   }
 };
 
-// Handle incoming WebSocket message and route according to type
+/**
+ * Handle an incoming WebSocket message from a client.
+ */
 const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
   let parsed;
   try {
@@ -76,6 +98,7 @@ const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
     }
 
     case 'typing': {
+      // Broadcast typing indicator to everyone else in the room
       broadcast(rooms, tripId, {
         type: 'typing',
         userId: user.id,

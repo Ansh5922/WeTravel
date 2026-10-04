@@ -12,15 +12,29 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/signup_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/trips/presentation/pages/trips_page.dart';
+import '../../features/trips/presentation/pages/create_trip_page.dart';
+import '../../features/trips/presentation/pages/invite_members_page.dart';
+import '../../features/trips/presentation/pages/review_trip_page.dart';
+import '../../features/trips/domain/entities/trip_review_draft.dart';
 import '../../features/friends/presentation/pages/friends_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/preferences/presentation/pages/preferences_page.dart';
+import '../../features/preferences/presentation/pages/my_preferences_page.dart';
 import '../../features/trip_details/presentation/pages/trip_details_page.dart';
+import '../../features/trip_details/presentation/pages/add_suggestion_page.dart';
+import '../../features/trip_details/presentation/pages/suggestion_detail_page.dart';
+import '../../features/trip_details/presentation/pages/ai_insights_page.dart';
+import '../../features/trip_details/domain/entities/trip_suggestion.dart';
 import '../../features/itinerary/presentation/pages/itinerary_page.dart';
+import '../../features/itinerary/presentation/pages/plans_alternatives_page.dart';
 import '../../features/group_chat/presentation/pages/group_chat_page.dart';
 import '../../features/polls/presentation/pages/polls_page.dart';
+import '../../features/polls/presentation/pages/voting_collaboration_page.dart';
 import '../../features/expenses/presentation/pages/expenses_page.dart';
 import '../../features/memories/presentation/pages/memories_page.dart';
+import '../../features/inbox/presentation/pages/invitation_details_page.dart';
+import '../../features/inbox/presentation/pages/invitation_success_page.dart';
+import '../../features/inbox/domain/entities/trip_invitation.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorHomeKey = GlobalKey<NavigatorState>(debugLabel: 'shellHome');
@@ -122,11 +136,69 @@ final GoRouter appRouter = GoRouter(
       ],
     ),
 
-    // ── Preferences Route ─────────────────────────────────────────────────────
+    // ── Preferences Routes ───────────────────────────────────────────────────
     GoRoute(
       path: RouteNames.preferences,
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const PreferencesPage(),
+    ),
+    GoRoute(
+      path: RouteNames.myPreferences,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const MyPreferencesPage(),
+    ),
+
+    // ── Create Trip Route ─────────────────────────────────────────────────────
+    GoRoute(
+      path: RouteNames.createTrip,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const CreateTripPage(),
+    ),
+
+    // ── Invite Members Route ──────────────────────────────────────────────────
+    GoRoute(
+      path: RouteNames.inviteMembers,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final draft = state.extra as TripReviewDraft?;
+        return InviteMembersPage(draft: draft);
+      },
+    ),
+
+    // ── Review Trip Route ─────────────────────────────────────────────────────
+    GoRoute(
+      path: RouteNames.reviewTrip,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final draft = state.extra as TripReviewDraft?;
+        return ReviewTripPage(draft: draft);
+      },
+    ),
+
+    // ── Invitation Details Route ──────────────────────────────────────────────
+    GoRoute(
+      path: RouteNames.invitationDetails,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final extra = state.extra;
+        final TripInvitation invitation = extra is TripInvitation
+            ? extra
+            : TripInvitation.initialInvitations.first;
+        return InvitationDetailsPage(invitation: invitation);
+      },
+    ),
+
+    // ── Invitation Success Route ("You're In!") ───────────────────────────────
+    GoRoute(
+      path: RouteNames.invitationSuccess,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final extra = state.extra;
+        final TripInvitation invitation = extra is TripInvitation
+            ? extra
+            : TripInvitation.initialInvitations.first;
+        return InvitationSuccessPage(invitation: invitation);
+      },
     ),
 
     // ── Trip Details & Sub-Feature Routes (Pushed to Root Navigator) ──────────
@@ -176,6 +248,50 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) {
             final tripId = state.pathParameters['tripId'] ?? '';
             return MemoriesPage(tripId: tripId);
+          },
+        ),
+        GoRoute(
+          path: 'add-suggestion',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId'] ?? '';
+            return AddSuggestionPage(tripId: tripId);
+          },
+        ),
+        GoRoute(
+          path: 'suggestion-detail',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId'] ?? '';
+            final suggestion = state.extra as TripSuggestion?;
+            return SuggestionDetailPage(
+              tripId: tripId,
+              suggestion: suggestion,
+            );
+          },
+        ),
+        GoRoute(
+          path: 'ai-insights',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId'] ?? '';
+            return AiInsightsPage(tripId: tripId);
+          },
+        ),
+        GoRoute(
+          path: 'plans-alternatives',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId'] ?? '';
+            return PlansAlternativesPage(tripId: tripId);
+          },
+        ),
+        GoRoute(
+          path: 'voting-collaboration',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final tripId = state.pathParameters['tripId'] ?? '';
+            return VotingCollaborationPage(tripId: tripId);
           },
         ),
       ],

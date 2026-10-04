@@ -1,8 +1,19 @@
-import os
 from sqlalchemy.orm import Session
-from sentence_transformers import SentenceTransformer
 from app.repositories.profile_repository import update_preference_vector
 
+"""
+Embedding Service — FastAPI AI Backend
+Responsibility: Generate preference vector embeddings and persist them.
+Architecture layer: Service (orchestrates model + repository)
+
+Uses sentence-transformers `all-MiniLM-L6-v2` which outputs 384-dimensional
+vectors — exactly matching the vector(384) column in user_profiles.
+
+The model is loaded once at module level (singleton) for performance.
+"""
+
+import os
+from sentence_transformers import SentenceTransformer
 
 # Suppress HuggingFace hub symlink warning
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
@@ -18,11 +29,21 @@ print("[Embedding Service] [OK] Model ready in RAM.")
 
 
 def get_embedding_model():
+    """Return the loaded SentenceTransformer singleton."""
     return _model
 
 
+
 def generate_preference_embedding(text: str) -> list[float]:
-    # Generate normalized 384-dimensional vector embedding for text
+    """
+    Convert a preference text string into a 384-dimensional embedding vector.
+
+    Args:
+        text: Natural language preference string built by Node.js
+
+    Returns:
+        List of 384 floats
+    """
     if not text or not text.strip():
         raise ValueError("Preference text cannot be empty")
 
@@ -35,11 +56,23 @@ def create_and_save_preference_embedding(
     user_id: str,
     preference_text: str,
 ) -> dict:
+    """
+    Full pipeline: text → embedding vector → save to DB.
+
+    Args:
+        db:               SQLAlchemy database session
+        user_id:          User UUID string
+        preference_text:  Natural language preference string
+
+    Returns:
+        dict with status and vector_dimensions
+    """
     # 1. Generate embedding vector
     vector = generate_preference_embedding(preference_text)
 
     # 2. Persist to user_profiles.preference_vector
     update_preference_vector(db, user_id, vector)
+
     return {
         "user_id": user_id,
         "vector_dimensions": len(vector),

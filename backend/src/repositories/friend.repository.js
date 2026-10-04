@@ -1,6 +1,10 @@
 const prisma = require('./prisma.client');
 
-// Friend repository for Friendship table database queries
+/**
+ * Friend Repository
+ * Responsibility: Raw DB operations for Friendship model.
+ * Architecture layer: Repository → Database
+ */
 
 const SAFE_USER_SELECT = {
   id: true,
@@ -9,7 +13,9 @@ const SAFE_USER_SELECT = {
   fullName: true,
 };
 
-// Find an existing friendship record between two users (in either direction)
+/**
+ * Find an existing friendship record between two users (in either direction).
+ */
 const findFriendship = async (userId, friendId) => {
   return prisma.friendship.findFirst({
     where: {
@@ -21,7 +27,9 @@ const findFriendship = async (userId, friendId) => {
   });
 };
 
-// Find a friendship by its ID, verifying one of the users is involved
+/**
+ * Find a friendship by its ID, verifying one of the users is involved.
+ */
 const findFriendshipById = async (friendshipId, userId) => {
   return prisma.friendship.findFirst({
     where: {
@@ -35,7 +43,9 @@ const findFriendshipById = async (friendshipId, userId) => {
   });
 };
 
-// Create a pending friend request from userId to friendId
+/**
+ * Create a pending friend request from userId → friendId.
+ */
 const createFriendRequest = async (userId, friendId) => {
   return prisma.friendship.create({
     data: { userId, friendId, status: 'pending' },
@@ -45,7 +55,9 @@ const createFriendRequest = async (userId, friendId) => {
   });
 };
 
-// Update friendship status (accepted, rejected, or blocked)
+/**
+ * Update friendship status (accepted | rejected | blocked).
+ */
 const updateFriendshipStatus = async (friendshipId, status) => {
   return prisma.friendship.update({
     where: { id: friendshipId },
@@ -57,7 +69,9 @@ const updateFriendshipStatus = async (friendshipId, status) => {
   });
 };
 
-// Get all accepted friends of a user
+/**
+ * Get all accepted friends of a user.
+ */
 const getAcceptedFriends = async (userId) => {
   return prisma.friendship.findMany({
     where: {
@@ -71,12 +85,14 @@ const getAcceptedFriends = async (userId) => {
   });
 };
 
-// Get all pending friend requests received by userId
+/**
+ * Get all pending friend requests received by userId.
+ */
 const getIncomingRequests = async (userId) => {
   return prisma.friendship.findMany({
     where: { friendId: userId, status: 'pending' },
     include: {
-      user: { select: SAFE_USER_SELECT },
+      user: { select: SAFE_USER_SELECT }, // the sender
     },
   });
 };

@@ -2,41 +2,31 @@ const express = require('express');
 const tripController = require('../controllers/trip.controller');
 const { protect } = require('../middleware/auth.middleware');
 
-// Trip group creation, member invitation, and consensus management routes
+/**
+ * Trip Router
+ * All routes protected — require valid JWT.
+ *
+ * Route order matters: static paths (/invites/me, /join/:token) must be
+ * declared BEFORE dynamic paths (/:tripId) to avoid Express matching conflicts.
+ */
 const router = express.Router();
 router.use(protect);
 
-// My pending direct invites
-router.get('/invites/me',             tripController.getMyInvites);
+// ── Static paths first ────────────────────────────────────────────────────────
+router.get('/invites/me',             tripController.getMyInvites);    // My pending direct invites
+router.post('/join/:token',           tripController.joinViaToken);    // Join via invite link token
+router.patch('/invites/:inviteId',    tripController.respondToInvite); // Accept / reject direct invite
 
-// Join trip via invite link token
-router.post('/join/:token',           tripController.joinViaToken);
+// ── Trip CRUD ─────────────────────────────────────────────────────────────────
+router.post('/',                      tripController.createTrip);      // Create trip (creator = admin)
+router.get('/',                       tripController.getMyTrips);      // GET /api/trips?status=upcoming|ongoing|completed
 
-// Accept or reject direct invite
-router.patch('/invites/:inviteId',    tripController.respondToInvite);
-
-// Create trip (creator is assigned admin role)
-router.post('/',                      tripController.createTrip);
-
-// List user trips by status filter (upcoming, ongoing, completed)
-router.get('/',                       tripController.getMyTrips);
-
-// Get trip details with member list
-router.get('/:tripId',                tripController.getTripDetails);
-
-// Send trip invitation via friend, email, or whatsapp link
-router.post('/:tripId/invite',        tripController.inviteMember);
-
-// List pending invites for a trip
-router.get('/:tripId/invites',        tripController.getTripInvites);
-
-// View group consensus profile and aggregated stats
-router.get('/:tripId/consensus',      tripController.getConsensus);
-
-// Admin manual override of group consensus
-router.patch('/:tripId/consensus',    tripController.updateConsensus);
-
-// Admin assignment of member role (admin or member)
-router.patch('/:tripId/members/:targetUserId/role', tripController.assignRole);
+// ── Trip-specific actions ──────────────────────────────────────────────────
+router.get('/:tripId',                tripController.getTripDetails);  // Get trip details + members
+router.post('/:tripId/invite',        tripController.inviteMember);    // Invite (friend/email/whatsapp/link)
+router.get('/:tripId/invites',        tripController.getTripInvites);  // Pending invites for a trip
+router.get('/:tripId/consensus',      tripController.getConsensus);    // View group preference (all members)
+router.patch('/:tripId/consensus',    tripController.updateConsensus); // Admin override group preference
+router.patch('/:tripId/members/:targetUserId/role', tripController.assignRole); // Admin assign role
 
 module.exports = router;

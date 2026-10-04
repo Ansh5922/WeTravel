@@ -6,6 +6,44 @@ from app.repositories.consensus_repository import (
     save_consensus,
 )
 
+"""
+Group Preference Service — FastAPI AI Backend
+Responsibility: Compute group consensus in BOTH formats:
+  1. Vector (384-dim) — for AI similarity search
+  2. Human-readable groupStats JSON — for UI display and itinerary generation
+
+Architecture layer: Service
+
+──────────────────────────────────────────────────────────────
+BUDGET TIER → NUMERIC RANGE MAPPING
+──────────────────────────────────────────────────────────────
+Each budget tier name maps to a numeric daily spend range (USD).
+When we compute group budget stats:
+  - group_min    = lowest member's tier_min
+  - group_max    = highest member's tier_max
+  - group_avg    = mean of all members' tier_mid values
+
+This gives the itinerary builder 3 targets:
+  → "budget itinerary"  uses group_min
+  → "average itinerary" uses group_avg
+  → "luxury itinerary"  uses group_max
+
+──────────────────────────────────────────────────────────────
+PACE PREFERENCE → NUMERIC MAPPING
+──────────────────────────────────────────────────────────────
+slow=1, moderate=2, fast=3. Group stats provide min/max/avg
+so itineraries can be generated for the slowest preference
+(most accessible) or the majority preference.
+
+──────────────────────────────────────────────────────────────
+DIETARY / HEALTH / CLIMATE
+──────────────────────────────────────────────────────────────
+These are UNION-based — the strictest constraints from any
+member apply to the whole group. "If one person is vegan,
+the group can't go to a steakhouse."
+"""
+
+# ── Budget tier → (min $/day, max $/day, mid $/day) ──────────────────────────
 BUDGET_MAP = {
     "backpacker": (0,    500,   250),
     "budget":     (300,  1000,  650),
@@ -13,25 +51,29 @@ BUDGET_MAP = {
     "luxury":     (2000, 8000,  5000),
     "ultra_luxury": (5000, 50000, 27500),
 }
-DEFAULT_BUDGET = (500, 2000, 1250)
+DEFAULT_BUDGET = (500, 2000, 1250)  # fallback if tier unknown
 
+# ── Pace tier → numeric score ─────────────────────────────────────────────────
 PACE_MAP = {"slow": 1, "moderate": 2, "fast": 3}
 PACE_REVERSE = {1: "slow", 2: "moderate", 3: "fast"}
 
 
+# ── Vector helpers ────────────────────────────────────────────────────────────
+
 def _l2_norm(vector: list[float]) -> float:
-    # Compute Euclidean L2 norm of a vector
     return math.sqrt(sum(x * x for x in vector))
 
 
 def _normalize(vector: list[float]) -> list[float]:
-    # Normalize vector to unit length
     mag = _l2_norm(vector)
     return vector if mag == 0 else [x / mag for x in vector]
 
 
 def _compute_group_vector(vectors: list[list[float]]) -> list[float]:
-    # Compute normalized centroid vector across all member embeddings
+    """
+    Normalised centroid of all member embedding vectors.
+    Maximises average cosine similarity across all members.
+    """
     n   = len(vectors)
     dim = len(vectors[0])
     centroid = [0.0] * dim
@@ -42,8 +84,13 @@ def _compute_group_vector(vectors: list[list[float]]) -> list[float]:
     return _normalize(centroid)
 
 
+# ── Stat computation helpers ──────────────────────────────────────────────────
+
 def _compute_budget_stats(profiles: list[dict]) -> dict:
-    # Compute group-level min, max, and average daily budget statistics
+    """
+    For each member's single numerical budget preference (or legacy budget_tier fallback),
+    compute group-level min, max, and average daily budget.
+    """
     user_budgets = []
 
     for p in profiles:
@@ -85,7 +132,14 @@ def _compute_budget_stats(profiles: list[dict]) -> dict:
 
 
 def _compute_pace_stats(profiles: list[dict]) -> dict:
-    # Compute group pace distribution and determine majority preference
+    """
+    Map pace strings to 1/2/3 and compute min, max, avg.
+    Also records which pace describes the majority.
+
+    Example [slow, moderate, fast, fast]:
+      scores = [1, 2, 3, 3]
+      min=slow, max=fast, avg=moderate
+    """
     paces = [p["pace_preference"] for p in profiles if p.get("pace_preference")]
     if not paces:
         return {"group_min": None, "group_max": None, "group_avg": None,
@@ -111,7 +165,6 @@ def _compute_pace_stats(profiles: list[dict]) -> dict:
 
 
 def _compute_age_stats(profiles: list[dict]) -> dict:
-    # Compute member age summary statistics
     ages = [p["age"] for p in profiles if p.get("age") is not None]
     if not ages:
         return {"min": None, "max": None, "avg": None, "members_with_age": 0}
@@ -124,7 +177,10 @@ def _compute_age_stats(profiles: list[dict]) -> dict:
 
 
 def _compute_travel_styles(profiles: list[dict]) -> dict:
-    # Aggregate member travel style preferences and determine majority style
+    """
+    Count how many members share each travel style.
+    The itinerary builder should lean toward the majority styles.
+    """
     styles = [p["travel_style"] for p in profiles if p.get("travel_style")]
     if not styles:
         return {"all_styles": [], "style_distribution": {}, "majority_style": None}
@@ -143,7 +199,10 @@ def _compute_travel_styles(profiles: list[dict]) -> dict:
 
 
 def _compute_dietary(profiles: list[dict]) -> dict:
-    # Aggregate dietary requirements using union logic to satisfy all members
+    """
+    Union of all dietary preferences — strictest rule wins.
+    "If one member is vegan, the whole group needs vegan options."
+    """
     items = [p["dietary_preference"] for p in profiles if p.get("dietary_preference")]
     distribution: dict[str, int] = {}
     for d in items:
@@ -159,7 +218,10 @@ def _compute_dietary(profiles: list[dict]) -> dict:
 
 
 def _compute_health_constraints(profiles: list[dict]) -> dict:
-    # Aggregate member health constraints into a combined map
+    """
+    Union of all health constraints across all members.
+    Each member's constraints object is merged into one combined set.
+    """
     combined: dict = {}
     members_count  = 0
     for p in profiles:
@@ -168,7 +230,7 @@ def _compute_health_constraints(profiles: list[dict]) -> dict:
             members_count += 1
             if isinstance(hc, dict):
                 for key, val in hc.items():
-                    if val:
+                    if val:  # only include truthy constraints
                         combined[key] = combined.get(key, 0) + 1
 
     return {
@@ -179,7 +241,9 @@ def _compute_health_constraints(profiles: list[dict]) -> dict:
 
 
 def _compute_climate_sensitivities(profiles: list[dict]) -> dict:
-    # Aggregate climate sensitivities across all group members
+    """
+    Union of all climate sensitivities across members.
+    """
     combined: dict = {}
     members_count  = 0
     for p in profiles:
@@ -198,16 +262,37 @@ def _compute_climate_sensitivities(profiles: list[dict]) -> dict:
     }
 
 
+# ── Main pipeline ─────────────────────────────────────────────────────────────
+
 def compute_and_save_group_preference(
     db: Session,
     group_id: str,
     member_ids: list[str],
 ) -> dict:
-    # Compute group consensus vector and aggregate preference stats, then persist to DB
+    """
+    Full dual-format pipeline:
+
+      member_ids
+        │
+        ├─► fetch_member_vectors()  → compute 384-dim consensus_vector
+        │
+        └─► fetch_member_profiles() → compute human-readable groupStats
+                                       (budget, pace, age, styles, dietary, health, climate)
+        │
+        └─► save_consensus()  → writes BOTH to group_consensus_profiles in one upsert
+
+    Returns info dict used as the API response.
+    """
+    # 1. Fetch embedding vectors for consensus_vector computation
     vectors = fetch_member_vectors(db, member_ids)
+
+    # 2. Fetch profile text fields for human-readable stats computation
     profiles = fetch_member_profiles(db, member_ids)
+
+    # 3. Compute consensus vector (may be None if no embeddings yet)
     group_vector = _compute_group_vector(vectors) if vectors else None
 
+    # 4. Compute all human-readable stats
     group_stats = {
         "member_count":         len(member_ids),
         "profiles_found":       len(profiles),
@@ -220,6 +305,7 @@ def compute_and_save_group_preference(
         "climate_sensitivities": _compute_climate_sensitivities(profiles),
     }
 
+    # 5. Save both in one DB upsert
     save_consensus(db, group_id, group_vector, group_stats)
 
     return {

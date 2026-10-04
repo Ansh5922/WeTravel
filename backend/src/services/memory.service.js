@@ -5,22 +5,32 @@ const imagekitService = require('./imagekit.service');
 const { rooms } = require('../websocket/ws.server');
 const { broadcast } = require('../websocket/ws.handler');
 
-// Memory service implementing highlight scoring, EXIF parsing, and timeline grouping
+/**
+ * Memory Service — WeTravel Backend
+ * Layer: Service (business logic, algorithmic highlight ranking, and timeline grouping)
+ */
 
-// Verify user is a member of the trip (throws 403 otherwise)
+/** Verify user is a member of the trip (throws 403 otherwise) */
 const requireMembership = async (userId, groupId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
   return member;
 };
 
-// ImageKit Auth token for direct frontend photo upload
+/** ImageKit Auth token for direct frontend photo upload */
 const getImageKitAuth = async (userId, groupId) => {
   await requireMembership(userId, groupId);
   return imagekitService.getAuthParams();
 };
 
-// Algorithmic highlight scoring (100% local heuristics evaluating caption, geotags, and itinerary match)
+/**
+ * Algorithmic Highlight Scoring (100% Local Heuristics)
+ * Evaluates photo attributes, caption, location, and itinerary match.
+ *
+ * @param {object} photo
+ * @param {Array} itineraryItems
+ * @returns {{ score: number, isHighlight: boolean, matchedActivity: string | null }}
+ */
 const evaluateHighlightScore = (photo, itineraryItems = []) => {
   let score = 0.50; // Base score
   let matchedActivity = null;
@@ -42,7 +52,11 @@ const evaluateHighlightScore = (photo, itineraryItems = []) => {
 
   // Check correlation with scheduled itinerary items
   if (photo.capturedAt && itineraryItems.length > 0) {
+    const photoDate = new Date(photo.capturedAt).toDateString();
+    
+    // Check if there is a scheduled itinerary stop on this day
     const matchingItem = itineraryItems.find((item) => {
+      // If photo location matches activity name or transit mode
       if (photo.locationTag && item.activityName) {
         return item.activityName.toLowerCase().includes(photo.locationTag.toLowerCase()) ||
                photo.locationTag.toLowerCase().includes(item.activityName.toLowerCase());
@@ -66,7 +80,9 @@ const evaluateHighlightScore = (photo, itineraryItems = []) => {
   };
 };
 
-// Upload one or multiple trip memories with EXIF parsing and algorithmic curation
+/**
+ * Upload one or multiple trip memories with EXIF parsing & algorithmic curation.
+ */
 const uploadMemories = async (userId, groupId, photos) => {
   await requireMembership(userId, groupId);
 
@@ -135,7 +151,9 @@ const uploadMemories = async (userId, groupId, photos) => {
   return created;
 };
 
-// Fetch memory timeline grouped by days with top highlight reel
+/**
+ * Fetch the memory timeline grouped by days with top highlight reel.
+ */
 const getMemoriesTimeline = async (userId, groupId) => {
   await requireMembership(userId, groupId);
 
@@ -166,7 +184,7 @@ const getMemoriesTimeline = async (userId, groupId) => {
   const highlights = allMemories
     .filter((m) => m.aiHighlight || m.highlightScore >= 0.70)
     .sort((a, b) => (b.highlightScore || 0) - (a.highlightScore || 0))
-    .slice(0, 20);
+    .slice(0, 20); // Top 20 highlight reel
 
   return {
     totalMemories: allMemories.length,
@@ -176,13 +194,17 @@ const getMemoriesTimeline = async (userId, groupId) => {
   };
 };
 
-// Fetch top curated highlights for stories/reels
+/**
+ * Fetch top curated highlights for stories/reels.
+ */
 const getHighlights = async (userId, groupId) => {
   await requireMembership(userId, groupId);
   return memoryRepo.getHighlights(groupId);
 };
 
-// Toggle highlight status (manual favorite override)
+/**
+ * Toggle highlight status (manual favorite override).
+ */
 const toggleHighlight = async (userId, groupId, memoryId, isHighlight) => {
   await requireMembership(userId, groupId);
   const memory = await memoryRepo.getMemoryById(memoryId);
@@ -204,7 +226,9 @@ const toggleHighlight = async (userId, groupId, memoryId, isHighlight) => {
   return updated;
 };
 
-// Delete a memory (allowed for uploader or trip admin)
+/**
+ * Delete a memory (allowed for uploader or trip admin).
+ */
 const deleteMemory = async (userId, groupId, memoryId) => {
   const member = await requireMembership(userId, groupId);
   const memory = await memoryRepo.getMemoryById(memoryId);

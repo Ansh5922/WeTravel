@@ -1,8 +1,11 @@
 const chatService = require('../services/chat.service');
 
-// Chat controller handling message history, ImageKit tokens, and poll lifecycle
+/**
+ * Chat Controller — WeTravel Backend
+ * Layer: Controller (HTTP request/response for REST chat APIs)
+ */
 
-// GET /api/trips/:tripId/chat/messages
+/** GET /api/trips/:tripId/chat/messages */
 const getMessages = async (req, res, next) => {
   try {
     const messages = await chatService.getMessages(req.user.id, req.params.tripId, req.query.before);
@@ -10,7 +13,7 @@ const getMessages = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// GET /api/trips/:tripId/chat/imagekit-auth
+/** GET /api/trips/:tripId/chat/imagekit-auth */
 const getImageKitAuth = async (req, res, next) => {
   try {
     const auth = await chatService.getImageKitAuth(req.user.id, req.params.tripId);
@@ -18,7 +21,7 @@ const getImageKitAuth = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/trips/:tripId/chat/image
+/** POST /api/trips/:tripId/chat/image */
 const confirmImageMessage = async (req, res, next) => {
   try {
     const { imageUrl, fileName } = req.body;
@@ -28,7 +31,7 @@ const confirmImageMessage = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/trips/:tripId/chat/polls
+/** POST /api/trips/:tripId/chat/polls */
 const createPoll = async (req, res, next) => {
   try {
     const { question, options } = req.body;
@@ -37,7 +40,7 @@ const createPoll = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/trips/:tripId/chat/polls/:pollId/vote
+/** POST /api/trips/:tripId/chat/polls/:pollId/vote */
 const castVote = async (req, res, next) => {
   try {
     const { optionId } = req.body;
@@ -47,7 +50,7 @@ const castVote = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// PATCH /api/trips/:tripId/chat/polls/:pollId/close
+/** PATCH /api/trips/:tripId/chat/polls/:pollId/close */
 const closePoll = async (req, res, next) => {
   try {
     const poll = await chatService.closePoll(req.user.id, req.params.tripId, req.params.pollId);
@@ -55,7 +58,7 @@ const closePoll = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// GET /api/trips/:tripId/chat/polls
+/** GET /api/trips/:tripId/chat/polls */
 const getPolls = async (req, res, next) => {
   try {
     const polls = await chatService.getPolls(req.user.id, req.params.tripId);

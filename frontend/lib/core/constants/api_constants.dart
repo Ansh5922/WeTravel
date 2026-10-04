@@ -1,7 +1,16 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class ApiConstants {
-  static const String backendBaseUrl = 'http://localhost:3000';
-  static const String aiBaseUrl = 'http://localhost:8000';
-  static const String wsBaseUrl = 'ws://localhost:3000/ws';
+  static String get _host {
+    if (kIsWeb) return 'localhost';
+    if (Platform.isAndroid) return '127.0.0.1';
+    return 'localhost';
+  }
+
+  static String get backendBaseUrl => 'http://$_host:3000';
+  static String get aiBaseUrl => 'http://$_host:8000';
+  static String get wsBaseUrl => 'ws://$_host:3000/ws';
 
   // Auth endpoints
   static const String login = '/api/auth/login';

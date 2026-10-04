@@ -1,8 +1,20 @@
 const authService = require('../services/auth.service');
 
-// Auth controller handling user registration, login, and identity verification
+/**
+ * Auth Controller
+ * Responsibility: HTTP request/response handling only.
+ * Architecture layer: Controller (sits between Routes and Services)
+ *
+ * Rules:
+ *  - Validate/extract input from req.body
+ *  - Call service
+ *  - Send HTTP response
+ *  - NEVER contain business logic
+ */
 
-// POST /api/auth/signup
+/**
+ * POST /api/auth/signup
+ */
 const signup = async (req, res, next) => {
   try {
     const { email, password, username, fullName, phone } = req.body;
@@ -37,11 +49,13 @@ const signup = async (req, res, next) => {
       data: { user, token },
     });
   } catch (err) {
-    next(err);
+    next(err); // Forward to global error handler
   }
 };
 
-// POST /api/auth/login
+/**
+ * POST /api/auth/login
+ */
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -65,9 +79,12 @@ const login = async (req, res, next) => {
   }
 };
 
-// GET /api/auth/me — protected route, requires valid JWT
+/**
+ * GET /api/auth/me  — protected route, requires valid JWT
+ */
 const getMe = async (req, res, next) => {
   try {
+    // req.user is set by the protect middleware
     const user = await authService.getMe(req.user.id);
 
     res.status(200).json({

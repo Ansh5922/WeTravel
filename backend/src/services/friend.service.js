@@ -1,9 +1,13 @@
 const authRepository  = require('../repositories/auth.repository');
 const friendRepository = require('../repositories/friend.repository');
 
-// Friend service handling friend requests, acceptance, and friend listings
+/**
+ * Friend Service
+ * Responsibility: Business logic for friend requests.
+ * Architecture layer: Service
+ */
 
-// Send a friend request to a user identified by their username
+/** Send a friend request to a user identified by their username. */
 const sendFriendRequest = async (requestedByUserId, targetUsername) => {
   // 1. Find target user by username
   const target = await authRepository.findUserByUsername(targetUsername);
@@ -37,7 +41,7 @@ const sendFriendRequest = async (requestedByUserId, targetUsername) => {
   return friendRepository.createFriendRequest(requestedByUserId, target.id);
 };
 
-// Accept or reject an incoming friend request
+/** Accept or reject an incoming friend request. */
 const respondToRequest = async (userId, friendshipId, action) => {
   const friendship = await friendRepository.findFriendshipById(friendshipId, userId);
   if (!friendship) {
@@ -63,15 +67,15 @@ const respondToRequest = async (userId, friendshipId, action) => {
   return friendRepository.updateFriendshipStatus(friendshipId, newStatus);
 };
 
-// Get list of accepted friends for a user
+/** Get list of accepted friends for a user. */
 const getFriends = async (userId) => {
   const friendships = await friendRepository.getAcceptedFriends(userId);
 
-  // Return the other user from each friendship
+  // Return the "other" user from each friendship
   return friendships.map((f) => (f.userId === userId ? f.friend : f.user));
 };
 
-// Get pending incoming friend requests
+/** Get pending incoming friend requests. */
 const getPendingRequests = async (userId) => {
   return friendRepository.getIncomingRequests(userId);
 };

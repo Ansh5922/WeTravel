@@ -1,4 +1,19 @@
 from datetime import datetime, date, timedelta
+from typing import Any
+
+"""
+Scheduler Service — WeTravel AI Backend
+Layer: Service (mathematical itinerary optimizer)
+
+Algorithms:
+  1. build_itinerary()    — Core day-by-day scheduler given transport + hotel candidate pool
+  2. generate_variants()  — Produces 5 itinerary variants from the same candidate pool
+  3. mishap_recovery()    — Re-schedules remaining trip after a missed transport event
+
+Activity catalog per destination type (used when no live activity API is available).
+"""
+
+# ── Activity catalog (expandable per destination) ─────────────────────────────
 
 ACTIVITY_CATALOG = {
     "manali": [
@@ -25,11 +40,11 @@ ACTIVITY_CATALOG = {
     ],
 }
 
+# Activities per day by pace preference
 PACE_SLOTS = {"slow": 2, "moderate": 3, "fast": 4}
 
 
 def _build_data_sources(transport: dict, hotel: dict) -> dict:
-    # Build data source transparency metadata for live versus simulated providers
     transport_src = transport.get("source", "mock")
     hotel_src = hotel.get("source", "mock")
     is_train = "trainNumber" in transport
@@ -65,20 +80,25 @@ def _build_data_sources(transport: dict, hotel: dict) -> dict:
     }
 
 
+# ── Core scheduler ────────────────────────────────────────────────────────────
+
 def build_itinerary(
     *,
     variant_type: str,
     start_date: date,
     end_date: date,
     destination: str,
-    transport: dict,
-    hotel: dict,
+    transport: dict,          # Selected train or bus
+    hotel: dict,              # Selected hotel
     budget_per_person: float,
     pace: str = "moderate",
     travel_style: str = "moderate",
     constraints: dict = None,
 ) -> dict:
-    # Build a day-by-day itinerary variant given transport, hotel, and preferences
+    """
+    Build a single day-by-day itinerary given one transport option and one hotel.
+    Returns the itinerary variant dict matching the ItineraryVariant Pydantic schema.
+    """
     constraints = constraints or {}
     num_days = (end_date - start_date).days
     dest_key = _normalize_dest_key(destination)
@@ -95,6 +115,7 @@ def build_itinerary(
         items = []
 
         if day_num == 0:
+            # Day 1: Departure + arrive + check-in
             items.append({
                 "activityName": f"{transport['trainName'] if 'trainName' in transport else transport['busOperator']} — {_origin_label(transport)} → {destination}",
                 "description": f"Journey to {destination}. Duration: {transport.get('duration', 'N/A')}",
@@ -110,6 +131,7 @@ def build_itinerary(
             })
             total_cost += _get_transport_fare(transport, travel_style)
 
+            # Hotel check-in
             items.append({
                 "activityName": f"Hotel Check-in: {hotel['hotelName']}",
                 "description": f"Check in at {hotel['hotelName']}. Address: {hotel.get('address', '')}",
@@ -125,6 +147,7 @@ def build_itinerary(
             })
             total_cost += hotel["pricePerNight"]
 
+            # Evening activity
             if activities_filtered:
                 eve = activities_filtered[activity_idx % len(activities_filtered)]
                 items.append(_make_activity_item(eve, "17:00", "19:00"))
@@ -132,6 +155,7 @@ def build_itinerary(
                 activity_idx += 1
 
         elif day_num == num_days:
+            # Last day: checkout + return journey
             items.append({
                 "activityName": f"Hotel Checkout: {hotel['hotelName']}",
                 "location": hotel["hotelName"],
@@ -141,12 +165,14 @@ def build_itinerary(
                 "description": "Check out and collect luggage.",
             })
 
+            # Morning activity before departure
             if activities_filtered:
                 morning = activities_filtered[activity_idx % len(activities_filtered)]
                 items.append(_make_activity_item(morning, "07:00", "09:30"))
                 total_cost += morning["cost"]
                 activity_idx += 1
 
+            # Return transport (overnight or morning)
             return_dep = "14:00"
             items.append({
                 "activityName": f"Return Journey: {destination} → Home",
@@ -163,6 +189,7 @@ def build_itinerary(
             total_cost += _get_transport_fare(transport, travel_style)
 
         else:
+            # Middle days: activity-packed exploration
             time_slots = _generate_time_slots(n_per_day)
             for slot_start, slot_end in time_slots:
                 if activities_filtered:
@@ -171,8 +198,10 @@ def build_itinerary(
                     total_cost += act["cost"]
                     activity_idx += 1
 
+            # Hotel night cost
             total_cost += hotel["pricePerNight"]
 
+            # Add meal cost (₹500/day estimate)
             items.append({
                 "activityName": "Meals (Breakfast + Lunch + Dinner)",
                 "description": "Local dining exploring regional cuisine.",
@@ -199,6 +228,8 @@ def build_itinerary(
     }
 
 
+# ── Variant generator ─────────────────────────────────────────────────────────
+
 def generate_variants(
     *,
     start_date: date,
@@ -210,7 +241,9 @@ def generate_variants(
     group_stats: dict,
     member_count: int,
 ) -> list[dict]:
-    # Generate up to five distinct itinerary variants covering various budgets and styles
+    """
+    Generates up to 5 itinerary variants from the candidate pool.
+    """
     budget_avg  = _extract_budget(group_stats, "avg", 2000)
     budget_min  = _extract_budget(group_stats, "min", 1000)
     budget_max  = _extract_budget(group_stats, "max", 3000)
@@ -219,16 +252,19 @@ def generate_variants(
 
     num_days = (end_date - start_date).days
 
+    # Pick best transport options
     best_train  = _pick_best_transport(trains, budget_avg)
     night_train = _pick_overnight(trains + buses)
     cheap_train = _pick_cheapest(trains + buses)
 
+    # Pick hotel tiers
     best_hotel    = _pick_hotel(hotels, budget_avg * num_days / max(num_days, 1))
     budget_hotel  = _pick_hotel(hotels, budget_min * num_days / max(num_days, 1))
     premium_hotel = _pick_hotel(hotels, budget_max * num_days / max(num_days, 1), prefer_high=True)
 
     variants = []
 
+    # V0 — Optimal
     if best_train and best_hotel:
         variants.append(build_itinerary(
             variant_type="optimal", start_date=start_date, end_date=end_date,
@@ -236,6 +272,7 @@ def generate_variants(
             budget_per_person=budget_avg, pace=pace, travel_style=style,
         ))
 
+    # V1 — Budget flex +20%
     if best_train and premium_hotel:
         variants.append(build_itinerary(
             variant_type="budget_flex_20", start_date=start_date, end_date=end_date,
@@ -244,6 +281,7 @@ def generate_variants(
             constraints={"budget_increase_pct": 20},
         ))
 
+    # V2 — Duration extend +2 days
     if best_train and best_hotel:
         variants.append(build_itinerary(
             variant_type="duration_extend_2d", start_date=start_date, end_date=end_date + timedelta(days=2),
@@ -252,6 +290,7 @@ def generate_variants(
             constraints={"extra_days": 2},
         ))
 
+    # V3 — Night travel (overnight train/bus → saves 1 hotel night)
     if night_train:
         night_hotel = best_hotel or budget_hotel
         if night_hotel:
@@ -262,6 +301,7 @@ def generate_variants(
                 constraints={"overnight_journey": True},
             ))
 
+    # V4 — Budget strict (group_min)
     if cheap_train and budget_hotel:
         variants.append(build_itinerary(
             variant_type="budget_strict", start_date=start_date, end_date=end_date,
@@ -273,6 +313,8 @@ def generate_variants(
     return variants
 
 
+# ── Mishap recovery algorithm ─────────────────────────────────────────────────
+
 def recover_from_mishap(
     *,
     itinerary_items: list[dict],
@@ -280,16 +322,21 @@ def recover_from_mishap(
     current_time: datetime,
     next_available_transport: dict | None,
 ) -> tuple[list[dict], int]:
-    # Dynamically shift subsequent scheduled itinerary items upon a missed transport event
+    """
+    Re-schedules all items after the missed item.
+    Returns (updated_items_list, rescheduled_count).
+    """
     missed_idx = next((i for i, item in enumerate(itinerary_items) if item.get("id") == missed_item_id), -1)
     if missed_idx == -1:
         return itinerary_items, 0
 
+    # Mark missed item
     itinerary_items[missed_idx]["isMissed"] = True
 
     if not next_available_transport:
         return itinerary_items, 0
 
+    # Calculate delay
     missed_start = _parse_time(itinerary_items[missed_idx].get("startTime", "08:00"), current_time.date())
     next_dep     = _parse_time(next_available_transport.get("departureTime", "12:00"), current_time.date())
     delay_hrs    = max(0, (next_dep - missed_start).total_seconds() / 3600)
@@ -306,6 +353,7 @@ def recover_from_mishap(
             item["isRescheduled"] = True
             rescheduled_count += 1
 
+    # Update the missed transport item to the next available
     itinerary_items[missed_idx + 1] = {
         **itinerary_items[missed_idx],
         "activityName": f"Alternative Transport: {next_available_transport.get('trainName', next_available_transport.get('busOperator', 'Next Available'))}",
@@ -319,13 +367,13 @@ def recover_from_mishap(
     return itinerary_items, rescheduled_count
 
 
+# ── Private helpers ───────────────────────────────────────────────────────────
+
 def _normalize_dest_key(dest: str) -> str:
-    # Normalize destination name string to match catalog keys
     return dest.lower().split(",")[0].split(" ")[0]
 
 
 def _filter_activities(activities: list, style: str, budget: float) -> list:
-    # Filter and prioritize activities matching style preference and daily budget constraint
     if style == "adventure":
         order = ["adventure", "sightseeing", "culture", "leisure", "food"]
     elif style == "luxury":
@@ -334,11 +382,10 @@ def _filter_activities(activities: list, style: str, budget: float) -> list:
         order = ["sightseeing", "culture", "outdoor", "food", "adventure", "leisure"]
 
     sorted_acts = sorted(activities, key=lambda a: order.index(a["category"]) if a["category"] in order else 99)
-    return [a for a in sorted_acts if a["cost"] <= budget * 0.15]
+    return [a for a in sorted_acts if a["cost"] <= budget * 0.15]  # Activity ≤ 15% of daily budget
 
 
 def _generate_time_slots(n: int) -> list[tuple[str, str]]:
-    # Generate activity start and end time windows based on daily pace count
     slots_map = {
         1: [("09:00", "14:00")],
         2: [("08:00", "11:00"), ("15:00", "18:00")],
@@ -349,7 +396,6 @@ def _generate_time_slots(n: int) -> list[tuple[str, str]]:
 
 
 def _make_activity_item(act: dict, start: str, end: str) -> dict:
-    # Create a standardized itinerary activity dictionary
     return {
         "activityName": act["name"],
         "description": f"{act['category'].capitalize()} activity.",
@@ -366,7 +412,6 @@ def _make_activity_item(act: dict, start: str, end: str) -> dict:
 
 
 def _get_transport_fare(transport: dict, style: str) -> float:
-    # Determine estimated ticket fare based on travel style tier
     if "trainNumber" in transport:
         if style == "luxury":
             return transport.get("faresSecondAC", 1400)
@@ -378,12 +423,10 @@ def _get_transport_fare(transport: dict, style: str) -> float:
 
 
 def _origin_label(transport: dict) -> str:
-    # Extract origin station or label from transport payload
     return transport.get("fromStation", "Origin")
 
 
 def _pick_best_transport(transports: list, budget: float) -> dict | None:
-    # Select highest-value transport option within comfortable budget percentage
     if not transports:
         return None
     affordable = [t for t in transports if _get_transport_fare(t, "moderate") <= budget * 0.4]
@@ -391,7 +434,6 @@ def _pick_best_transport(transports: list, budget: float) -> dict | None:
 
 
 def _pick_overnight(transports: list) -> dict | None:
-    # Find transport option departing during night hours
     for t in transports:
         dep_hr = _parse_hour(t.get("departureTime", ""))
         if dep_hr >= 18 or dep_hr <= 4:
@@ -400,14 +442,12 @@ def _pick_overnight(transports: list) -> dict | None:
 
 
 def _pick_cheapest(transports: list) -> dict | None:
-    # Select the lowest cost transport option
     if not transports:
         return None
     return min(transports, key=lambda t: _get_transport_fare(t, "slow"))
 
 
 def _pick_hotel(hotels: list, budget: float, prefer_high: bool = False) -> dict | None:
-    # Select hotel optimizing for guest review rating within budget
     if not hotels:
         return None
     fits = [h for h in hotels if h["pricePerNight"] <= budget]
@@ -417,7 +457,6 @@ def _pick_hotel(hotels: list, budget: float, prefer_high: bool = False) -> dict 
 
 
 def _extract_budget(group_stats: dict, key: str, default: float) -> float:
-    # Extract a numeric budget value from group stats dictionary
     try:
         return float(group_stats.get("budget", {}).get(f"group_{key}", default))
     except (TypeError, ValueError):
@@ -425,7 +464,6 @@ def _extract_budget(group_stats: dict, key: str, default: float) -> float:
 
 
 def _extract_pace(group_stats: dict) -> str:
-    # Extract majority pace preference from group stats dictionary
     try:
         return group_stats.get("pace", {}).get("majority_pace", "moderate")
     except Exception:
@@ -433,7 +471,6 @@ def _extract_pace(group_stats: dict) -> str:
 
 
 def _extract_style(group_stats: dict) -> str:
-    # Extract majority travel style from group stats dictionary
     try:
         return group_stats.get("travel_styles", {}).get("majority_style", "moderate")
     except Exception:
@@ -441,7 +478,6 @@ def _extract_style(group_stats: dict) -> str:
 
 
 def _build_summary(variant_type: str, dest: str, transport: dict, hotel: dict, days: int, cost: float) -> str:
-    # Generate human-readable summary text describing the itinerary variant
     labels = {
         "optimal":            f"Best-fit itinerary — {days} days in {dest}",
         "budget_flex_20":     f"Upgraded comfort (+20% budget) — {days} days in {dest}",
@@ -457,7 +493,6 @@ def _build_summary(variant_type: str, dest: str, transport: dict, hotel: dict, d
 
 
 def _parse_time(time_str: str, ref_date: date) -> datetime:
-    # Parse time string and combine with reference date into datetime object
     try:
         hm = time_str.strip()[:5]
         t = datetime.strptime(hm, "%H:%M")
@@ -467,7 +502,6 @@ def _parse_time(time_str: str, ref_date: date) -> datetime:
 
 
 def _parse_hour(time_str: str) -> int:
-    # Extract hour integer from time string
     try:
         return int(time_str.split(":")[0])
     except Exception:

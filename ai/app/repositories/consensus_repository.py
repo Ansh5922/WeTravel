@@ -1,10 +1,19 @@
-import json
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import json
+
+"""
+Consensus Repository — FastAPI AI Backend
+Responsibility: Fetch member preference data + save group consensus (vector + stats).
+Architecture layer: Repository → Database
+"""
 
 
 def fetch_member_vectors(db: Session, member_ids: list[str]) -> list[list[float]]:
-    # Fetch preference vectors for specified members from database
+    """
+    Fetch only the preference_vector for members who have one.
+    Used for the cosine-similarity centroid computation.
+    """
     if not member_ids:
         return []
 
@@ -31,7 +40,12 @@ def fetch_member_vectors(db: Session, member_ids: list[str]) -> list[list[float]
 
 
 def fetch_member_profiles(db: Session, member_ids: list[str]) -> list[dict]:
-    # Fetch profile preference attributes for specified members
+    """
+    Fetch ALL text-based preference fields for every member who has a profile.
+    These are used to compute human-readable group stats (min/max/avg budget, etc.)
+
+    Returns a list of dicts, one per member who has a profile row.
+    """
     if not member_ids:
         return []
 
@@ -67,8 +81,8 @@ def fetch_member_profiles(db: Session, member_ids: list[str]) -> list[dict]:
             "budget":                float(row[4]) if row[4] is not None else None,
             "budget_tier":          row[5],
             "pace_preference":      row[6],
-            "health_constraints":   row[7],
-            "climate_sensitivities": row[8],
+            "health_constraints":   row[7],    # may be a dict or None
+            "climate_sensitivities": row[8],   # may be a dict or None
             "raw_preference_notes": row[9],
         })
 
@@ -81,7 +95,15 @@ def save_consensus(
     vector: list[float] | None,
     group_stats: dict,
 ) -> bool:
-    # Upsert consensus vector and aggregated stats into group_consensus_profiles
+    """
+    Upsert the full consensus record into group_consensus_profiles:
+      - consensus_vector     -> 384-dim float array (for AI similarity search)
+      - group_stats          -> human-readable aggregated preference dict (for UI display)
+      - computed_budget_range -> shortcut budget slice from group_stats (backward compat)
+
+    'vector' may be None if no member has generated an embedding yet — in that
+    case only the text stats are saved so the UI still has data to display.
+    """
     stats_json  = json.dumps(group_stats)
     budget_json = json.dumps(group_stats.get("budget", {}))
 

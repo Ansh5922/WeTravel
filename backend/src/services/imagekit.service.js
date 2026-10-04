@@ -1,8 +1,18 @@
 const crypto = require('crypto');
 
-// ImageKit service generating HMAC-SHA1 upload signatures for direct client uploads
+/**
+ * ImageKit Service — WeTravel Backend
+ * Layer: Service (external CDN wrapper)
+ * Generates auth params for direct frontend uploads using HMAC-SHA1.
+ */
 
-// Generate authentication parameters for direct browser to ImageKit upload
+/**
+ * Generate authentication parameters for direct browser → ImageKit upload.
+ * ImageKit auth formula:
+ *   token: unique string / UUID
+ *   expire: UNIX timestamp in seconds (default: 30 minutes from now)
+ *   signature: HMAC-SHA1(privateKey, token + expire) in hex
+ */
 const getAuthParams = () => {
   const publicKey  = process.env.IMAGEKIT_PUBLIC_KEY;
   const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;

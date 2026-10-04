@@ -23,8 +23,8 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(text: 'pandeysuyash@gmail.com');
+  final _passwordController = TextEditingController(text: 'Suyash@2004');
 
   bool _obscurePassword = true;
 
@@ -76,9 +76,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── Editorial Header ─────────────────────────────────────
-                    const AuthHeader(
-                      title: 'Welcome back.',
-                      subtitle: 'Your next journey starts here.',
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _emailController.text = 'pandeysuyash@gmail.com';
+                          _passwordController.text = 'Suyash@2004';
+                        });
+                      },
+                      child: const AuthHeader(
+                        title: 'Welcome back.',
+                        subtitle: 'Your next journey starts here.',
+                      ),
                     ),
 
                     const SizedBox(height: AppSpacing.xxl),

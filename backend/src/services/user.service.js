@@ -1,15 +1,30 @@
 const userRepository = require('../repositories/user.repository');
 
-// User service handling profile data persistence and background AI preference embeddings
+/**
+ * User Service
+ * Responsibility: Business logic for user profile management.
+ * Architecture layer: Service (calls Repository + AI sidecar)
+ *
+ * KEY DESIGN: Node.js saves to DB → responds to client immediately →
+ * fires a background (fire-and-forget) request to FastAPI for embeddings.
+ * The client NEVER waits for the AI.
+ */
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
-// Fire-and-forget background call to FastAPI to generate preference embeddings
+/**
+ * Fire-and-forget background call to FastAPI to generate preference embeddings.
+ * This runs AFTER the HTTP response has already been sent to the client.
+ *
+ * @param {string} userId
+ * @param {object} profile - The saved UserProfile document
+ */
 const triggerEmbeddingGeneration = (userId, profile) => {
   // Build a human-readable preference text for the embedding model
   const preferenceText = buildPreferenceText(profile);
 
   // Use the shared JWT_SECRET to sign an internal service token
+  // so FastAPI's protect middleware accepts this internal request
   const jwt = require('jsonwebtoken');
   const internalToken = jwt.sign(
     { sub: userId, internal: true },
@@ -17,7 +32,7 @@ const triggerEmbeddingGeneration = (userId, profile) => {
     { expiresIn: '5m' }
   );
 
-  // Fire-and-forget background call to AI engine
+  // Fire-and-forget: NO await. If AI fails, it doesn't affect the user.
   fetch(`${AI_SERVICE_URL}/api/ai/embeddings/preferences`, {
     method: 'POST',
     headers: {
@@ -39,11 +54,17 @@ const triggerEmbeddingGeneration = (userId, profile) => {
       }
     })
     .catch((err) => {
+      // Log the error silently — never propagate to user response
       console.error(`[AI Embedding] Network error for user ${userId}:`, err.message);
     });
 };
 
-// Converts structured profile data into a natural language string for embedding generation
+/**
+ * Converts structured profile data into a natural language string
+ * suitable for embedding generation.
+ * @param {object} profile
+ * @returns {string}
+ */
 const buildPreferenceText = (profile) => {
   const parts = [];
 
@@ -68,7 +89,25 @@ const buildPreferenceText = (profile) => {
   return parts.join('. ');
 };
 
-// Update user basic info (fullName, phone) and/or profile preferences
+/**
+ * Update user basic info (fullName, phone) and/or profile preferences.
+ * Responds immediately after DB save; embedding generation runs in background.
+ *
+ * @param {string} userId - The authenticated user's ID from req.user
+ * @param {{
+ *   fullName?: string,
+ *   phone?: string,
+ *   dietaryPreference?: string,
+ *   travelStyle?: string,
+ *   budget?: number,
+ *   budgetTier?: string,
+ *   pacePreference?: string,
+ *   healthConstraints?: object,
+ *   climateSensitivities?: object,
+ *   rawPreferenceNotes?: string
+ * }} data
+ * @returns {Promise<{ user: object, profile: object }>}
+ */
 const updateProfile = async (userId, data) => {
   // Separate user-level fields from profile-level fields
   const userFields = {};
@@ -106,7 +145,9 @@ const updateProfile = async (userId, data) => {
     updatedProfile = await userRepository.upsertProfile(userId, profileFields);
   }
 
-  // 3. Trigger AI embedding generation in background without blocking response
+  // 3. ─── FIRE AND FORGET ─────────────────────────────────────────────────
+  //    Trigger AI embedding generation in background WITHOUT awaiting it.
+  //    The HTTP response to the client is sent before this resolves.
   if (updatedProfile) {
     triggerEmbeddingGeneration(userId, updatedProfile);
   }
@@ -114,7 +155,11 @@ const updateProfile = async (userId, data) => {
   return { user: updatedUser, profile: updatedProfile };
 };
 
-// Get a user's full profile
+/**
+ * Get a user's full profile.
+ * @param {string} userId
+ * @returns {Promise<object|null>}
+ */
 const getProfile = async (userId) => {
   return userRepository.findProfileByUserId(userId);
 };
