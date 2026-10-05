@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiConstants {
   static String get _host {
     if (kIsWeb) return 'localhost';
-    if (Platform.isAndroid) return '127.0.0.1';
+    if (Platform.isAndroid) return '127.0.0.1'; // Works with 'adb reverse' on physical devices and emulators
     return 'localhost';
   }
 

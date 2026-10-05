@@ -1,7 +1,6 @@
+// Route guard & status listenable evaluating navigation security rules.
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
 import 'route_names.dart';
 
 /// Authentication status representation for navigation guards.
@@ -12,18 +11,7 @@ enum AuthStatus {
 }
 
 /// Listenable that GoRouter observes to re-evaluate redirect rules reactively.
-final authNotifierListenable = ValueNotifier<AuthState>(const AuthInitial());
-
-/// Riverpod provider for router authentication guarding.
-final authStatusProvider = Provider<AuthStatus>((ref) {
-  final authState = ref.watch(authControllerProvider);
-  if (authState is AuthAuthenticated) {
-    return AuthStatus.authenticated;
-  } else if (authState is AuthUnauthenticated) {
-    return AuthStatus.unauthenticated;
-  }
-  return AuthStatus.initial;
-});
+final authNotifierListenable = ValueNotifier<AuthState>(const AuthInitialState());
 
 /// Centralized route guarding logic separating public and protected surfaces.
 class AuthGuard {
@@ -50,9 +38,9 @@ class AuthGuard {
     required String location,
   }) {
     final effectiveStatus = status ??
-        (state is AuthAuthenticated
+        (state is AuthAuthenticatedState
             ? AuthStatus.authenticated
-            : (state is AuthUnauthenticated
+            : (state is AuthUnauthenticatedState
                 ? AuthStatus.unauthenticated
                 : AuthStatus.initial));
 
@@ -62,10 +50,6 @@ class AuthGuard {
         location.startsWith('/auth');
 
     // 1. Authenticated user behavior:
-    // - Allow protected routes
-    // - /auth/login → /home
-    // - /auth/signup → /home
-    // - /onboarding → /home (prevent onboarding loop for logged-in users)
     if (effectiveStatus == AuthStatus.authenticated) {
       if (isAuthScreen || location == RouteNames.onboarding) {
         return RouteNames.home;
@@ -74,8 +58,6 @@ class AuthGuard {
     }
 
     // 2. Unauthenticated user behavior:
-    // - Protected route → /auth/login
-    // - Public routes → allowed
     if (effectiveStatus == AuthStatus.unauthenticated) {
       if (!isPublic) {
         return RouteNames.login;
@@ -83,10 +65,7 @@ class AuthGuard {
       return null;
     }
 
-    // 3. AuthInitial, AuthLoading, or AuthError:
-    // - Do NOT redirect to login prematurely.
-    // - Keep the startup/splash flow.
-    // - If AuthError: do NOT treat it as unauthenticated, do NOT delete the JWT.
+    // 3. AuthInitialState, AuthLoadingState, or AuthErrorState:
     return null;
   }
 }

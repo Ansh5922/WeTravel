@@ -23,9 +23,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<String?> getToken() async {
     try {
-      return await storage
-          .read(key: AppConstants.tokenKey)
-          .timeout(const Duration(milliseconds: 300), onTimeout: () => null);
+      return await storage.read(key: AppConstants.tokenKey);
     } catch (_) {
       return null;
     }

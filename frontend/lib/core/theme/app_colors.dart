@@ -45,6 +45,7 @@ class AppColors {
 
   // ── Semantic & Status Indicators ────────────────────────────────────────────
   static const Color error = Color(0xFFBA1A1A);
+  static const Color errorRed = error;
   static const Color errorContainer = Color(0xFFFFDAD6);
   static const Color success = Color(0xFF1B7A68);
   static const Color successContainer = Color(0xFFD4EDE5);

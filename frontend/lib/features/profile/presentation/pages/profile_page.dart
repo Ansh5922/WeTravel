@@ -1,22 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
+import '../bloc/profile_bloc.dart';
+import '../bloc/profile_event.dart';
+import '../bloc/profile_state.dart';
 
 /// Screen displaying the user's saved profile information, travel statistics,
 /// account details, preferences access, and a confirmation-backed Logout button.
-class ProfilePage extends ConsumerStatefulWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends ConsumerState<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final token = await ServiceLocator.authLocalDataSource.getToken();
+    if (token != null && token.isNotEmpty && mounted) {
+      context.read<ProfileBloc>().add(ProfileFetchRequested(token: token));
+    }
+  }
+
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -71,7 +89,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ElevatedButton(
             onPressed: () async {
               Navigator.of(dialogCtx).pop();
-              await ref.read(authControllerProvider.notifier).logout();
+              context.read<AuthBloc>().add(const AuthLogoutRequested());
               if (mounted) {
                 context.go(RouteNames.login);
               }
@@ -100,7 +118,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final authState = ref.watch(authControllerProvider);
+    final authState = context.watch<AuthBloc>().state;
     final user = authState.user;
 
     final String? rawFullName = user?.fullName;
@@ -300,6 +318,78 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Live AI Travel Preferences Card (BLoC Connected) ────
+                BlocBuilder<ProfileBloc, ProfileState>(
+                  builder: (context, profileState) {
+                    final profile = profileState.profile;
+                    final travelStyle = profile?.travelStyle ?? 'Cultural & Local';
+                    final dietary = profile?.dietaryPreference ?? 'No restrictions';
+                    final budget = profile?.budget != null ? '\$${profile!.budget!.toInt()}/day' : (profile?.budgetTier ?? 'Moderate (\$150/day)');
+                    final pace = profile?.pacePreference ?? 'Balanced';
+
+                    return Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'AI Travel Preferences',
+                                style: GoogleFonts.inter(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF004E64),
+                                ),
+                              ),
+                              const Spacer(),
+                              if (profileState.isLoading)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF004E64)),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          _buildInfoRow(
+                            icon: Icons.explore_outlined,
+                            label: 'Travel Style',
+                            value: travelStyle,
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                          _buildInfoRow(
+                            icon: Icons.restaurant_outlined,
+                            label: 'Dietary',
+                            value: dietary,
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                          _buildInfoRow(
+                            icon: Icons.attach_money_rounded,
+                            label: 'Daily Budget',
+                            value: budget,
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                          _buildInfoRow(
+                            icon: Icons.speed_rounded,
+                            label: 'Trip Pace',
+                            value: pace,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
 

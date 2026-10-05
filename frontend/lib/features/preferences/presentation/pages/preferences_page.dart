@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
 import '../../domain/entities/user_travel_preferences.dart';
 import '../widgets/preferences_category_card.dart';
@@ -41,7 +45,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
     super.dispose();
   }
 
-  void _savePreferences() {
+  Future<void> _savePreferences() async {
     final prefs = UserTravelPreferences(
       travelStyle: _selectedTravelStyle,
       interests: _selectedInterests.toList(),
@@ -49,30 +53,45 @@ class _PreferencesPageState extends State<PreferencesPage> {
       specialRequirements: _selectedSpecialRequirements.toList(),
       additionalNotes: _notesController.text.trim(),
     );
+    debugPrint('Saved user travel preferences: $prefs');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Preferences saved! AI group match updated to 94%.',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+    final token = await ServiceLocator.authLocalDataSource.getToken();
+    if (token != null && token.isNotEmpty && mounted) {
+      context.read<ProfileBloc>().add(
+        ProfileUpdateRequested(
+          token: token,
+          travelStyle: _selectedTravelStyle,
+          dietaryPreference: _selectedFoodPreference,
+          rawPreferenceNotes: _notesController.text.trim(),
         ),
-        backgroundColor: const Color(0xFF004E64),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    }
 
-    // Always navigate to Home screen after saving preferences
-    context.go(RouteNames.home);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Preferences saved! AI group match updated to 94%.',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF004E64),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Always navigate to Home screen after saving preferences
+      context.go(RouteNames.home);
+    }
   }
 
   @override
