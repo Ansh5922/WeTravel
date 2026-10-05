@@ -8,6 +8,7 @@ import '../../../../core/theme/app_typography.dart';
 class AuthTextField extends StatelessWidget {
   final String label;
   final String? hintText;
+  final String? hint;
   final String? helperText;
   final TextEditingController controller;
   final TextInputType keyboardType;
@@ -15,6 +16,7 @@ class AuthTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final AutovalidateMode? autovalidateMode;
   final TextInputAction textInputAction;
   final void Function(String)? onFieldSubmitted;
 
@@ -23,12 +25,14 @@ class AuthTextField extends StatelessWidget {
     required this.label,
     required this.controller,
     this.hintText,
+    this.hint,
     this.helperText,
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
     this.validator,
+    this.autovalidateMode,
     this.textInputAction = TextInputAction.next,
     this.onFieldSubmitted,
   });
@@ -59,6 +63,7 @@ class AuthTextField extends StatelessWidget {
           obscureText: obscureText,
           textInputAction: textInputAction,
           onFieldSubmitted: onFieldSubmitted,
+          autovalidateMode: autovalidateMode,
           validator: validator,
           style: AppTypography.bodyMedium(
             color: AppColors.textPrimary,
@@ -67,7 +72,7 @@ class AuthTextField extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
           decoration: InputDecoration(
-            hintText: hintText,
+            hintText: hintText ?? hint,
             hintStyle: AppTypography.bodyMedium(
               color: AppColors.textMuted,
             ).copyWith(fontSize: 14),

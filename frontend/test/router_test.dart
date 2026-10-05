@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/app/app.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/router/auth_guard.dart';
 import 'package:frontend/core/router/route_names.dart';
 import 'package:frontend/core/widgets/app_shell.dart';
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
-import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/splash/presentation/pages/splash_page.dart';
 import 'package:frontend/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:frontend/features/auth/presentation/pages/login_page.dart';
@@ -22,36 +21,18 @@ import 'package:frontend/features/polls/presentation/pages/polls_page.dart';
 import 'package:frontend/features/expenses/presentation/pages/expenses_page.dart';
 import 'package:frontend/features/memories/presentation/pages/memories_page.dart';
 
-class RouterTestAuthController extends AuthController {
-  final AuthState initial;
-  RouterTestAuthController([this.initial = const AuthInitial()]);
-
-  @override
-  AuthState build() => initial;
-
-  @override
-  Future<void> initialize() async {}
-}
-
 void main() {
-  Widget createTestWidget({AuthState authState = const AuthUnauthenticated()}) {
+  Widget createTestWidget({AuthState authState = const AuthUnauthenticatedState()}) {
     authNotifierListenable.value = authState;
-    return ProviderScope(
-      overrides: [
-        authControllerProvider.overrideWith(
-          () => RouterTestAuthController(authState),
-        ),
-      ],
-      child: const WeTravelApp(autoInitialize: false),
-    );
+    return const WeTravelApp(autoInitialize: false);
   }
 
-  const authenticatedState = AuthAuthenticated(
-    UserEntity(id: 'test_user', email: 'test@wetravel.test'),
+  const authenticatedState = AuthAuthenticatedState(
+    user: UserEntity(id: 'test_user', email: 'test@wetravel.test'),
   );
 
   testWidgets('1. Splash route opens on initial launch', (tester) async {
-    await tester.pumpWidget(createTestWidget(authState: const AuthInitial()));
+    await tester.pumpWidget(createTestWidget(authState: const AuthInitialState()));
     appRouter.go(RouteNames.splash);
     await tester.pumpAndSettle();
 
@@ -59,7 +40,7 @@ void main() {
   });
 
   testWidgets('2. Onboarding route opens', (tester) async {
-    await tester.pumpWidget(createTestWidget(authState: const AuthUnauthenticated()));
+    await tester.pumpWidget(createTestWidget(authState: const AuthUnauthenticatedState()));
     appRouter.go(RouteNames.onboarding);
     await tester.pumpAndSettle();
 
@@ -67,7 +48,7 @@ void main() {
   });
 
   testWidgets('3. Login route opens', (tester) async {
-    await tester.pumpWidget(createTestWidget(authState: const AuthUnauthenticated()));
+    await tester.pumpWidget(createTestWidget(authState: const AuthUnauthenticatedState()));
     appRouter.go(RouteNames.login);
     await tester.pumpAndSettle();
 

@@ -1,7 +1,1 @@
-import '../repositories/profile_repository.dart';
-
-class GetProfileUseCase {
-  final ProfileRepository repository;
-
-  GetProfileUseCase(this.repository);
-}
+// DEPRECATED & REPLACED BY get_profile_usecase.dart AND update_profile_usecase.dart

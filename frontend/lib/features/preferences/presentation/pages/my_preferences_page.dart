@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
 import '../../domain/entities/user_travel_preferences.dart';
 import '../widgets/preference_item_tile.dart';
@@ -19,30 +23,44 @@ class MyPreferencesPage extends StatefulWidget {
 class _MyPreferencesPageState extends State<MyPreferencesPage> {
   UserTravelPreferences _preferences = const UserTravelPreferences();
 
-  void _savePreferences() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Preferences saved to your profile!',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+  Future<void> _savePreferences() async {
+    final token = await ServiceLocator.authLocalDataSource.getToken();
+    if (token != null && token.isNotEmpty && mounted) {
+      context.read<ProfileBloc>().add(
+        ProfileUpdateRequested(
+          token: token,
+          travelStyle: _preferences.travelStyle,
+          dietaryPreference: _preferences.foodPreference,
+          rawPreferenceNotes: _preferences.additionalNotes,
         ),
-        backgroundColor: const Color(0xFF004E64),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    }
 
-    // Always navigate to Home screen after saving preferences
-    context.go(RouteNames.home);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Preferences saved to your profile!',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF004E64),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Always navigate to Home screen after saving preferences
+      context.go(RouteNames.home);
+    }
   }
 
   void _showEditSheet(String title, List<String> options, String currentValue, ValueChanged<String> onSelected) {

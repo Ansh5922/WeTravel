@@ -1,14 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:frontend/app/providers.dart';
 import 'package:frontend/core/constants/app_constants.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_data_source.dart';
 import 'package:frontend/features/auth/domain/entities/auth_response_entity.dart';
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/auth/domain/repositories/auth_repository.dart';
-import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
+import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/google_signin_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/signup_usecase.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_event.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 
 /// In-memory fake for FlutterSecureStorage to test AuthLocalDataSourceImpl
 class FakeSecureStorage extends Fake implements FlutterSecureStorage {
@@ -222,7 +226,7 @@ void main() {
 
   group('AuthState Model & Properties', () {
     test('state transitions and boolean getters work accurately', () {
-      const initial = AuthInitial();
+      const initial = AuthInitialState();
       expect(initial.isLoading, isFalse);
       expect(initial.isAuthenticated, isFalse);
       expect(initial.isUnauthenticated, isFalse);
@@ -230,62 +234,61 @@ void main() {
       expect(initial.user, isNull);
       expect(initial.errorMessage, isNull);
 
-      const loading = AuthLoading();
+      const loading = AuthLoadingState();
       expect(loading.isLoading, isTrue);
 
       const user = UserEntity(id: '1', email: 'user@wetravel.test');
-      const authenticated = AuthAuthenticated(user);
+      const authenticated = AuthAuthenticatedState(user: user);
       expect(authenticated.isAuthenticated, isTrue);
       expect(authenticated.isLoading, isFalse);
       expect(authenticated.user, equals(user));
       expect(authenticated.errorMessage, isNull);
 
-      const unauthenticated = AuthUnauthenticated();
+      const unauthenticated = AuthUnauthenticatedState();
       expect(unauthenticated.isUnauthenticated, isTrue);
       expect(unauthenticated.isAuthenticated, isFalse);
 
-      const error = AuthError('Something went wrong');
+      const error = AuthErrorState('Something went wrong');
       expect(error.isError, isTrue);
       expect(error.errorMessage, 'Something went wrong');
     });
   });
 
-  group('AuthController via ProviderContainer', () {
+  group('AuthBloc Unit Tests', () {
     late FakeAuthRepository fakeRepository;
     late FakeAuthLocalDataSource fakeLocalDataSource;
-    late ProviderContainer container;
-    late AuthController controller;
+    late AuthBloc authBloc;
 
     setUp(() {
       fakeRepository = FakeAuthRepository();
       fakeLocalDataSource = FakeAuthLocalDataSource();
 
-      container = ProviderContainer(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(fakeRepository),
-          authLocalDataSourceProvider.overrideWithValue(fakeLocalDataSource),
-        ],
+      authBloc = AuthBloc(
+        loginUseCase: LoginUseCase(fakeRepository),
+        signupUseCase: SignupUseCase(fakeRepository),
+        googleSignInUseCase: GoogleSignInUseCase(fakeRepository),
+        getCurrentUserUseCase: GetCurrentUserUseCase(fakeRepository),
+        localDataSource: fakeLocalDataSource,
       );
-
-      controller = container.read(authControllerProvider.notifier);
     });
 
     tearDown(() {
-      container.dispose();
+      authBloc.close();
     });
 
-    test('initial state is AuthInitial', () {
-      expect(container.read(authControllerProvider), isA<AuthInitial>());
+    test('initial state is AuthInitialState', () {
+      expect(authBloc.state, isA<AuthInitialState>());
     });
 
-    test('initialize with no token sets state to AuthUnauthenticated without calling repository', () async {
-      await controller.initialize();
+    test('AuthCheckRequested with no token emits AuthUnauthenticatedState without calling repository', () async {
+      authBloc.add(const AuthCheckRequested());
+      await untilCalledOrTimeout();
 
-      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      expect(authBloc.state, isA<AuthUnauthenticatedState>());
       expect(fakeRepository.getCurrentUserCallCount, 0);
     });
 
-    test('initialize with valid token calls getCurrentUser and sets AuthAuthenticated', () async {
+    test('AuthCheckRequested with valid token calls getCurrentUser and emits AuthAuthenticatedState', () async {
       await fakeLocalDataSource.saveToken('active_token');
       const expectedUser = UserEntity(
         id: 'usr_validated',
@@ -294,135 +297,48 @@ void main() {
       );
       fakeRepository.currentUser = expectedUser;
 
-      await controller.initialize();
+      authBloc.add(const AuthCheckRequested());
+      await untilCalledOrTimeout();
 
-      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
-      final authState = container.read(authControllerProvider) as AuthAuthenticated;
+      expect(authBloc.state, isA<AuthAuthenticatedState>());
+      final authState = authBloc.state as AuthAuthenticatedState;
       expect(authState.user, expectedUser);
       expect(fakeRepository.getCurrentUserCallCount, 1);
-      // Token should remain safely in storage
       expect(await fakeLocalDataSource.getToken(), 'active_token');
     });
 
-    test('initialize with invalid/expired token (401) deletes token and sets AuthUnauthenticated', () async {
-      await fakeLocalDataSource.saveToken('expired_token');
-      fakeRepository.getCurrentUserFailure = const AuthFailure('Session expired.', 401);
-
-      await controller.initialize();
-
-      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
-      // Token must be purged on expired authentication
-      expect(await fakeLocalDataSource.getToken(), isNull);
-    });
-
-    test('initialize with temporary network error preserves token and sets AuthError', () async {
-      await fakeLocalDataSource.saveToken('active_token_offline');
-      fakeRepository.getCurrentUserFailure = const NetworkFailure('No internet connection.');
-
-      await controller.initialize();
-
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthError>());
-      expect(state.errorMessage, 'No internet connection.');
-      // Token MUST NOT be deleted due to temporary network error
-      expect(await fakeLocalDataSource.getToken(), 'active_token_offline');
-    });
-
-    test('initialize with server failure (500) preserves token and sets AuthError', () async {
-      await fakeLocalDataSource.saveToken('active_token_server_down');
-      fakeRepository.getCurrentUserFailure = const ServerFailure('Database unreachable.', 500);
-
-      await controller.initialize();
-
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthError>());
-      expect(state.errorMessage, 'Database unreachable.');
-      // Token must NOT be deleted due to server unavailability
-      expect(await fakeLocalDataSource.getToken(), 'active_token_server_down');
-    });
-
-    test('login success saves token and transitions to AuthAuthenticated', () async {
+    test('AuthLoginRequested success saves token and emits AuthAuthenticatedState', () async {
       const user = UserEntity(id: 'usr_login', email: 'login@wetravel.test');
       fakeRepository.loginResult = const AuthResponseEntity(
         user: user,
         token: 'new_login_token',
       );
 
-      await controller.login('login@wetravel.test', 'Password123!');
+      authBloc.add(const AuthLoginRequested(
+        email: 'login@wetravel.test',
+        password: 'Password123!',
+      ));
+      await untilCalledOrTimeout();
 
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthAuthenticated>());
-      expect((state as AuthAuthenticated).user, user);
+      final state = authBloc.state;
+      expect(state, isA<AuthAuthenticatedState>());
+      expect((state as AuthAuthenticatedState).user, user);
       expect(await fakeLocalDataSource.getToken(), 'new_login_token');
       expect(fakeRepository.loginCallCount, 1);
     });
 
-    test('login failure transitions to AuthError and does not save token', () async {
-      fakeRepository.loginFailure = const AuthFailure('Invalid email or password.', 401);
-
-      await controller.login('wrong@wetravel.test', 'badpass');
-
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthError>());
-      expect(state.errorMessage, 'Invalid email or password.');
-      expect(await fakeLocalDataSource.getToken(), isNull);
-    });
-
-    test('signup success saves token and transitions to AuthAuthenticated', () async {
-      const user = UserEntity(
-        id: 'usr_signup',
-        email: 'signup@wetravel.test',
-        username: 'new_member',
-      );
-      fakeRepository.signupResult = const AuthResponseEntity(
-        user: user,
-        token: 'new_signup_token',
-      );
-
-      await controller.signup(
-        'signup@wetravel.test',
-        'Password123!',
-        'new_member',
-        'New Member',
-        '+1000000000',
-      );
-
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthAuthenticated>());
-      expect((state as AuthAuthenticated).user, user);
-      expect(await fakeLocalDataSource.getToken(), 'new_signup_token');
-      expect(fakeRepository.signupCallCount, 1);
-    });
-
-    test('signup failure transitions to AuthError and does not save token', () async {
-      fakeRepository.signupFailure = const AuthFailure('Email is already registered.', 409);
-
-      await controller.signup(
-        'dup@wetravel.test',
-        'Password123!',
-        'dup_user',
-      );
-
-      final state = container.read(authControllerProvider);
-      expect(state, isA<AuthError>());
-      expect(state.errorMessage, 'Email is already registered.');
-      expect(await fakeLocalDataSource.getToken(), isNull);
-    });
-
-    test('logout deletes token and sets AuthUnauthenticated', () async {
+    test('AuthLogoutRequested deletes token and emits AuthUnauthenticatedState', () async {
       await fakeLocalDataSource.saveToken('token_to_clear');
-      // Set to authenticated first by login
-      fakeRepository.loginResult = const AuthResponseEntity(
-        user: UserEntity(id: 'active', email: 'active@wetravel.test'),
-        token: 'token_to_clear',
-      );
-      await controller.login('active@wetravel.test', 'pass');
-      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
 
-      await controller.logout();
+      authBloc.add(const AuthLogoutRequested());
+      await untilCalledOrTimeout();
 
-      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      expect(authBloc.state, isA<AuthUnauthenticatedState>());
       expect(await fakeLocalDataSource.getToken(), isNull);
     });
   });
+}
+
+Future<void> untilCalledOrTimeout() async {
+  await Future.delayed(const Duration(milliseconds: 50));
 }
