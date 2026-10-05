@@ -69,6 +69,30 @@ import '../../features/trips/domain/usecases/invite_trip_member_usecase.dart';
 import '../../features/trips/domain/usecases/join_trip_via_token_usecase.dart';
 import '../../features/trips/presentation/bloc/trip_bloc.dart';
 
+import '../../features/friends/data/datasources/friend_remote_data_source.dart';
+import '../../features/friends/data/repositories/friend_repository_impl.dart';
+import '../../features/friends/domain/repositories/friend_repository.dart';
+import '../../features/friends/domain/usecases/friend_usecases.dart';
+import '../../features/friends/presentation/bloc/friend_bloc.dart';
+
+import '../../features/group_chat/data/datasources/chat_remote_data_source.dart';
+import '../../features/group_chat/data/repositories/chat_repository_impl.dart';
+import '../../features/group_chat/domain/repositories/chat_repository.dart';
+import '../../features/group_chat/domain/usecases/chat_usecases.dart';
+import '../../features/group_chat/presentation/bloc/chat_bloc.dart';
+
+import '../../features/memories/data/datasources/memory_remote_data_source.dart';
+import '../../features/memories/data/repositories/memory_repository_impl.dart';
+import '../../features/memories/domain/repositories/memory_repository.dart';
+import '../../features/memories/domain/usecases/memory_usecases.dart';
+import '../../features/memories/presentation/bloc/memory_bloc.dart';
+
+import '../../features/polls/data/datasources/poll_remote_data_source.dart';
+import '../../features/polls/data/repositories/poll_repository_impl.dart';
+import '../../features/polls/domain/repositories/poll_repository.dart';
+import '../../features/polls/domain/usecases/poll_usecases.dart';
+import '../../features/polls/presentation/bloc/poll_bloc.dart';
+
 /// Centralized Factory for creating Clean Architecture layers and BLoC instances.
 class ServiceLocator {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -261,79 +285,160 @@ class ServiceLocator {
   static final GetGroupConsensusUseCase getGroupConsensusUseCase =
       GetGroupConsensusUseCase(tripRepository);
 
+  // ── Friends Singletons ──────────────────────────────────────────────────────
+  static final FriendRemoteDataSource friendRemoteDataSource =
+      FriendRemoteDataSourceImpl(dio: _dio);
+
+  static final FriendRepository friendRepository =
+      FriendRepositoryImpl(remoteDataSource: friendRemoteDataSource);
+
+  static final GetFriendsUseCase getFriendsUseCase =
+      GetFriendsUseCase(friendRepository);
+
+  static final GetPendingFriendRequestsUseCase getPendingFriendRequestsUseCase =
+      GetPendingFriendRequestsUseCase(friendRepository);
+
+  static final SendFriendRequestUseCase sendFriendRequestUseCase =
+      SendFriendRequestUseCase(friendRepository);
+
+  static final RespondFriendRequestUseCase respondFriendRequestUseCase =
+      RespondFriendRequestUseCase(friendRepository);
+
+  // ── Chat Singletons ─────────────────────────────────────────────────────────
+  static final ChatRemoteDataSource chatRemoteDataSource =
+      ChatRemoteDataSourceImpl(dio: _dio);
+
+  static final ChatRepository chatRepository =
+      ChatRepositoryImpl(remoteDataSource: chatRemoteDataSource);
+
+  static final GetChatMessagesUseCase getChatMessagesUseCase =
+      GetChatMessagesUseCase(chatRepository);
+
+  static final GetImageKitAuthUseCase getImageKitAuthUseCase =
+      GetImageKitAuthUseCase(chatRepository);
+
+  static final SendImageMessageUseCase sendImageMessageUseCase =
+      SendImageMessageUseCase(chatRepository);
+
+  // ── Memories Singletons ─────────────────────────────────────────────────────
+  static final MemoryRemoteDataSource memoryRemoteDataSource =
+      MemoryRemoteDataSourceImpl(dio: _dio);
+
+  static final MemoryRepository memoryRepository =
+      MemoryRepositoryImpl(remoteDataSource: memoryRemoteDataSource);
+
+  static final GetMemoriesTimelineUseCase getMemoriesTimelineUseCase =
+      GetMemoriesTimelineUseCase(memoryRepository);
+
+  static final GetMemoryHighlightsUseCase getMemoryHighlightsUseCase =
+      GetMemoryHighlightsUseCase(memoryRepository);
+
+  static final UploadMemoriesUseCase uploadMemoriesUseCase =
+      UploadMemoriesUseCase(memoryRepository);
+
+  static final ToggleMemoryHighlightUseCase toggleMemoryHighlightUseCase =
+      ToggleMemoryHighlightUseCase(memoryRepository);
+
+  static final DeleteMemoryUseCase deleteMemoryUseCase =
+      DeleteMemoryUseCase(memoryRepository);
+
+  // ── Polls Singletons ────────────────────────────────────────────────────────
+  static final PollRemoteDataSource pollRemoteDataSource =
+      PollRemoteDataSourceImpl(dio: _dio);
+
+  static final PollRepository pollRepository =
+      PollRepositoryImpl(remoteDataSource: pollRemoteDataSource);
+
+  static final GetPollsUseCase getPollsUseCase =
+      GetPollsUseCase(pollRepository);
+
+  static final CreatePollUseCase createPollUseCase =
+      CreatePollUseCase(pollRepository);
+
+  static final CastVoteUseCase castVoteUseCase =
+      CastVoteUseCase(pollRepository);
+
+  static final ClosePollUseCase closePollUseCase =
+      ClosePollUseCase(pollRepository);
+
   // ── BLoC Factories ──────────────────────────────────────────────────────────
 
-  /// Factory method to create a new AuthBloc instance.
-  static AuthBloc createAuthBloc() {
-    return AuthBloc(
-      loginUseCase: loginUseCase,
-      signupUseCase: signupUseCase,
-      googleSignInUseCase: googleSignInUseCase,
-      getCurrentUserUseCase: getCurrentUserUseCase,
-      localDataSource: authLocalDataSource,
-    );
-  }
+  static AuthBloc createAuthBloc() => AuthBloc(
+        loginUseCase: loginUseCase,
+        signupUseCase: signupUseCase,
+        googleSignInUseCase: googleSignInUseCase,
+        getCurrentUserUseCase: getCurrentUserUseCase,
+        localDataSource: authLocalDataSource,
+      );
 
-  /// Factory method to create a new ProfileBloc instance.
-  static ProfileBloc createProfileBloc() {
-    return ProfileBloc(
-      getProfileUseCase: getProfileUseCase,
-      updateProfileUseCase: updateProfileUseCase,
-    );
-  }
+  static ProfileBloc createProfileBloc() => ProfileBloc(
+        getProfileUseCase: getProfileUseCase,
+        updateProfileUseCase: updateProfileUseCase,
+      );
 
-  /// Factory method to create a new HomeBloc instance.
-  static HomeBloc createHomeBloc() {
-    return HomeBloc(
-      getHomeTripsUseCase: getHomeTripsUseCase,
-    );
-  }
+  static HomeBloc createHomeBloc() => HomeBloc(
+        getHomeTripsUseCase: getHomeTripsUseCase,
+      );
 
-  /// Factory method to create a new InboxBloc instance.
-  static InboxBloc createInboxBloc() {
-    return InboxBloc(
-      getMyInvitesUseCase: getMyInvitesUseCase,
-      respondToInviteUseCase: respondToInviteUseCase,
-    );
-  }
+  static InboxBloc createInboxBloc() => InboxBloc(
+        getMyInvitesUseCase: getMyInvitesUseCase,
+        respondToInviteUseCase: respondToInviteUseCase,
+      );
 
-  /// Factory method to create a new PreferencesBloc instance.
-  static PreferencesBloc createPreferencesBloc() {
-    return PreferencesBloc(
-      getPreferencesUseCase: getPreferencesUseCase,
-      updatePreferencesUseCase: updatePreferencesUseCase,
-    );
-  }
+  static PreferencesBloc createPreferencesBloc() => PreferencesBloc(
+        getPreferencesUseCase: getPreferencesUseCase,
+        updatePreferencesUseCase: updatePreferencesUseCase,
+      );
 
-  /// Factory method to create a new ItineraryBloc instance.
-  static ItineraryBloc createItineraryBloc() {
-    return ItineraryBloc(
-      getItinerariesUseCase: getItinerariesUseCase,
-      getItineraryDetailUseCase: getItineraryDetailUseCase,
-      generateItineraryUseCase: generateItineraryUseCase,
-      selectItineraryUseCase: selectItineraryUseCase,
-    );
-  }
+  static ItineraryBloc createItineraryBloc() => ItineraryBloc(
+        getItinerariesUseCase: getItinerariesUseCase,
+        getItineraryDetailUseCase: getItineraryDetailUseCase,
+        generateItineraryUseCase: generateItineraryUseCase,
+        selectItineraryUseCase: selectItineraryUseCase,
+      );
 
-  /// Factory method to create a new ExpenseBloc instance.
-  static ExpenseBloc createExpenseBloc() {
-    return ExpenseBloc(
-      getGroupExpensesUseCase: getGroupExpensesUseCase,
-      createExpenseUseCase: createExpenseUseCase,
-      getGroupLedgerUseCase: getGroupLedgerUseCase,
-      getSettlementsUseCase: getSettlementsUseCase,
-    );
-  }
+  static ExpenseBloc createExpenseBloc() => ExpenseBloc(
+        getGroupExpensesUseCase: getGroupExpensesUseCase,
+        createExpenseUseCase: createExpenseUseCase,
+        getGroupLedgerUseCase: getGroupLedgerUseCase,
+        getSettlementsUseCase: getSettlementsUseCase,
+      );
 
-  /// Factory method to create a new TripBloc instance.
-  static TripBloc createTripBloc() {
-    return TripBloc(
-      createTripUseCase: createTripUseCase,
-      getMyTripsUseCase: getMyTripsUseCase,
-      getTripDetailsUseCase: getTripDetailsUseCase,
-      inviteTripMemberUseCase: inviteTripMemberUseCase,
-      joinTripViaTokenUseCase: joinTripViaTokenUseCase,
-      getGroupConsensusUseCase: getGroupConsensusUseCase,
-    );
-  }
+  static TripBloc createTripBloc() => TripBloc(
+        createTripUseCase: createTripUseCase,
+        getMyTripsUseCase: getMyTripsUseCase,
+        getTripDetailsUseCase: getTripDetailsUseCase,
+        inviteTripMemberUseCase: inviteTripMemberUseCase,
+        joinTripViaTokenUseCase: joinTripViaTokenUseCase,
+        getGroupConsensusUseCase: getGroupConsensusUseCase,
+      );
+
+  static FriendBloc createFriendBloc() => FriendBloc(
+        getFriendsUseCase: getFriendsUseCase,
+        getPendingFriendRequestsUseCase: getPendingFriendRequestsUseCase,
+        sendFriendRequestUseCase: sendFriendRequestUseCase,
+        respondFriendRequestUseCase: respondFriendRequestUseCase,
+      );
+
+  static ChatBloc createChatBloc() => ChatBloc(
+        getChatMessagesUseCase: getChatMessagesUseCase,
+        getImageKitAuthUseCase: getImageKitAuthUseCase,
+        sendImageMessageUseCase: sendImageMessageUseCase,
+        repository: chatRepository,
+      );
+
+  static MemoryBloc createMemoryBloc() => MemoryBloc(
+        getMemoriesTimelineUseCase: getMemoriesTimelineUseCase,
+        getMemoryHighlightsUseCase: getMemoryHighlightsUseCase,
+        uploadMemoriesUseCase: uploadMemoriesUseCase,
+        toggleMemoryHighlightUseCase: toggleMemoryHighlightUseCase,
+        deleteMemoryUseCase: deleteMemoryUseCase,
+      );
+
+  static PollBloc createPollBloc() => PollBloc(
+        getPollsUseCase: getPollsUseCase,
+        createPollUseCase: createPollUseCase,
+        castVoteUseCase: castVoteUseCase,
+        closePollUseCase: closePollUseCase,
+      );
 }

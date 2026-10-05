@@ -16,6 +16,10 @@ import '../features/preferences/presentation/bloc/preferences_bloc.dart';
 import '../features/itinerary/presentation/bloc/itinerary_bloc.dart';
 import '../features/expenses/presentation/bloc/expense_bloc.dart';
 import '../features/trips/presentation/bloc/trip_bloc.dart';
+import '../features/friends/presentation/bloc/friend_bloc.dart';
+import '../features/group_chat/presentation/bloc/chat_bloc.dart';
+import '../features/memories/presentation/bloc/memory_bloc.dart';
+import '../features/polls/presentation/bloc/poll_bloc.dart';
 
 /// Root application widget initializing global BLoC providers and router config.
 class WeTravelApp extends StatefulWidget {
@@ -39,6 +43,10 @@ class _WeTravelAppState extends State<WeTravelApp> {
   late final ItineraryBloc _itineraryBloc;
   late final ExpenseBloc _expenseBloc;
   late final TripBloc _tripBloc;
+  late final FriendBloc _friendBloc;
+  late final ChatBloc _chatBloc;
+  late final MemoryBloc _memoryBloc;
+  late final PollBloc _pollBloc;
 
   @override
   void initState() {
@@ -51,6 +59,10 @@ class _WeTravelAppState extends State<WeTravelApp> {
     _itineraryBloc = ServiceLocator.createItineraryBloc();
     _expenseBloc = ServiceLocator.createExpenseBloc();
     _tripBloc = ServiceLocator.createTripBloc();
+    _friendBloc = ServiceLocator.createFriendBloc();
+    _chatBloc = ServiceLocator.createChatBloc();
+    _memoryBloc = ServiceLocator.createMemoryBloc();
+    _pollBloc = ServiceLocator.createPollBloc();
 
     if (widget.autoInitialize) {
       _authBloc.add(const AuthCheckRequested());
@@ -67,6 +79,10 @@ class _WeTravelAppState extends State<WeTravelApp> {
     _itineraryBloc.close();
     _expenseBloc.close();
     _tripBloc.close();
+    _friendBloc.close();
+    _chatBloc.close();
+    _memoryBloc.close();
+    _pollBloc.close();
     super.dispose();
   }
 
@@ -82,6 +98,10 @@ class _WeTravelAppState extends State<WeTravelApp> {
         BlocProvider<ItineraryBloc>.value(value: _itineraryBloc),
         BlocProvider<ExpenseBloc>.value(value: _expenseBloc),
         BlocProvider<TripBloc>.value(value: _tripBloc),
+        BlocProvider<FriendBloc>.value(value: _friendBloc),
+        BlocProvider<ChatBloc>.value(value: _chatBloc),
+        BlocProvider<MemoryBloc>.value(value: _memoryBloc),
+        BlocProvider<PollBloc>.value(value: _pollBloc),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
