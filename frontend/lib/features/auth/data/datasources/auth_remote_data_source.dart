@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../models/auth_response_model.dart';
@@ -35,6 +36,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<AuthResponseModel> googleLogin({
     required String idToken,
   }) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 POST ${ApiConstants.googleSignIn}');
     try {
       final response = await dio.post(
         ApiConstants.googleSignIn,
@@ -42,6 +44,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           'idToken': idToken,
         },
       );
+
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
 
       dynamic data = response.data;
       if (data is String) {
@@ -56,8 +61,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on Google Login: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on Google Login: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -70,6 +77,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 POST ${ApiConstants.login} -> Email: $email');
     try {
       final response = await dio.post(
         ApiConstants.login,
@@ -78,6 +86,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           'password': password,
         },
       );
+
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
 
       dynamic data = response.data;
       if (data is String) {
@@ -92,8 +103,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on Login: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on Login: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -109,6 +122,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? fullName,
     String? phone,
   }) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 POST ${ApiConstants.signup} -> Email: $email, Username: $username');
     try {
       final response = await dio.post(
         ApiConstants.signup,
@@ -123,6 +137,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         },
       );
 
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
+
       dynamic data = response.data;
       if (data is String) {
         try {
@@ -136,8 +153,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on Signup: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on Signup: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -147,6 +166,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel> getCurrentUser(String token) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 GET ${ApiConstants.me}');
     try {
       final response = await dio.get(
         ApiConstants.me,
@@ -156,6 +176,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           },
         ),
       );
+
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
 
       dynamic data = response.data;
       if (data is String) {
@@ -171,8 +194,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on GetCurrentUser: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on GetCurrentUser: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }

@@ -1,4 +1,4 @@
-// Main Root Application widget providing AuthBloc, ProfileBloc & GoRouter.
+// Main Root Application widget providing AuthBloc, ProfileBloc, HomeBloc, InboxBloc, PreferencesBloc, ItineraryBloc, ExpenseBloc & GoRouter.
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/constants/app_constants.dart';
@@ -10,6 +10,12 @@ import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
 import '../features/profile/presentation/bloc/profile_bloc.dart';
+import '../features/home/presentation/bloc/home_bloc.dart';
+import '../features/inbox/presentation/bloc/inbox_bloc.dart';
+import '../features/preferences/presentation/bloc/preferences_bloc.dart';
+import '../features/itinerary/presentation/bloc/itinerary_bloc.dart';
+import '../features/expenses/presentation/bloc/expense_bloc.dart';
+import '../features/trips/presentation/bloc/trip_bloc.dart';
 
 /// Root application widget initializing global BLoC providers and router config.
 class WeTravelApp extends StatefulWidget {
@@ -27,12 +33,25 @@ class WeTravelApp extends StatefulWidget {
 class _WeTravelAppState extends State<WeTravelApp> {
   late final AuthBloc _authBloc;
   late final ProfileBloc _profileBloc;
+  late final HomeBloc _homeBloc;
+  late final InboxBloc _inboxBloc;
+  late final PreferencesBloc _preferencesBloc;
+  late final ItineraryBloc _itineraryBloc;
+  late final ExpenseBloc _expenseBloc;
+  late final TripBloc _tripBloc;
 
   @override
   void initState() {
     super.initState();
     _authBloc = ServiceLocator.createAuthBloc();
     _profileBloc = ServiceLocator.createProfileBloc();
+    _homeBloc = ServiceLocator.createHomeBloc();
+    _inboxBloc = ServiceLocator.createInboxBloc();
+    _preferencesBloc = ServiceLocator.createPreferencesBloc();
+    _itineraryBloc = ServiceLocator.createItineraryBloc();
+    _expenseBloc = ServiceLocator.createExpenseBloc();
+    _tripBloc = ServiceLocator.createTripBloc();
+
     if (widget.autoInitialize) {
       _authBloc.add(const AuthCheckRequested());
     }
@@ -42,6 +61,12 @@ class _WeTravelAppState extends State<WeTravelApp> {
   void dispose() {
     _authBloc.close();
     _profileBloc.close();
+    _homeBloc.close();
+    _inboxBloc.close();
+    _preferencesBloc.close();
+    _itineraryBloc.close();
+    _expenseBloc.close();
+    _tripBloc.close();
     super.dispose();
   }
 
@@ -51,6 +76,12 @@ class _WeTravelAppState extends State<WeTravelApp> {
       providers: [
         BlocProvider<AuthBloc>.value(value: _authBloc),
         BlocProvider<ProfileBloc>.value(value: _profileBloc),
+        BlocProvider<HomeBloc>.value(value: _homeBloc),
+        BlocProvider<InboxBloc>.value(value: _inboxBloc),
+        BlocProvider<PreferencesBloc>.value(value: _preferencesBloc),
+        BlocProvider<ItineraryBloc>.value(value: _itineraryBloc),
+        BlocProvider<ExpenseBloc>.value(value: _expenseBloc),
+        BlocProvider<TripBloc>.value(value: _tripBloc),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {

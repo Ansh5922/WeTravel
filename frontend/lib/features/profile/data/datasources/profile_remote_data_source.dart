@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../auth/data/models/user_model.dart';
@@ -28,6 +29,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
   @override
   Future<ProfileModel> getProfile(String token) async {
+    debugPrint('[PROFILE_REMOTE_DS] 🚀 GET ${ApiConstants.userProfile}');
     try {
       final response = await dio.get(
         ApiConstants.userProfile,
@@ -37,6 +39,9 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           },
         ),
       );
+
+      debugPrint('[PROFILE_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[PROFILE_REMOTE_DS] 📦 Data: ${response.data}');
 
       dynamic data = response.data;
       if (data is String) {
@@ -51,8 +56,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] ❌ DioError on getProfile: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] 💥 Error on getProfile: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -72,18 +79,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     String? pacePreference,
     String? rawPreferenceNotes,
   }) async {
-    try {
-      final payload = <String, dynamic>{
-        if (fullName != null && fullName.trim().isNotEmpty) 'fullName': fullName.trim(),
-        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-        if (travelStyle != null && travelStyle.trim().isNotEmpty) 'travelStyle': travelStyle.trim(),
-        if (dietaryPreference != null && dietaryPreference.trim().isNotEmpty) 'dietaryPreference': dietaryPreference.trim(),
-        if (budget != null) ...{'budget': budget},
-        if (budgetTier != null && budgetTier.trim().isNotEmpty) 'budgetTier': budgetTier.trim(),
-        if (pacePreference != null && pacePreference.trim().isNotEmpty) 'pacePreference': pacePreference.trim(),
-        if (rawPreferenceNotes != null && rawPreferenceNotes.trim().isNotEmpty) 'rawPreferenceNotes': rawPreferenceNotes.trim(),
-      };
+    final payload = <String, dynamic>{
+      if (fullName != null && fullName.trim().isNotEmpty) 'fullName': fullName.trim(),
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      if (travelStyle != null && travelStyle.trim().isNotEmpty) 'travelStyle': travelStyle.trim(),
+      if (dietaryPreference != null && dietaryPreference.trim().isNotEmpty) 'dietaryPreference': dietaryPreference.trim(),
+      if (budget != null) ...{'budget': budget},
+      if (budgetTier != null && budgetTier.trim().isNotEmpty) 'budgetTier': budgetTier.trim(),
+      if (pacePreference != null && pacePreference.trim().isNotEmpty) 'pacePreference': pacePreference.trim(),
+      if (rawPreferenceNotes != null && rawPreferenceNotes.trim().isNotEmpty) 'rawPreferenceNotes': rawPreferenceNotes.trim(),
+    };
 
+    debugPrint('[PROFILE_REMOTE_DS] 🚀 PATCH ${ApiConstants.userProfile} Payload: $payload');
+
+    try {
       final response = await dio.patch(
         ApiConstants.userProfile,
         data: payload,
@@ -93,6 +102,9 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           },
         ),
       );
+
+      debugPrint('[PROFILE_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[PROFILE_REMOTE_DS] 📦 Data: ${response.data}');
 
       dynamic data = response.data;
       if (data is String) {
@@ -122,8 +134,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         throw const ServerException('Invalid response format from server.');
       }
     } on DioException catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] ❌ DioError on updateProfile: [${e.response?.statusCode}] ${e.message}');
       throw _handleDioError(e);
     } catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] 💥 Error on updateProfile: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
