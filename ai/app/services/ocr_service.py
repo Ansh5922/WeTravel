@@ -1,5 +1,8 @@
 import re
 import io
+import os
+import sys
+import shutil
 from typing import Optional
 import httpx
 
@@ -64,11 +67,43 @@ def _guess_category(text: str) -> Optional[str]:
     return 'misc'
 
 
+def _resolve_tesseract_cmd() -> Optional[str]:
+    # 1. Check custom environment variable override (custom Docker/cloud deployment path)
+    env_cmd = os.getenv("TESSERACT_CMD")
+    if env_cmd and os.path.exists(env_cmd):
+        return env_cmd
+
+    # 2. Check system PATH (standard Linux / Docker / Windows PATH)
+    path_cmd = shutil.which("tesseract")
+    if path_cmd:
+        return path_cmd
+
+    # 3. Check known Windows standard installation locations
+    if sys.platform.startswith("win"):
+        win_candidates = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Tesseract-OCR", "tesseract.exe"),
+        ]
+        for candidate in win_candidates:
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+    return None
+
+
 def _run_tesseract(image_bytes: bytes) -> str:
-    # Run Tesseract OCR on raw image bytes and return extracted text
+    # Run Tesseract OCR on raw image bytes with dynamic path configuration
     try:
         import pytesseract
         from PIL import Image
+
+        tesseract_cmd = _resolve_tesseract_cmd()
+        if not tesseract_cmd:
+            print("[OCR Service] Tesseract binary not detected on system or PATH. Falling back to manual entry.")
+            return ""
+
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
         image = Image.open(io.BytesIO(image_bytes))
 
