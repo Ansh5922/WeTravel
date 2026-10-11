@@ -1,15 +1,26 @@
 import time
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
 from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
 from app.api.routes.itinerary import router as itinerary_router
 from app.api.routes.ocr import router as ocr_router
+from app.services.embedding_service import load_embedding_model
+
+# Warm up AI models during application lifespan startup
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[Lifespan] Starting up WeTravel AI Engine... Warming up embedding models...")
+    load_embedding_model()
+    yield
+    print("[Lifespan] Shutting down WeTravel AI Engine...")
 
 app = FastAPI(
     title="WeTravel AI Engine",
     description="AI microservice for WeTravel. JWT tokens issued by Node.js are verified independently.",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 
