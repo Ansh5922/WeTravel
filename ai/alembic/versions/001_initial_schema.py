@@ -1,10 +1,4 @@
-"""Initial schema revision with vector extension and core tables
-
-Revision ID: 001_initial_schema
-Revises: 
-Create Date: 2026-09-21 00:00:00.000000
-
-"""
+# Initial schema revision with vector extension and core tables (Revision ID: 001_initial_schema)
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
