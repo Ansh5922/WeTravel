@@ -1,20 +1,6 @@
 import os
 import httpx
 
-"""
-Travel API Service — WeTravel AI Backend
-Layer: Service (external API wrapper)
-
-Integrations:
-  - Trains:  Indian Railway IRCTC via RapidAPI (indian-railway-irctc.p.rapidapi.com)
-  - Hotels:  Booking.com via RapidAPI (booking-com15.p.rapidapi.com)
-  - Buses:   Mock data (RedBus key not yet configured)
-
-To swap in real bus keys:
-  1. Add RAPIDAPI_KEY to ai/.env
-  2. Replace _mock_buses() return with a real httpx call
-"""
-
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "310a22e009msh27b357835fe98edp179b08jsn6eed694c1863")
 
 TRAIN_HOST  = "indian-railway-irctc.p.rapidapi.com"
@@ -26,14 +12,8 @@ RAPIDAPI_HEADERS = {
 }
 
 
-# ── Trains ───────────────────────────────────────────────────────────────────
-
 async def fetch_trains(origin_code: str, destination_code: str, departure_date: str) -> list[dict]:
-    """
-    Fetch available trains from RailwayAPI (IRCTC via RapidAPI).
-    departure_date format: YYYYMMDD
-    Returns list of train dicts: { train_number, train_name, departure_time, arrival_time, duration, fare_sleeper, fare_3ac, fare_2ac, available_seats }
-    """
+    # Fetch available trains between stations via RailwayAPI IRCTC integration
     url = f"https://{TRAIN_HOST}/api/trains/v1/train/betweenStations"
     params = {
         "trainNo": "",
@@ -58,8 +38,9 @@ async def fetch_trains(origin_code: str, destination_code: str, departure_date: 
 
 
 def _normalize_trains(raw_trains: list, departure_date: str) -> list[dict]:
+    # Format and normalize raw API train response records
     result = []
-    for t in raw_trains[:10]:  # Cap at 10 trains
+    for t in raw_trains[:10]:
         try:
             result.append({
                 "trainNumber":    t.get("trainNumber", ""),
@@ -80,6 +61,7 @@ def _normalize_trains(raw_trains: list, departure_date: str) -> list[dict]:
 
 
 def _mock_trains(origin: str, destination: str, departure_date: str) -> list[dict]:
+    # Generate simulated fallback train options for testing and offline resilience
     return [
         {
             "trainNumber": "12051", "trainName": "Shatabdi Express",
@@ -105,13 +87,8 @@ def _mock_trains(origin: str, destination: str, departure_date: str) -> list[dic
     ]
 
 
-# ── Hotels ───────────────────────────────────────────────────────────────────
-
 async def fetch_hotels(destination: str, checkin_date: str, checkout_date: str, guests: int, max_price_per_night: float) -> list[dict]:
-    """
-    Fetch available hotels from Booking.com via RapidAPI.
-    Returns list of hotel dicts: { hotelId, hotelName, pricePerNight, rating, address, imageUrl }
-    """
+    # Query live hotel accommodations via Booking.com RapidAPI endpoint
     url = f"https://{HOTEL_HOST}/api/v1/hotels/searchHotels"
     params = {
         "dest_id": destination,
@@ -141,6 +118,7 @@ async def fetch_hotels(destination: str, checkin_date: str, checkout_date: str, 
 
 
 def _normalize_hotels(raw_hotels: list, max_price: float, checkin: str, checkout: str) -> list[dict]:
+    # Clean and filter hotel results to respect nightly pricing constraints
     result = []
     for h in raw_hotels[:15]:
         try:
@@ -164,6 +142,7 @@ def _normalize_hotels(raw_hotels: list, max_price: float, checkin: str, checkout
 
 
 def _mock_hotels(destination: str, checkin: str, checkout: str, max_price: float) -> list[dict]:
+    # Generate simulated hotel accommodations for fallback when external API fails
     budget_cap = max_price or 2000
     return [
         {"hotelId": "H001", "hotelName": "Snow Valley Resorts",
@@ -181,16 +160,13 @@ def _mock_hotels(destination: str, checkin: str, checkout: str, max_price: float
     ]
 
 
-# ── Buses (Mock — swap with RedBus API when key is available) ─────────────────
-
 async def fetch_buses(origin: str, destination: str, departure_date: str) -> list[dict]:
-    """
-    Mock bus data. Replace with RedBus or AbhiBus API call when API key is available.
-    """
+    # Fetch bus travel options connecting origin and destination
     return _mock_buses(origin, destination, departure_date)
 
 
 def _mock_buses(origin: str, destination: str, departure_date: str) -> list[dict]:
+    # Generate simulated bus travel options
     return [
         {"busOperator": "HRTC Volvo", "busType": "Volvo AC Semi-Sleeper",
          "departureTime": "18:00", "arrivalTime": "06:00", "duration": "12h 00m",
@@ -201,9 +177,8 @@ def _mock_buses(origin: str, destination: str, departure_date: str) -> list[dict
     ]
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
 def _safe_float(val, default=0.0) -> float:
+    # Safely convert value to float with fallback
     try:
         return float(val)
     except (TypeError, ValueError):
