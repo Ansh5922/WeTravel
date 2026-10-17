@@ -28,8 +28,6 @@ class _SignupPageState extends State<SignupPage> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _phoneController = TextEditingController();
 
   bool _obscurePassword = true;
 
@@ -38,8 +36,6 @@ class _SignupPageState extends State<SignupPage> {
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _fullNameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -48,16 +44,11 @@ class _SignupPageState extends State<SignupPage> {
     if (bloc.state.isLoading) return;
 
     if (_formKey.currentState?.validate() ?? false) {
-      final fullName = _fullNameController.text.trim();
-      final phone = _phoneController.text.trim();
-
       bloc.add(
         AuthSignupRequested(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           username: _usernameController.text.trim(),
-          fullName: fullName.isNotEmpty ? fullName : null,
-          phone: phone.isNotEmpty ? phone : null,
         ),
       );
     }
@@ -188,28 +179,7 @@ class _SignupPageState extends State<SignupPage> {
                           ),
                         ),
 
-                        const SizedBox(height: AppSpacing.md),
 
-                        // ── Full Name Input Field (Optional) ─────────────────────
-                        AuthTextField(
-                          controller: _fullNameController,
-                          label: 'Full Name (Optional)',
-                          hint: 'Suyash Pandey',
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          validator: AuthValidators.validateFullName,
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── Phone Input Field (Optional) ─────────────────────────
-                        AuthTextField(
-                          controller: _phoneController,
-                          label: 'Phone (Optional)',
-                          hint: '+91 9876543210',
-                          keyboardType: TextInputType.phone,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          validator: AuthValidators.validatePhone,
-                        ),
 
                         const SizedBox(height: AppSpacing.lg),
 
