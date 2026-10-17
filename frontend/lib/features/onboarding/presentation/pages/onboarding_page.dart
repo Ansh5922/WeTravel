@@ -7,20 +7,17 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../widgets/onboarding_page_indicator.dart';
-import '../widgets/onboarding_visual_one.dart';
-import '../widgets/onboarding_visual_two.dart';
-import '../widgets/onboarding_visual_three.dart';
 
 /// Data model representing a single onboarding slide.
 class _OnboardingSlideData {
   final String title;
   final String description;
-  final Widget visual;
+  final IconData icon;
 
   const _OnboardingSlideData({
     required this.title,
     required this.description,
-    required this.visual,
+    required this.icon,
   });
 }
 
@@ -41,19 +38,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
       title: 'Plan together.',
       description:
           "Bring everyone's ideas, preferences, and plans into one shared trip.",
-      visual: OnboardingVisualOne(),
+      icon: Icons.groups_2_outlined,
     ),
     _OnboardingSlideData(
       title: 'Your trip. Your way.',
       description:
           "WeTravel uses everyone's preferences to help create a plan that works for the whole group.",
-      visual: OnboardingVisualTwo(),
+      icon: Icons.tune_rounded,
     ),
     _OnboardingSlideData(
       title: 'More exploring. Less planning.',
       description:
           'Collaborate on activities, itineraries, polls, expenses, and memories — all in one place.',
-      visual: OnboardingVisualThree(),
+      icon: Icons.explore_outlined,
     ),
   ];
 
@@ -156,41 +153,70 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       return Center(
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32.0,
+                            vertical: 16.0,
+                          ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // 1. Large Visual Area
-                              slide.visual,
+                              // Clean, minimal icon badge
+                              Container(
+                                width: 68,
+                                height: 68,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceWhite,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: AppColors.borderWarm,
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primaryDeepTeal
+                                          .withValues(alpha: 0.05),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  slide.icon,
+                                  size: 30,
+                                  color: AppColors.primaryDeepTeal,
+                                ),
+                              ),
 
-                              const SizedBox(height: AppSpacing.lg),
+                              const SizedBox(height: AppSpacing.xxl),
 
-                              // 2. Editorial Heading (Playfair Display)
+                              // Editorial Heading (Playfair Display)
                               Text(
                                 slide.title,
                                 textAlign: TextAlign.center,
                                 style: AppTypography.displayMedium(
                                   color: AppColors.primaryDeepTeal,
                                 ).copyWith(
-                                  fontSize: 28,
+                                  fontSize: 30,
                                   letterSpacing: -0.4,
                                 ),
                               ),
 
-                              const SizedBox(height: AppSpacing.sm),
+                              const SizedBox(height: AppSpacing.md),
 
-                              // 3. Supporting Description (Inter)
+                              // Supporting Description (Inter)
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                ),
                                 child: Text(
                                   slide.description,
                                   textAlign: TextAlign.center,
                                   style: AppTypography.bodyLarge(
                                     color: AppColors.textSecondary,
                                   ).copyWith(
-                                    height: 1.48,
-                                    fontSize: 15,
+                                    height: 1.5,
+                                    fontSize: 15.5,
                                   ),
                                 ),
                               ),

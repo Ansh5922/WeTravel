@@ -25,8 +25,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'pandeysuyash@gmail.com');
-  final _passwordController = TextEditingController(text: 'Suyash@2004');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
 
@@ -85,17 +85,9 @@ class _LoginPageState extends State<LoginPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // ── Editorial Header ─────────────────────────────────────
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _emailController.text = 'pandeysuyash@gmail.com';
-                              _passwordController.text = 'Suyash@2004';
-                            });
-                          },
-                          child: const AuthHeader(
-                            title: 'Welcome back.',
-                            subtitle: 'Your next journey starts here.',
-                          ),
+                        const AuthHeader(
+                          title: 'Welcome back.',
+                          subtitle: 'Your next journey starts here.',
                         ),
 
                         const SizedBox(height: AppSpacing.xxl),
