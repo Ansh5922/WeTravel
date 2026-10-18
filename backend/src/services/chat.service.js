@@ -117,11 +117,18 @@ const fireInteractionEmbedding = async (groupId, pollId, summaryText) => {
   // Use the admin token from the shared secret for internal service calls
   const jwt = require('jsonwebtoken');
   const token = jwt.sign({ sub: 'internal-service' }, process.env.JWT_SECRET, { expiresIn: '5m' });
-  await axios.post(
-    `${AI_URL}/api/ai/embeddings/interaction`,
-    { group_id: groupId, source_type: 'poll', source_id: pollId, summary_text: summaryText },
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  try {
+    await axios.post(
+      `${AI_URL}/api/ai/embeddings/interaction`,
+      { group_id: groupId, source_type: 'poll', source_id: pollId, summary_text: summaryText },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      },
+    );
+  } catch (err) {
+    console.error(`[Chat Service] AI embedding sync failed for poll ${pollId}: ${err.message}`);
+  }
 };
 
 module.exports = {

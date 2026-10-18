@@ -1,6 +1,7 @@
 import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.auth import get_current_user
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.consensus import router as consensus_router
@@ -21,6 +22,15 @@ app = FastAPI(
     description="AI microservice for WeTravel. JWT tokens issued by Node.js are verified independently.",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# Enable CORS for web, mobile, and dashboard clients
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
