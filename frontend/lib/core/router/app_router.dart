@@ -10,6 +10,7 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/signup_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/trips/presentation/pages/trips_page.dart';
 import '../../features/trips/presentation/pages/create_trip_page.dart';
@@ -81,6 +82,11 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.signup,
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const SignupPage(),
+    ),
+    GoRoute(
+      path: RouteNames.forgotPassword,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const ForgotPasswordPage(),
     ),
 
     // ── Stateful Navigation Shell (Primary Authenticated Tabs) ────────────────

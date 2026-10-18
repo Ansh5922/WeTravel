@@ -20,4 +20,7 @@ abstract class AuthRepository {
   });
 
   Future<UserEntity> getCurrentUser(String token);
+
+  Future<String> forgotPassword({required String email});
 }
+

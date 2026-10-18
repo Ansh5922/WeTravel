@@ -59,3 +59,18 @@ class AuthErrorState extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+/// State indicating password reset instructions were successfully dispatched.
+class AuthPasswordResetSentState extends AuthState {
+  final String email;
+  final String message;
+
+  const AuthPasswordResetSentState({
+    required this.email,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [email, message];
+}
+

@@ -7,6 +7,7 @@ class RouteNames {
   static const String onboarding = '/onboarding';
   static const String login = '/auth/login';
   static const String signup = '/auth/signup';
+  static const String forgotPassword = '/auth/forgot-password';
 
   // ── Primary App Shell Routes (Tabs) ─────────────────────────────────────────
   static const String home = '/home';

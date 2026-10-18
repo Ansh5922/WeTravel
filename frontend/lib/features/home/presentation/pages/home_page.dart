@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
-
-import '../../domain/entities/trip_summary_item.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../trips/presentation/bloc/trip_bloc.dart';
+import '../../../trips/presentation/bloc/trip_event.dart';
+import '../bloc/home_bloc.dart';
+import '../bloc/home_event.dart';
+import '../bloc/home_state.dart';
+import '../widgets/home_action_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_search_bar.dart';
-import '../widgets/home_action_card.dart';
+import '../widgets/home_sticky_top_bar.dart';
 import '../widgets/home_trip_card.dart';
 
 /// Primary authenticated Home screen displaying inspirational hero banner,
-/// interactive floating search, quick trip actions, and trips list with
-/// responsive Android layouts and frontend-only state.
+/// interactive floating search, quick trip actions, and dynamic trips list
+/// powered by [HomeBloc] with real backend data, live search, and status filtering.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -22,233 +29,553 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
-  late List<TripSummaryItem> _trips;
-  String _searchQuery = '';
-  String _activeStatusFilter = 'All'; // 'All', 'Upcoming', 'Planning'
-  String _activeSort = 'default'; // 'default', 'alphabetical'
+  late final ScrollController _scrollController;
+  String _activeStatusFilter = 'All';
 
   @override
   void initState() {
     super.initState();
-    _trips = List.from(TripSummaryItem.initialMockTrips());
+    _scrollController = ScrollController();
+
+    // Fetch initial trips from backend after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<HomeBloc>().add(const HomeFetchRequested());
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  List<TripSummaryItem> get _filteredTrips {
-    final list = _trips.where((trip) {
-      final matchesQuery = _searchQuery.isEmpty ||
-          trip.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          trip.location.toLowerCase().contains(_searchQuery.toLowerCase());
+  void _onSearchChanged(String query) {
+    context.read<HomeBloc>().add(HomeSearchQueryChanged(query));
+  }
 
-      final matchesFilter = _activeStatusFilter == 'All' ||
-          trip.statusLabel.toLowerCase() == _activeStatusFilter.toLowerCase();
-
-      return matchesQuery && matchesFilter;
-    }).toList();
-
-    if (_activeSort == 'alphabetical') {
-      list.sort((a, b) => a.title.compareTo(b.title));
-    }
-    return list;
+  void _onClearSearchAndFilters() {
+    setState(() {
+      _activeStatusFilter = 'All';
+      _searchController.clear();
+    });
+    context.read<HomeBloc>().add(const HomeFilterStatusChanged('All'));
+    context.read<HomeBloc>().add(const HomeSearchQueryChanged(''));
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredTrips;
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top Scenic Header with Floating Search Bar ─────────────────
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Scenic Banner with Logo, Greeting, and Profile Avatar
-                HomeHeader(
-                  onNotificationTap: () => _showNotificationSheet(context),
-                  onProfileTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Profile details'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
+      body: Stack(
+        children: [
+          // ── Scrollable Body with Pull-to-Refresh ─────────────────────────
+          RefreshIndicator(
+            color: const Color(0xFF0D9488),
+            backgroundColor: Colors.white,
+            displacement: 90,
+            onRefresh: () async {
+              final homeBloc = context.read<HomeBloc>();
+              homeBloc.add(HomeFetchRequested(
+                statusFilter: _activeStatusFilter == 'All'
+                    ? null
+                    : _activeStatusFilter.toLowerCase(),
+              ));
+              await homeBloc.stream.firstWhere(
+                (state) => state is! HomeLoadingState,
+              );
+            },
+            child: ScrollConfiguration(
+              behavior: const ScrollBehavior().copyWith(overscroll: false),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Scenic Hero Banner with Overlapping Search Bar ─────
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const HomeHeader(
+                          showTopBar: false,
+                        ),
 
-                // Floating Search Bar overlapping the bottom of the hero banner
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: -24,
-                  child: HomeSearchBar(
-                    controller: _searchController,
-                    hasActiveFilter: _activeStatusFilter != 'All' || _activeSort != 'default',
-                    onChanged: (val) {
-                      setState(() {
-                        _searchQuery = val.trim();
-                      });
-                    },
-                    onFilterTap: () => _showFilterSheet(context),
-                  ),
-                ),
-              ],
-            ),
-
-            // Spacer to accommodate the overlapping search bar
-            const SizedBox(height: 42),
-
-            // ── Main Content Area ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Action Card 1: Create a Trip
-                  HomeActionCard.createTrip(
-                    onTap: () => context.push(RouteNames.createTrip),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Action Card 2: Join a Trip
-                  HomeActionCard.joinTrip(
-                    onTap: () => _showJoinTripDialog(context),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ── "Your Trips" Section Header ──────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Your Trips',
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F2C3F),
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          if (_activeStatusFilter != 'All') ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE2E8F0),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                _activeStatusFilter,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _activeStatusFilter = 'All';
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                        child: Text(
-                          _activeStatusFilter == 'All' && _searchQuery.isEmpty
-                              ? 'View All'
-                              : 'Clear Filter',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0D9488),
+                        // Floating Search Bar overlapping banner bottom
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          bottom: -24,
+                          child: BlocBuilder<HomeBloc, HomeState>(
+                            buildWhen: (prev, curr) =>
+                                prev.runtimeType != curr.runtimeType ||
+                                (curr is HomeLoadedState &&
+                                    prev is HomeLoadedState &&
+                                    (prev.activeStatusFilter !=
+                                            curr.activeStatusFilter ||
+                                        prev.searchQuery != curr.searchQuery)),
+                            builder: (context, state) {
+                              final hasFilter = state is HomeLoadedState &&
+                                  state.activeStatusFilter != 'All';
+                              return HomeSearchBar(
+                                controller: _searchController,
+                                hasActiveFilter: hasFilter,
+                                onChanged: _onSearchChanged,
+                                onFilterTap: () => _showFilterSheet(context),
+                              );
+                            },
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Trips List
-                  if (filtered.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      alignment: Alignment.center,
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.travel_explore_rounded,
-                            size: 44,
-                            color: Color(0xFF94A3B8),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No trips found',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Try adjusting your search or filter criteria',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: const Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (context, index) {
-                        final trip = filtered[index];
-                        return HomeTripCard.fromEntity(
-                          trip: trip,
-                          onTap: () {
-                            context.push(RouteNames.tripDetailsPath(trip.id));
-                          },
-                        );
-                      },
+                      ],
                     ),
 
-                  const SizedBox(height: 32),
-                ],
+                    // Spacer to accommodate floating search bar overlap
+                    const SizedBox(height: 42),
+
+                    // ── Main Content Area ──────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Action Card 1: Create a Trip
+                          HomeActionCard.createTrip(
+                            onTap: () async {
+                              await context.push(RouteNames.createTrip);
+                              if (context.mounted) {
+                                context.read<HomeBloc>().add(
+                                      const HomeFetchRequested(),
+                                    );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Action Card 2: Join a Trip
+                          HomeActionCard.joinTrip(
+                            onTap: () => _showJoinTripDialog(context),
+                          ),
+                          const SizedBox(height: 28),
+
+                          // ── "Your Trips" Section Header ──────────────────
+                          BlocBuilder<HomeBloc, HomeState>(
+                            builder: (context, state) {
+                              final count = state is HomeLoadedState
+                                  ? state.filteredTrips.length
+                                  : null;
+                              final isFiltered = _activeStatusFilter != 'All' ||
+                                  _searchController.text.isNotEmpty;
+
+                              return Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Your Trips',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0F2C3F),
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                      if (count != null) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE2E8F0),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '$count',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF334155),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      if (_activeStatusFilter != 'All') ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE0F2FE),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            _activeStatusFilter,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF0284C7),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  if (isFiltered)
+                                    GestureDetector(
+                                      onTap: _onClearSearchAndFilters,
+                                      child: Text(
+                                        'Clear Filter',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF0D9488),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    GestureDetector(
+                                      onTap: () => context.go(RouteNames.trips),
+                                      child: Text(
+                                        'View All',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF0D9488),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // ── Dynamic Trips List / Skeletons / Empty States ─
+                          BlocBuilder<HomeBloc, HomeState>(
+                            builder: (context, state) {
+                              if (state is HomeLoadingState ||
+                                  state is HomeInitialState) {
+                                return const Column(
+                                  children: [
+                                    HomeTripCardSkeleton(),
+                                    SizedBox(height: 14),
+                                    HomeTripCardSkeleton(),
+                                  ],
+                                );
+                              }
+
+                              if (state is HomeErrorState) {
+                                return _buildErrorState(
+                                  message: state.message,
+                                  onRetry: () {
+                                    context.read<HomeBloc>().add(
+                                          const HomeFetchRequested(),
+                                        );
+                                  },
+                                );
+                              }
+
+                              if (state is HomeLoadedState) {
+                                // 1. Global Empty State (User has 0 trips in total)
+                                if (state.allTrips.isEmpty) {
+                                  return _buildGlobalEmptyState(context);
+                                }
+
+                                // 2. Search/Filter Empty State (Trips exist, but none match criteria)
+                                if (state.filteredTrips.isEmpty) {
+                                  return _buildFilterEmptyState(
+                                    query: state.searchQuery,
+                                    statusFilter: state.activeStatusFilter,
+                                  );
+                                }
+
+                                // 3. Populated Dynamic Trips List
+                                return ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  padding: EdgeInsets.zero,
+                                  itemCount: state.filteredTrips.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 14),
+                                  itemBuilder: (context, index) {
+                                    final trip = state.filteredTrips[index];
+                                    return HomeTripCard.fromEntity(
+                                      trip: trip,
+                                      onTap: () {
+                                        context.push(
+                                          RouteNames.tripDetailsPath(trip.id),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              }
+
+                              return const SizedBox.shrink();
+                            },
+                          ),
+
+                          const SizedBox(height: 36),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // ── Pinned Sticky Top Navigation Bar ──────────────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedBuilder(
+              animation: _scrollController,
+              builder: (context, _) {
+                final offset = _scrollController.hasClients
+                    ? _scrollController.offset
+                    : 0.0;
+                return HomeStickyTopBar(
+                  scrollOffset: offset,
+                  onNotificationTap: () => _showNotificationSheet(context),
+                  onProfileTap: () {
+                    context.push(RouteNames.profile);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Frontend-only Modals & Actions ────────────────────────────────────────
+  // ── High-Fidelity UI States ────────────────────────────────────────────────
+
+  Widget _buildGlobalEmptyState(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F766E).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.flight_takeoff_rounded,
+              color: Color(0xFF0F766E),
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No trips planned yet',
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Create your first trip or join friends to start coordinating itineraries and expenses together.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13.5,
+              color: const Color(0xFF64748B),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await context.push(RouteNames.createTrip);
+                if (context.mounted) {
+                  context.read<HomeBloc>().add(const HomeFetchRequested());
+                }
+              },
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(
+                'Plan a Trip',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterEmptyState({
+    required String query,
+    required String statusFilter,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.travel_explore_rounded,
+              size: 34,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'No matching trips found',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            query.isNotEmpty
+                ? 'No trips matched "$query" under "$statusFilter".'
+                : 'No trips with "$statusFilter" status currently exist.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton(
+            onPressed: _onClearSearchAndFilters,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF0D9488)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            child: Text(
+              'Reset Search & Filters',
+              style: GoogleFonts.inter(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0D9488),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String message,
+    required VoidCallback onRetry,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        color: AppColors.errorContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.errorRed.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.cloud_off_rounded,
+            color: AppColors.errorRed,
+            size: 32,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Unable to load trips',
+            style: AppTypography.titleMedium(
+              color: AppColors.errorRed,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall(
+              color: const Color(0xFF7F1D1D),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorRed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Modals & Actions ───────────────────────────────────────────────────────
 
   void _showNotificationSheet(BuildContext context) {
     showModalBottomSheet(
@@ -300,11 +627,11 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   title: const Text(
-                    'Goa Getaway trip starts in 9 days!',
+                    'Trip notifications are up to date!',
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   subtitle: const Text(
-                    'Collaborate on itinerary activities with your group',
+                    'Collaborate on itinerary activities and split expenses with your group.',
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -317,6 +644,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showFilterSheet(BuildContext context) {
+    String tempFilter = _activeStatusFilter;
+    const filterOptions = [
+      'All',
+      'Upcoming',
+      'Planning',
+      'Ongoing',
+      'Completed'
+    ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -328,7 +664,8 @@ class _HomePageState extends State<HomePage> {
           builder: (context, setModalState) {
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,21 +685,19 @@ class _HomePageState extends State<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Filter & Sort Trips',
+                          'Filter by Status',
                           style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF0F172A),
                           ),
                         ),
-                        if (_activeStatusFilter != 'All' || _activeSort != 'default')
+                        if (tempFilter != 'All')
                           GestureDetector(
                             onTap: () {
                               setModalState(() {
-                                _activeStatusFilter = 'All';
-                                _activeSort = 'default';
+                                tempFilter = 'All';
                               });
-                              setState(() {});
                             },
                             child: Text(
                               'Reset',
@@ -376,90 +711,45 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      'STATUS',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
                     Wrap(
-                      spacing: 10,
-                      children: ['All', 'Upcoming', 'Planning'].map((status) {
-                        final isSelected = _activeStatusFilter == status;
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: filterOptions.map((status) {
+                        final isSelected = tempFilter == status;
                         return ChoiceChip(
                           label: Text(status),
                           selected: isSelected,
                           selectedColor: const Color(0xFF004E64),
                           backgroundColor: const Color(0xFFF1F5F9),
                           labelStyle: GoogleFonts.inter(
-                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF334155),
                             fontWeight: FontWeight.w600,
+                            fontSize: 13,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: isSelected ? const Color(0xFF004E64) : Colors.transparent,
+                              color: isSelected
+                                  ? const Color(0xFF004E64)
+                                  : Colors.transparent,
                             ),
                           ),
                           onSelected: (selected) {
-                            setModalState(() {
-                              _activeStatusFilter = status;
-                            });
-                            setState(() {});
+                            if (selected) {
+                              setModalState(() {
+                                tempFilter = status;
+                              });
+                            }
                           },
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'SORT BY',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      children: [
-                        {'label': 'Default', 'value': 'default'},
-                        {'label': 'Alphabetical (A–Z)', 'value': 'alphabetical'},
-                      ].map((sortItem) {
-                        final isSelected = _activeSort == sortItem['value'];
-                        return ChoiceChip(
-                          label: Text(sortItem['label']!),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFF59E0B),
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          labelStyle: GoogleFonts.inter(
-                            color: isSelected ? Colors.white : const Color(0xFF334155),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
-                            ),
-                          ),
-                          onSelected: (selected) {
-                            setModalState(() {
-                              _activeSort = sortItem['value']!;
-                            });
-                            setState(() {});
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
-                      height: 46,
+                      height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF004E64),
@@ -468,18 +758,26 @@ class _HomePageState extends State<HomePage> {
                           ),
                           elevation: 0,
                         ),
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            _activeStatusFilter = tempFilter;
+                          });
+                          context.read<HomeBloc>().add(
+                                HomeFilterStatusChanged(tempFilter),
+                              );
+                        },
                         child: Text(
-                          'Apply Filters',
+                          'Apply Filter',
                           style: GoogleFonts.inter(
-                            fontSize: 14.5,
+                            fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                   ],
                 ),
               ),
@@ -490,99 +788,165 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showJoinTripDialog(BuildContext context) {
+  void _showJoinTripDialog(BuildContext parentContext) {
     final codeController = TextEditingController();
+    bool isSubmitting = false;
 
     showModalBottomSheet(
-      context: context,
+      context: parentContext,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Join a Trip',
-                style: GoogleFonts.inter(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: codeController,
-                decoration: InputDecoration(
-                  labelText: 'Invite Code or Link',
-                  hintText: 'e.g. WETRAVEL-GOA-2026',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    elevation: 0,
                   ),
-                  onPressed: () {
-                    final code = codeController.text.trim();
-                    if (code.isNotEmpty) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Joined trip via code "$code"!'),
-                          backgroundColor: const Color(0xFF0D9488),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(
-                    'Join Trip',
+                  const SizedBox(height: 16),
+                  Text(
+                    'Join a Trip',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter the invite code or token shared by your trip admin.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: codeController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Invite Code or Token',
+                      hintText: 'e.g. abc-123-xyz',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF0D9488),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D9488),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: isSubmitting
+                          ? null
+                          : () {
+                              final code = codeController.text.trim();
+                              if (code.isEmpty) return;
+
+                              setModalState(() {
+                                isSubmitting = true;
+                              });
+
+                              try {
+                                parentContext.read<TripBloc>().add(
+                                      TripJoinViaTokenRequested(code),
+                                    );
+
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(parentContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Joining trip with code "$code"...'),
+                                    backgroundColor: const Color(0xFF0D9488),
+                                  ),
+                                );
+
+                                Future.delayed(
+                                  const Duration(milliseconds: 1200),
+                                  () {
+                                    if (parentContext.mounted) {
+                                      parentContext.read<HomeBloc>().add(
+                                            const HomeFetchRequested(),
+                                          );
+                                    }
+                                  },
+                                );
+                              } catch (e) {
+                                setModalState(() {
+                                  isSubmitting = false;
+                                });
+                                ScaffoldMessenger.of(parentContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to join trip: $e'),
+                                    backgroundColor: const Color(0xFFDC2626),
+                                  ),
+                                );
+                              }
+                            },
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Join Trip',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 }
+

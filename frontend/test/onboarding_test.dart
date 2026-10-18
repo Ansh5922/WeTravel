@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/app/app.dart';
@@ -9,7 +8,7 @@ import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 
 void main() {
-  testWidgets('OnboardingPage renders 3 pages with proper interactions and navigation', (tester) async {
+  testWidgets('OnboardingPage renders editorial single-page design with badges and actions', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: WeTravelApp(),
@@ -19,60 +18,33 @@ void main() {
     appRouter.go(RouteNames.onboarding);
     await tester.pumpAndSettle();
 
-    // ── 1. Page 1 Verification ────────────────────────────────────────────────
+    // ── 1. Verification of Brand Elements & Content ─────────────────────────
     expect(find.byType(OnboardingPage), findsOneWidget);
-    expect(find.byIcon(Icons.groups_2_outlined), findsOneWidget);
-    expect(find.text('Plan together.'), findsOneWidget);
-    expect(
-      find.text("Bring everyone's ideas, preferences, and plans into one shared trip."),
-      findsOneWidget,
-    );
-    expect(find.text('Next'), findsOneWidget);
-    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('WeTravel'), findsOneWidget);
+    expect(find.text('Adventure'), findsOneWidget);
+    expect(find.text('Plan. Explore. Experience.\nTogether.'), findsOneWidget);
 
-    // ── 2. Advance to Page 2 via "Next" Button ────────────────────────────────
-    await tester.tap(find.text('Next'));
+    // ── 2. Feature Badges Verification ──────────────────────────────────────
+    expect(find.text('Plan\nSmart'), findsOneWidget);
+    expect(find.text('Meet\nLike-minded\nTravelers'), findsOneWidget);
+    expect(find.text('Explore\nThe World'), findsOneWidget);
+
+    // ── 3. Actions Verification ─────────────────────────────────────────────
+    final getStartedFinder = find.text('Get Started');
+    expect(getStartedFinder, findsOneWidget);
+    expect(find.text('Log in'), findsOneWidget);
+
+    // Ensure the CTA button is visible in viewport before tapping
+    await tester.ensureVisible(getStartedFinder);
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
-    expect(find.text('Your trip. Your way.'), findsOneWidget);
-    expect(
-      find.text("WeTravel uses everyone's preferences to help create a plan that works for the whole group."),
-      findsOneWidget,
-    );
-
-    // Verify "Back" button works
-    expect(find.byTooltip('Back'), findsOneWidget);
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Plan together.'), findsOneWidget);
-
-    // Advance back to Page 2 then Page 3
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-
-    // ── 3. Page 3 Verification ────────────────────────────────────────────────
-    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
-    expect(find.text('More exploring. Less planning.'), findsOneWidget);
-    expect(
-      find.text('Collaborate on activities, itineraries, polls, expenses, and memories — all in one place.'),
-      findsOneWidget,
-    );
-    expect(find.text('Get Started'), findsOneWidget);
-    expect(find.text('Already have an account? Log in'), findsOneWidget);
-
-    // ── 4. Verify "Get Started" Navigation ────────────────────────────────────
-    await tester.tap(find.text('Get Started'));
+    await tester.tap(getStartedFinder);
     await tester.pumpAndSettle();
 
     expect(find.byType(SignupPage), findsOneWidget);
   });
 
-  testWidgets('OnboardingPage "Skip" button navigates directly to LoginPage', (tester) async {
+  testWidgets('OnboardingPage "Log in" link navigates directly to LoginPage', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: WeTravelApp(),
@@ -82,8 +54,14 @@ void main() {
     appRouter.go(RouteNames.onboarding);
     await tester.pumpAndSettle();
 
-    expect(find.text('Skip'), findsOneWidget);
-    await tester.tap(find.text('Skip'));
+    final loginFinder = find.text('Log in');
+    expect(loginFinder, findsOneWidget);
+
+    // Ensure the login link is visible in viewport before tapping
+    await tester.ensureVisible(loginFinder);
+    await tester.pumpAndSettle();
+
+    await tester.tap(loginFinder);
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginPage), findsOneWidget);

@@ -11,6 +11,7 @@ import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/signup_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/forgot_password_usecase.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_data_source.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_event.dart';
@@ -72,6 +73,11 @@ class MockAuthRepository implements AuthRepository {
   Future<UserEntity> getCurrentUser(String token) async {
     return const UserEntity(id: 'usr_mock_1', email: 'mock@wetravel.test');
   }
+
+  @override
+  Future<String> forgotPassword({required String email}) async {
+    return 'Password reset link sent successfully.';
+  }
 }
 
 class MockAuthLocalDataSource implements AuthLocalDataSource {
@@ -121,6 +127,7 @@ void main() {
       signupUseCase: SignupUseCase(mockRepository),
       googleSignInUseCase: GoogleSignInUseCase(mockRepository),
       getCurrentUserUseCase: GetCurrentUserUseCase(mockRepository),
+      forgotPasswordUseCase: ForgotPasswordUseCase(mockRepository),
       localDataSource: mockLocalDataSource,
     );
   });

@@ -4,12 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 /// Top scenic hero header with brand bar, notification bell, profile avatar,
 /// and inspirational greeting.
 class HomeHeader extends StatelessWidget {
+  final bool showTopBar;
+  final bool showHamburger;
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onProfileTap;
 
   const HomeHeader({
     super.key,
+    this.showTopBar = true,
+    this.showHamburger = false,
     this.onMenuTap,
     this.onNotificationTap,
     this.onProfileTap,
@@ -61,100 +65,105 @@ class HomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Top Brand & Profile Bar
-                Row(
-                  children: [
-                    // Drawer Hamburger Button
-                    IconButton(
-                      icon: const Icon(
-                        Icons.menu_rounded,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Open navigation menu',
-                      onPressed: onMenuTap ??
-                          () {
-                            Scaffold.of(context).openDrawer();
-                          },
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Brand Logo & Name
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Transform.rotate(
-                          angle: 0.7,
-                          child: const Icon(
-                            Icons.send_rounded,
-                            color: Color(0xFFF59E0B),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'WeTravel',
-                          style: GoogleFonts.inter(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-
-                    // Notification Bell with Badge Dot
-                    GestureDetector(
-                      onTap: onNotificationTap,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Icon(
-                            Icons.notifications_none_rounded,
+                if (showTopBar)
+                  Row(
+                    children: [
+                      if (showHamburger) ...[
+                        // Drawer Hamburger Button
+                        IconButton(
+                          icon: const Icon(
+                            Icons.menu_rounded,
                             color: Colors.white,
                             size: 26,
                           ),
-                          Positioned(
-                            top: 1,
-                            right: 1,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF59E0B),
-                                shape: BoxShape.circle,
-                              ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Open navigation menu',
+                          onPressed: onMenuTap ??
+                              () {
+                                Scaffold.of(context).openDrawer();
+                              },
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+
+                      // Brand Logo & Name
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Transform.rotate(
+                            angle: 0.7,
+                            child: const Icon(
+                              Icons.send_rounded,
+                              color: Color(0xFFF59E0B),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'WeTravel',
+                            style: GoogleFonts.inter(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 14),
+                      const Spacer(),
 
-                    // User Profile Picture
-                    GestureDetector(
-                      onTap: onProfileTap,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2.0,
-                          ),
-                          image: const DecorationImage(
-                            image: AssetImage('assets/images/avatar_user.jpg'),
-                            fit: BoxFit.cover,
+                      // Notification Bell with Badge Dot
+                      GestureDetector(
+                        onTap: onNotificationTap,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Icon(
+                              Icons.notifications_none_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                            Positioned(
+                              top: 1,
+                              right: 1,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF59E0B),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // User Profile Picture
+                      GestureDetector(
+                        onTap: onProfileTap,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2.0,
+                            ),
+                            image: const DecorationImage(
+                              image: AssetImage('assets/images/avatar_user.jpg'),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else
+                  const SizedBox(height: 38),
 
                 const Spacer(),
 

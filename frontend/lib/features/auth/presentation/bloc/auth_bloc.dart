@@ -6,6 +6,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/signup_usecase.dart';
 import '../../domain/usecases/google_signin_usecase.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../data/datasources/auth_local_data_source.dart';
 import '../../../../core/error/failures.dart';
 import 'auth_event.dart';
@@ -17,6 +18,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignupUseCase _signupUseCase;
   final GoogleSignInUseCase _googleSignInUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
+  final ForgotPasswordUseCase _forgotPasswordUseCase;
   final AuthLocalDataSource _localDataSource;
 
   AuthBloc({
@@ -24,11 +26,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignupUseCase signupUseCase,
     required GoogleSignInUseCase googleSignInUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
+    required ForgotPasswordUseCase forgotPasswordUseCase,
     required AuthLocalDataSource localDataSource,
   })  : _loginUseCase = loginUseCase,
         _signupUseCase = signupUseCase,
         _googleSignInUseCase = googleSignInUseCase,
         _getCurrentUserUseCase = getCurrentUserUseCase,
+        _forgotPasswordUseCase = forgotPasswordUseCase,
         _localDataSource = localDataSource,
         super(const AuthInitialState()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
@@ -36,6 +40,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignupRequested>(_onAuthSignupRequested);
     on<AuthGoogleSignInRequested>(_onAuthGoogleSignInRequested);
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
+    on<AuthForgotPasswordRequested>(_onAuthForgotPasswordRequested);
   }
 
   /// Handles initial application startup session check.
@@ -181,4 +186,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     debugPrint('[AUTH_BLOC] 🔒 User logged out successfully. State -> AuthUnauthenticatedState');
     emit(const AuthUnauthenticatedState());
   }
+
+  /// Handles forgot password request submission.
+  Future<void> _onAuthForgotPasswordRequested(
+    AuthForgotPasswordRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    debugPrint('[AUTH_BLOC] 📩 Event: AuthForgotPasswordRequested -> Email: ${event.email}');
+    emit(const AuthLoadingState());
+    try {
+      final message = await _forgotPasswordUseCase.execute(event.email);
+      debugPrint('[AUTH_BLOC] ✅ Password reset request dispatched: $message');
+      emit(AuthPasswordResetSentState(email: event.email, message: message));
+    } on Failure catch (e) {
+      debugPrint('[AUTH_BLOC] ❌ Forgot Password Failure: ${e.message}');
+      emit(AuthErrorState(e.message));
+    } catch (e) {
+      debugPrint('[AUTH_BLOC] 💥 Unexpected Forgot Password Error: $e');
+      emit(AuthErrorState(e.toString()));
+    }
+  }
 }
+

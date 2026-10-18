@@ -83,8 +83,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
           trip.title.toLowerCase().contains(query) ||
           trip.location.toLowerCase().contains(query);
 
-      final matchesFilter = statusFilter == 'All' ||
-          trip.statusLabel.toLowerCase() == statusFilter.toLowerCase();
+      final filterLower = statusFilter.toLowerCase();
+      final bool matchesFilter;
+      if (filterLower == 'all') {
+        matchesFilter = true;
+      } else if (filterLower == 'upcoming') {
+        matchesFilter = trip.statusLabel.toLowerCase() == 'upcoming' ||
+            trip.statusLabel.toLowerCase() == 'planning' ||
+            trip.status.toLowerCase() == 'planning';
+      } else {
+        matchesFilter = trip.statusLabel.toLowerCase() == filterLower ||
+            trip.status.toLowerCase() == filterLower;
+      }
 
       return matchesQuery && matchesFilter;
     }).toList();

@@ -62,3 +62,14 @@ class AuthGoogleSignInRequested extends AuthEvent {
 class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
+
+/// Event triggered when a user requests a password reset email.
+class AuthForgotPasswordRequested extends AuthEvent {
+  final String email;
+
+  const AuthForgotPasswordRequested({required this.email});
+
+  @override
+  List<Object?> get props => [email];
+}
+

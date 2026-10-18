@@ -23,6 +23,7 @@ class ApiConstants {
   static const String login = '/api/auth/login';
   static const String signup = '/api/auth/signup';
   static const String googleSignIn = '/api/auth/google';
+  static const String forgotPassword = '/api/auth/forgot-password';
   static const String me = '/api/auth/me';
 
   // User endpoints

@@ -10,6 +10,7 @@ import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.
 import 'package:frontend/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/signup_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/forgot_password_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_event.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
@@ -178,6 +179,19 @@ class FakeAuthRepository implements AuthRepository {
         );
   }
 
+  String? forgotPasswordResult;
+  Failure? forgotPasswordFailure;
+  int forgotPasswordCallCount = 0;
+
+  @override
+  Future<String> forgotPassword({required String email}) async {
+    forgotPasswordCallCount++;
+    if (forgotPasswordFailure != null) {
+      throw forgotPasswordFailure!;
+    }
+    return forgotPasswordResult ?? 'Instructions sent';
+  }
+
   @override
   Future<AuthResponseEntity> googleLogin({
     required String idToken,
@@ -270,6 +284,13 @@ void main() {
       const error = AuthErrorState('Something went wrong');
       expect(error.isError, isTrue);
       expect(error.errorMessage, 'Something went wrong');
+
+      const resetSent = AuthPasswordResetSentState(
+        email: 'test@wetravel.test',
+        message: 'Instructions sent',
+      );
+      expect(resetSent.email, 'test@wetravel.test');
+      expect(resetSent.message, 'Instructions sent');
     });
   });
 
@@ -287,6 +308,7 @@ void main() {
         signupUseCase: SignupUseCase(fakeRepository),
         googleSignInUseCase: GoogleSignInUseCase(fakeRepository),
         getCurrentUserUseCase: GetCurrentUserUseCase(fakeRepository),
+        forgotPasswordUseCase: ForgotPasswordUseCase(fakeRepository),
         localDataSource: fakeLocalDataSource,
       );
     });
@@ -354,6 +376,20 @@ void main() {
 
       expect(authBloc.state, isA<AuthUnauthenticatedState>());
       expect(await fakeLocalDataSource.getToken(), isNull);
+    });
+
+    test('AuthForgotPasswordRequested success emits AuthPasswordResetSentState', () async {
+      fakeRepository.forgotPasswordResult = 'Reset email sent successfully';
+
+      authBloc.add(const AuthForgotPasswordRequested(email: 'traveler@wetravel.test'));
+      await untilCalledOrTimeout();
+
+      final state = authBloc.state;
+      expect(state, isA<AuthPasswordResetSentState>());
+      final resetState = state as AuthPasswordResetSentState;
+      expect(resetState.email, 'traveler@wetravel.test');
+      expect(resetState.message, 'Reset email sent successfully');
+      expect(fakeRepository.forgotPasswordCallCount, 1);
     });
   });
 }

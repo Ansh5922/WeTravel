@@ -25,6 +25,8 @@ abstract class AuthRemoteDataSource {
   });
 
   Future<UserModel> getCurrentUser(String token);
+
+  Future<String> forgotPassword({required String email});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -198,6 +200,44 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       debugPrint('[AUTH_REMOTE_DS] 💥 Error on GetCurrentUser: $e');
+      if (e is AuthException || e is ServerException || e is NetworkException) {
+        rethrow;
+      }
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<String> forgotPassword({required String email}) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 POST ${ApiConstants.forgotPassword} -> Email: $email');
+    try {
+      final response = await dio.post(
+        ApiConstants.forgotPassword,
+        data: {'email': email},
+      );
+
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
+
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic> && data['message'] != null) {
+        return data['message'].toString();
+      }
+      return 'If an account exists with this email, password reset instructions have been sent.';
+    } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on ForgotPassword: [${e.response?.statusCode}] ${e.message}');
+      if (e.response?.statusCode == 404) {
+        return 'If an account exists with this email, password reset instructions have been sent.';
+      }
+      throw _handleDioError(e);
+    } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on ForgotPassword: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }

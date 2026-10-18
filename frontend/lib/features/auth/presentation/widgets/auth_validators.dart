@@ -74,4 +74,15 @@ class AuthValidators {
     }
     return null;
   }
+
+  /// Validates confirm password against original password.
+  static String? validateConfirmPassword(String? value, String originalPassword) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password.';
+    }
+    if (value != originalPassword) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  }
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import 'auth_scenic_decorations.dart';
 
-/// Reusable editorial header for authentication screens (Login / Signup).
+/// Reusable editorial header for authentication screens (Login / Signup / Forgot Password).
+/// Matches the branding and typography tokens established on the Home Screen.
 class AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -19,41 +21,24 @@ class AuthHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Subtle Brand Accent Waypoint Dot
-        Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: AppColors.accentWarmYellow,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              'WeTravel',
-              style: AppTypography.labelSmall(
-                color: AppColors.primaryDeepTeal,
-              ).copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
+        // Brand Identity Badge using the official logo
+        const WeTravelLogo(
+          iconSize: 22,
+          fontSize: 18,
         ),
 
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.lg),
 
         // Editorial Heading (Playfair Display)
         Text(
           title,
           style: AppTypography.displayMedium(
-            color: AppColors.primaryDeepTeal,
+            color: AppColors.textPrimary,
           ).copyWith(
-            fontSize: 32,
+            fontSize: 30,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
+            height: 1.25,
           ),
         ),
 
@@ -65,7 +50,7 @@ class AuthHeader extends StatelessWidget {
           style: AppTypography.bodyMedium(
             color: AppColors.textSecondary,
           ).copyWith(
-            fontSize: 15,
+            fontSize: 14.5,
             height: 1.45,
           ),
         ),

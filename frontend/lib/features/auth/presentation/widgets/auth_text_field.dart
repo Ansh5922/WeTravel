@@ -7,6 +7,8 @@ import '../../../../core/theme/app_typography.dart';
 /// Reusable form text field for WeTravel authentication screens.
 class AuthTextField extends StatelessWidget {
   final String label;
+  final bool isRequired;
+  final bool isOptional;
   final String? hintText;
   final String? hint;
   final String? helperText;
@@ -19,11 +21,17 @@ class AuthTextField extends StatelessWidget {
   final AutovalidateMode? autovalidateMode;
   final TextInputAction textInputAction;
   final void Function(String)? onFieldSubmitted;
+  final Iterable<String>? autofillHints;
+  final bool autocorrect;
+  final bool enableSuggestions;
+  final bool enabled;
 
   const AuthTextField({
     super.key,
     required this.label,
     required this.controller,
+    this.isRequired = false,
+    this.isOptional = false,
     this.hintText,
     this.hint,
     this.helperText,
@@ -35,6 +43,10 @@ class AuthTextField extends StatelessWidget {
     this.autovalidateMode,
     this.textInputAction = TextInputAction.next,
     this.onFieldSubmitted,
+    this.autofillHints,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.enabled = true,
   });
 
   @override
@@ -43,15 +55,41 @@ class AuthTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Field Label
-        Text(
-          label,
-          style: AppTypography.labelMedium(
-            color: AppColors.textPrimary,
-          ).copyWith(
-            fontWeight: FontWeight.w600,
-            fontSize: 13.5,
-          ),
+        // Field Label with Visual Indicator for Mandatory or Optional
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTypography.labelMedium(
+                color: AppColors.textPrimary,
+              ).copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+              ),
+            ),
+            if (isRequired) ...[
+              const SizedBox(width: 4),
+              Text(
+                '*',
+                style: AppTypography.labelMedium(
+                  color: AppColors.errorRed,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+            if (isOptional) ...[
+              const SizedBox(width: 6),
+              Text(
+                '(optional)',
+                style: AppTypography.bodySmall(
+                  color: AppColors.textMuted,
+                ).copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
         ),
 
         const SizedBox(height: AppSpacing.xs + 2),
@@ -65,8 +103,12 @@ class AuthTextField extends StatelessWidget {
           onFieldSubmitted: onFieldSubmitted,
           autovalidateMode: autovalidateMode,
           validator: validator,
+          autofillHints: autofillHints,
+          autocorrect: autocorrect,
+          enableSuggestions: enableSuggestions,
+          enabled: enabled,
           style: AppTypography.bodyMedium(
-            color: AppColors.textPrimary,
+            color: enabled ? AppColors.textPrimary : AppColors.textMuted,
           ).copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w400,
@@ -81,6 +123,9 @@ class AuthTextField extends StatelessWidget {
             helperStyle: AppTypography.bodySmall(
               color: AppColors.textSecondary,
             ).copyWith(fontSize: 11.5),
+            errorStyle: AppTypography.bodySmall(
+              color: AppColors.errorRed,
+            ).copyWith(fontSize: 12),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
