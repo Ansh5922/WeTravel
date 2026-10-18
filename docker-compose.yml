@@ -1,0 +1,38 @@
+services:
+  # ── 1. FastAPI AI Microservice Engine ───────────────────────────────────────
+  ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    container_name: wetravel-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai/.env
+    networks:
+      - wetravel-network
+
+  # ── 2. Node.js Express Backend ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wetravel-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Container ke andar se AI service ko uske container name se call karte hain
+      - AI_SERVICE_URL=http://ai:8000
+    depends_on:
+      - ai
+    networks:
+      - wetravel-network
+
+# ── Private Internal Bridge Network ──────────────────────────────────────────
+networks:
+  wetravel-network:
+    driver: bridge
