@@ -65,8 +65,11 @@ class _SignupPageState extends State<SignupPage> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticatedState) {
-          // Redirect first-time signups to Preferences Setup!
-          context.go(RouteNames.preferences);
+          if (state.isFirstTimeUser) {
+            context.go(RouteNames.preferences);
+          } else {
+            context.go(RouteNames.home);
+          }
         }
       },
       builder: (context, state) {

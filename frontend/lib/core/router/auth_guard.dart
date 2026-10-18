@@ -25,6 +25,9 @@ class AuthGuard {
     RouteNames.signup,
   };
 
+  /// When true, bypasses login redirects for rapid UI testing.
+  static bool bypassAuthForTesting = false;
+
   /// Returns true if the requested route is public.
   static bool isPublicRoute(String location) {
     return publicRoutes.contains(location) || location.startsWith('/auth');
@@ -37,6 +40,10 @@ class AuthGuard {
     AuthStatus? status,
     required String location,
   }) {
+    if (bypassAuthForTesting) {
+      return null;
+    }
+
     final effectiveStatus = status ??
         (state is AuthAuthenticatedState
             ? AuthStatus.authenticated
@@ -52,6 +59,12 @@ class AuthGuard {
     // 1. Authenticated user behavior:
     if (effectiveStatus == AuthStatus.authenticated) {
       if (isAuthScreen || location == RouteNames.onboarding) {
+        return RouteNames.home;
+      }
+      // Bypasses first-time onboarding preferences setup for existing users
+      if (state is AuthAuthenticatedState &&
+          !state.isFirstTimeUser &&
+          location == RouteNames.preferences) {
         return RouteNames.home;
       }
       return null;

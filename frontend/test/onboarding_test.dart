@@ -1,12 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/app/app.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/router/route_names.dart';
 import 'package:frontend/features/onboarding/presentation/pages/onboarding_page.dart';
-import 'package:frontend/features/onboarding/presentation/widgets/onboarding_visual_one.dart';
-import 'package:frontend/features/onboarding/presentation/widgets/onboarding_visual_two.dart';
-import 'package:frontend/features/onboarding/presentation/widgets/onboarding_visual_three.dart';
 import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 
@@ -23,7 +21,7 @@ void main() {
 
     // ── 1. Page 1 Verification ────────────────────────────────────────────────
     expect(find.byType(OnboardingPage), findsOneWidget);
-    expect(find.byType(OnboardingVisualOne), findsOneWidget);
+    expect(find.byIcon(Icons.groups_2_outlined), findsOneWidget);
     expect(find.text('Plan together.'), findsOneWidget);
     expect(
       find.text("Bring everyone's ideas, preferences, and plans into one shared trip."),
@@ -36,7 +34,7 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(OnboardingVisualTwo), findsOneWidget);
+    expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
     expect(find.text('Your trip. Your way.'), findsOneWidget);
     expect(
       find.text("WeTravel uses everyone's preferences to help create a plan that works for the whole group."),
@@ -58,7 +56,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // ── 3. Page 3 Verification ────────────────────────────────────────────────
-    expect(find.byType(OnboardingVisualThree), findsOneWidget);
+    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
     expect(find.text('More exploring. Less planning.'), findsOneWidget);
     expect(
       find.text('Collaborate on activities, itineraries, polls, expenses, and memories — all in one place.'),

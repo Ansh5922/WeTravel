@@ -62,7 +62,11 @@ class _LoginPageState extends State<LoginPage> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticatedState) {
-          context.go(RouteNames.home);
+          if (state.isFirstTimeUser) {
+            context.go(RouteNames.preferences);
+          } else {
+            context.go(RouteNames.home);
+          }
         }
       },
       builder: (context, state) {

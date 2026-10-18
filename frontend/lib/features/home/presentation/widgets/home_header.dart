@@ -4,11 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 /// Top scenic hero header with brand bar, notification bell, profile avatar,
 /// and inspirational greeting.
 class HomeHeader extends StatelessWidget {
+  final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onProfileTap;
 
   const HomeHeader({
     super.key,
+    this.onMenuTap,
     this.onNotificationTap,
     this.onProfileTap,
   });
@@ -21,7 +23,7 @@ class HomeHeader extends StatelessWidget {
       children: [
         // Background Hero Image
         Container(
-          height: 250 + statusBarHeight,
+          height: 270 + statusBarHeight,
           width: double.infinity,
           decoration: const BoxDecoration(
             image: DecorationImage(
@@ -53,7 +55,7 @@ class HomeHeader extends StatelessWidget {
               top: statusBarHeight + 8,
               left: 20,
               right: 20,
-              bottom: 24,
+              bottom: 46, // Prevents overlap with floating search bar
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,6 +63,23 @@ class HomeHeader extends StatelessWidget {
                 // Top Brand & Profile Bar
                 Row(
                   children: [
+                    // Drawer Hamburger Button
+                    IconButton(
+                      icon: const Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Open navigation menu',
+                      onPressed: onMenuTap ??
+                          () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                    ),
+                    const SizedBox(width: 12),
+
                     // Brand Logo & Name
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -70,14 +89,14 @@ class HomeHeader extends StatelessWidget {
                           child: const Icon(
                             Icons.send_rounded,
                             color: Color(0xFFF59E0B),
-                            size: 24,
+                            size: 22,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'WeTravel',
                           style: GoogleFonts.inter(
-                            fontSize: 22,
+                            fontSize: 21,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                             letterSpacing: -0.3,

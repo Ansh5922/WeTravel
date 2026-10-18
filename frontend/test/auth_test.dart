@@ -88,6 +88,24 @@ class MockAuthLocalDataSource implements AuthLocalDataSource {
 
   @override
   Future<bool> hasToken() async => _token != null && _token!.isNotEmpty;
+
+  final Set<String> _completedUsers = {};
+
+  @override
+  Future<bool> hasCompletedPreferences(String userId) async =>
+      _completedUsers.contains(userId);
+
+  @override
+  Future<void> setPreferencesCompleted({
+    required String userId,
+    required bool completed,
+  }) async {
+    if (completed) {
+      _completedUsers.add(userId);
+    } else {
+      _completedUsers.remove(userId);
+    }
+  }
 }
 
 void main() {
@@ -164,6 +182,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginPage), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'pandeysuyash@gmail.com');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Password123');
+    await tester.pumpAndSettle();
 
     final loginButton = find.widgetWithText(ElevatedButton, 'Log in');
     await tester.tap(loginButton);

@@ -13,6 +13,7 @@ class InboxHeader extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onFilterTap;
   final VoidCallback onScanTap;
+  final bool hasActiveFilter;
 
   const InboxHeader({
     super.key,
@@ -21,6 +22,7 @@ class InboxHeader extends StatelessWidget {
     required this.onSearchChanged,
     required this.onFilterTap,
     required this.onScanTap,
+    this.hasActiveFilter = false,
   });
 
   @override
@@ -193,12 +195,30 @@ class InboxHeader extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.tune_rounded,
-                          color: Color(0xFF004E64),
-                          size: 22,
-                        ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            color: hasActiveFilter
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF004E64),
+                            size: 22,
+                          ),
+                          if (hasActiveFilter)
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF59E0B),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

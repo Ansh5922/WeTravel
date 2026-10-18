@@ -6,6 +6,8 @@ abstract class AuthLocalDataSource {
   Future<String?> getToken();
   Future<void> deleteToken();
   Future<bool> hasToken();
+  Future<void> setPreferencesCompleted({required String userId, required bool completed});
+  Future<bool> hasCompletedPreferences(String userId);
 }
 
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
@@ -40,5 +42,27 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<bool> hasToken() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  @override
+  Future<void> setPreferencesCompleted({required String userId, required bool completed}) async {
+    try {
+      final key = 'preferences_completed_$userId';
+      await storage.write(key: key, value: completed.toString());
+      await storage.write(key: 'preferences_completed_global', value: completed.toString());
+    } catch (_) {}
+  }
+
+  @override
+  Future<bool> hasCompletedPreferences(String userId) async {
+    try {
+      final key = 'preferences_completed_$userId';
+      final val = await storage.read(key: key);
+      if (val == 'true') return true;
+      final globalVal = await storage.read(key: 'preferences_completed_global');
+      return globalVal == 'true';
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_drawer.dart';
 import '../../domain/entities/trip_suggestion.dart';
 import '../widgets/group_idea_tile.dart';
 import '../widgets/planning_readiness_card.dart';
@@ -101,27 +102,43 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
     context.push(RouteNames.aiInsightsPath(widget.tripId));
   }
 
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(RouteNames.trips);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      bottomNavigationBar: TripBottomNavBar(
-        currentIndex: _currentTabIndex,
-        onTabSelected: (index) {
-          if (index == 1) {
-            context.push(RouteNames.itineraryPath(widget.tripId));
-          } else if (index == 2) {
-            context.push(RouteNames.expensesPath(widget.tripId));
-          } else {
-            setState(() {
-              _currentTabIndex = index;
-            });
-          }
-        },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF9F6),
+        drawer: const WeTravelDrawer(),
+        bottomNavigationBar: TripBottomNavBar(
+          currentIndex: _currentTabIndex,
+          onTabSelected: (index) {
+            if (index == 1) {
+              context.push(RouteNames.itineraryPath(widget.tripId));
+            } else if (index == 2) {
+              context.push(RouteNames.expensesPath(widget.tripId));
+            } else {
+              setState(() {
+                _currentTabIndex = index;
+              });
+            }
+          },
+        ),
+        body: _buildWorkspaceView(topPadding),
       ),
-      body: _buildWorkspaceView(topPadding),
     );
   }
 
@@ -183,11 +200,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                         color: Colors.white,
                         size: 24,
                       ),
-                      onPressed: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        }
-                      },
+                      onPressed: _handleBack,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -224,6 +237,18 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                           letterSpacing: 0.8,
                           color: const Color(0xFF004E64),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Builder(
+                      builder: (ctx) => IconButton(
+                        icon: const Icon(
+                          Icons.menu_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        tooltip: 'Open navigation menu',
+                        onPressed: () => Scaffold.of(ctx).openDrawer(),
                       ),
                     ),
                   ],

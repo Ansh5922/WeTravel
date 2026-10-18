@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
+import '../../../../core/widgets/we_travel_search_bar.dart';
 import '../../domain/entities/trip_suggestion.dart';
 
 /// "Add Suggestion" screen matching the WeTravel design screenshot.
@@ -28,10 +29,12 @@ class _AddSuggestionPageState extends State<AddSuggestionPage> {
   final TextEditingController _reasonController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
-  // ── Filter State ───────────────────────────────────────────────────────────
-  String _selectedFilter = 'Beaches';
+  // ── Filter & Sort State ────────────────────────────────────────────────────
+  String _selectedFilter = 'All';
+  String _activeSort = 'default'; // 'default', 'cost_low_high', 'cost_high_low'
 
   final List<String> _filters = const [
+    'All',
     'Beaches',
     'Restaurants',
     'Adventure',
@@ -159,13 +162,25 @@ class _AddSuggestionPageState extends State<AddSuggestionPage> {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    // Filter suggestions based on search or category
+    // Filter suggestions based on search query, category, and sort
     final searchQuery = _searchController.text.trim().toLowerCase();
     final displayedSuggestions = _allPopularSuggestions.where((s) {
       final matchesSearch = searchQuery.isEmpty ||
           (s['title'] as String).toLowerCase().contains(searchQuery);
-      return matchesSearch;
+      final matchesCategory =
+          _selectedFilter == 'All' || s['category'] == _selectedFilter;
+      return matchesSearch && matchesCategory;
     }).toList();
+
+    if (_activeSort == 'cost_low_high') {
+      displayedSuggestions.sort(
+        (a, b) => (a['cost'] as num).compareTo(b['cost'] as num),
+      );
+    } else if (_activeSort == 'cost_high_low') {
+      displayedSuggestions.sort(
+        (a, b) => (b['cost'] as num).compareTo(a['cost'] as num),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
@@ -185,48 +200,14 @@ class _AddSuggestionPageState extends State<AddSuggestionPage> {
               children: [
                 const SizedBox(height: 8),
 
-                // ── 1. Search Bar ──────────────────────────────────────
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: const Color(0xFFE2E8F0),
-                      width: 1.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: const Color(0xFF0F172A),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search places / restaurants',
-                      hintStyle: GoogleFonts.inter(
-                        fontSize: 13.5,
-                        color: const Color(0xFF94A3B8),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: Color(0xFF007791),
-                        size: 22,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 13,
-                      ),
-                    ),
-                  ),
+                // ── 1. Search Bar (Inbox Style) ───────────────────────
+                WeTravelSearchBar(
+                  controller: _searchController,
+                  hintText: 'Search places, activities, restaurants...',
+                  hasActiveFilter: _selectedFilter != 'All' || _activeSort != 'default',
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  onFilterTap: () => _showFilterSheet(context),
                 ),
                 const SizedBox(height: 18),
 
@@ -749,6 +730,181 @@ class _AddSuggestionPageState extends State<AddSuggestionPage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filter & Sort Places',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF004E64),
+                          ),
+                        ),
+                        if (_selectedFilter != 'All' || _activeSort != 'default')
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                _selectedFilter = 'All';
+                                _activeSort = 'default';
+                              });
+                              setState(() {});
+                            },
+                            child: Text(
+                              'Reset',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0D9488),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'CATEGORY',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: _filters.map((cat) {
+                        final isSelected = _selectedFilter == cat;
+                        return ChoiceChip(
+                          label: Text(cat),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF004E64),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF004E64) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _selectedFilter = cat;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'SORT BY COST',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        {'label': 'Default', 'value': 'default'},
+                        {'label': 'Price: Low to High', 'value': 'cost_low_high'},
+                        {'label': 'Price: High to Low', 'value': 'cost_high_low'},
+                      ].map((sortItem) {
+                        final isSelected = _activeSort == sortItem['value'];
+                        return ChoiceChip(
+                          label: Text(sortItem['label']!),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFF59E0B),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _activeSort = sortItem['value']!;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF004E64),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Apply Filters',
+                          style: GoogleFonts.inter(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

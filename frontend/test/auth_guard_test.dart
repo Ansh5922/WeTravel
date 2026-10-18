@@ -26,6 +26,24 @@ class FakeGuardLocalDataSource implements AuthLocalDataSource {
 
   @override
   Future<bool> hasToken() async => token != null && token!.isNotEmpty;
+
+  final Set<String> _completedUsers = {};
+
+  @override
+  Future<bool> hasCompletedPreferences(String userId) async =>
+      _completedUsers.contains(userId);
+
+  @override
+  Future<void> setPreferencesCompleted({
+    required String userId,
+    required bool completed,
+  }) async {
+    if (completed) {
+      _completedUsers.add(userId);
+    } else {
+      _completedUsers.remove(userId);
+    }
+  }
 }
 
 class FakeGuardRepository extends Fake implements AuthRepository {

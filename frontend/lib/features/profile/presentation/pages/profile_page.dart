@@ -491,12 +491,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 Padding(
                   padding: EdgeInsets.only(
                     top: topPadding + 4,
-                    left: 16,
+                    left: 12,
                     right: 16,
                     bottom: 8,
                   ),
                   child: Row(
                     children: [
+                      Builder(
+                        builder: (ctx) => IconButton(
+                          icon: const Icon(
+                            Icons.menu_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          tooltip: 'Open navigation menu',
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
                       Text(
                         'Profile',
                         style: GoogleFonts.inter(

@@ -86,6 +86,25 @@ class FakeAuthLocalDataSource implements AuthLocalDataSource {
   Future<bool> hasToken() async {
     return token != null && token!.isNotEmpty;
   }
+
+  final Set<String> _completedUsers = {};
+
+  @override
+  Future<bool> hasCompletedPreferences(String userId) async {
+    return _completedUsers.contains(userId);
+  }
+
+  @override
+  Future<void> setPreferencesCompleted({
+    required String userId,
+    required bool completed,
+  }) async {
+    if (completed) {
+      _completedUsers.add(userId);
+    } else {
+      _completedUsers.remove(userId);
+    }
+  }
 }
 
 /// Fake repository for controlling auth outcomes

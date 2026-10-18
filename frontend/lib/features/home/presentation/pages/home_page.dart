@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   late List<TripSummaryItem> _trips;
   String _searchQuery = '';
   String _activeStatusFilter = 'All'; // 'All', 'Upcoming', 'Planning'
+  String _activeSort = 'default'; // 'default', 'alphabetical'
 
   @override
   void initState() {
@@ -39,7 +40,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<TripSummaryItem> get _filteredTrips {
-    return _trips.where((trip) {
+    final list = _trips.where((trip) {
       final matchesQuery = _searchQuery.isEmpty ||
           trip.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           trip.location.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -49,6 +50,11 @@ class _HomePageState extends State<HomePage> {
 
       return matchesQuery && matchesFilter;
     }).toList();
+
+    if (_activeSort == 'alphabetical') {
+      list.sort((a, b) => a.title.compareTo(b.title));
+    }
+    return list;
   }
 
   @override
@@ -83,9 +89,10 @@ class _HomePageState extends State<HomePage> {
                 Positioned(
                   left: 20,
                   right: 20,
-                  bottom: -26,
+                  bottom: -24,
                   child: HomeSearchBar(
                     controller: _searchController,
+                    hasActiveFilter: _activeStatusFilter != 'All' || _activeSort != 'default',
                     onChanged: (val) {
                       setState(() {
                         _searchQuery = val.trim();
@@ -225,12 +232,7 @@ class _HomePageState extends State<HomePage> {
                         return HomeTripCard.fromEntity(
                           trip: trip,
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Opening ${trip.title}'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
+                            context.push(RouteNames.tripDetailsPath(trip.id));
                           },
                         );
                       },
@@ -322,58 +324,167 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Filter Trips by Status',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  children: ['All', 'Upcoming', 'Planning'].map((status) {
-                    final isSelected = _activeStatusFilter == status;
-                    return ChoiceChip(
-                      label: Text(status),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFFF59E0B),
-                      labelStyle: GoogleFonts.inter(
-                        color: isSelected ? Colors.white : const Color(0xFF334155),
-                        fontWeight: FontWeight.w600,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                      onSelected: (selected) {
-                        Navigator.pop(ctx);
-                        setState(() {
-                          _activeStatusFilter = status;
-                        });
-                      },
-                    );
-                  }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filter & Sort Trips',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (_activeStatusFilter != 'All' || _activeSort != 'default')
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                _activeStatusFilter = 'All';
+                                _activeSort = 'default';
+                              });
+                              setState(() {});
+                            },
+                            child: Text(
+                              'Reset',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0D9488),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'STATUS',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: ['All', 'Upcoming', 'Planning'].map((status) {
+                        final isSelected = _activeStatusFilter == status;
+                        return ChoiceChip(
+                          label: Text(status),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF004E64),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF004E64) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _activeStatusFilter = status;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'SORT BY',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        {'label': 'Default', 'value': 'default'},
+                        {'label': 'Alphabetical (A–Z)', 'value': 'alphabetical'},
+                      ].map((sortItem) {
+                        final isSelected = _activeSort == sortItem['value'];
+                        return ChoiceChip(
+                          label: Text(sortItem['label']!),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFF59E0B),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _activeSort = sortItem['value']!;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF004E64),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Apply Filters',
+                          style: GoogleFonts.inter(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

@@ -2,15 +2,22 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConstants {
+  // Set useTunnel to false to route requests via adb reverse over USB
+  static const bool useTunnel = false;
+  static const String _tunnelHost = 'social-donuts-crash.loca.lt';
+
   static String get _host {
     if (kIsWeb) return 'localhost';
     if (Platform.isAndroid) return '127.0.0.1'; // Works with 'adb reverse' on physical devices and emulators
     return 'localhost';
   }
 
-  static String get backendBaseUrl => 'http://$_host:3000';
-  static String get aiBaseUrl => 'http://$_host:8000';
-  static String get wsBaseUrl => 'ws://$_host:3000/ws';
+  static String get backendBaseUrl =>
+      useTunnel ? 'https://$_tunnelHost' : 'http://$_host:3000';
+  static String get aiBaseUrl =>
+      useTunnel ? 'https://$_tunnelHost' : 'http://$_host:8000';
+  static String get wsBaseUrl =>
+      useTunnel ? 'wss://$_tunnelHost/ws' : 'ws://$_host:3000/ws';
 
   // Auth endpoints
   static const String login = '/api/auth/login';

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
@@ -37,6 +39,18 @@ class _PreferencesPageState extends State<PreferencesPage> {
         _charCount = _notesController.text.length;
       });
     });
+    _checkExistingUser();
+  }
+
+  Future<void> _checkExistingUser() async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticatedState && !authState.isFirstTimeUser) {
+      final hasCompleted = await ServiceLocator.authLocalDataSource
+          .hasCompletedPreferences(authState.user.id);
+      if (hasCompleted && mounted) {
+        context.go(RouteNames.home);
+      }
+    }
   }
 
   @override
@@ -54,6 +68,16 @@ class _PreferencesPageState extends State<PreferencesPage> {
       additionalNotes: _notesController.text.trim(),
     );
     debugPrint('Saved user travel preferences: $prefs');
+
+    // Persist preferences completed status for this user in local storage
+    final authState = context.read<AuthBloc>().state;
+    final userId = authState is AuthAuthenticatedState
+        ? authState.user.id
+        : 'current_user';
+    await ServiceLocator.authLocalDataSource.setPreferencesCompleted(
+      userId: userId,
+      completed: true,
+    );
 
     final token = await ServiceLocator.authLocalDataSource.getToken();
     if (token != null && token.isNotEmpty && mounted) {
@@ -340,16 +364,18 @@ class _PreferencesPageState extends State<PreferencesPage> {
                           context.go(RouteNames.home);
                         },
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Set Your Preferences',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          'Set Your Preferences',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
                       IconButton(
                         icon: const Icon(
                           Icons.close,

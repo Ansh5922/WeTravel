@@ -193,29 +193,33 @@ class _CreateTripPageState extends State<CreateTripPage> {
                       const SizedBox(width: 14),
 
                       // Title & Subtitle
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Create Trip',
-                            style: GoogleFonts.inter(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.3,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Create Trip',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            "Let's plan your next adventure",
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withValues(alpha: 0.90),
+                            const SizedBox(height: 3),
+                            Text(
+                              "Let's plan your next adventure",
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.90),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -238,31 +242,27 @@ class _CreateTripPageState extends State<CreateTripPage> {
                   ),
                   const SizedBox(height: 12),
                   Container(
+                    height: 48,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1.0,
-                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          color: Colors.black.withValues(alpha: 0.07),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
-                      vertical: 10,
                     ),
                     child: Row(
                       children: [
                         // Yellow Location Pin Badge
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: 30,
+                          height: 30,
                           decoration: const BoxDecoration(
                             color: Color(0xFFFEF3C7),
                             shape: BoxShape.circle,
@@ -282,19 +282,21 @@ class _CreateTripPageState extends State<CreateTripPage> {
                           child: TextField(
                             controller: _destinationController,
                             style: GoogleFonts.inter(
-                              fontSize: 15,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFF1E293B),
                             ),
+                            textAlignVertical: TextAlignVertical.center,
                             decoration: InputDecoration(
                               hintText: 'Enter destination...',
                               hintStyle: GoogleFonts.inter(
-                                fontSize: 14,
+                                fontSize: 13.5,
                                 color: const Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w400,
                               ),
                               border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
+                              isDense: false,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
                         ),
@@ -415,8 +417,9 @@ class _CreateTripPageState extends State<CreateTripPage> {
                     subtitle: ' (per person)',
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _budgetOptions.map((opt) {
                       return BudgetRangePill(
                         label: opt,

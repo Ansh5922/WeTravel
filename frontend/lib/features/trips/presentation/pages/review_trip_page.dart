@@ -67,8 +67,9 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       ),
     );
 
-    // Navigate to Trip Details screen
-    context.go(RouteNames.tripDetailsPath('goa-getaway'));
+    // First establish Trips tab in navigation history, then push Workspace
+    context.go(RouteNames.trips);
+    context.push(RouteNames.tripDetailsPath('goa-getaway'));
   }
 
   @override
@@ -110,28 +111,30 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                     const SizedBox(width: 14),
 
                     // Title & Subtitle
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Review Trip',
-                          style: GoogleFonts.inter(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: -0.3,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Review Trip',
+                            style: GoogleFonts.inter(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.3,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Confirm your trip details before creating.',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.90),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Confirm your trip details before creating.',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.90),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

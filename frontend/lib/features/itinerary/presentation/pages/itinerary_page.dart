@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_drawer.dart';
+import '../../../trip_details/presentation/widgets/trip_bottom_nav_bar.dart';
 
 class ItineraryItem {
   final String title;
@@ -75,96 +77,125 @@ class _ItineraryPageState extends State<ItineraryPage> {
     ),
   ];
 
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(RouteNames.trips);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: Stack(
-        children: [
-          // ── Scrollable Body ──────────────────────────────────────────
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.only(
-              bottom: bottomPadding + 88,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF9F6),
+        drawer: const WeTravelDrawer(),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildBottomActionBar(context),
+            TripBottomNavBar(
+              currentIndex: 1,
+              onTabSelected: (index) {
+                if (index == 0) {
+                  context.push(RouteNames.tripDetailsPath(widget.tripId));
+                } else if (index == 2) {
+                  context.push(RouteNames.expensesPath(widget.tripId));
+                }
+              },
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── 1. Hero Image Banner Header ────────────────────────
-                Stack(
-                  children: [
-                    SizedBox(
-                      height: 190,
-                      width: double.infinity,
-                      child: Image.asset(
-                        'assets/images/goa_itinerary_banner.jpg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: const Color(0xFF004E64),
+          ],
+        ),
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── 1. Hero Image Banner Header ────────────────────────
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 190,
+                    width: double.infinity,
+                    child: Image.asset(
+                      'assets/images/goa_itinerary_banner.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: const Color(0xFF004E64),
+                      ),
+                    ),
+                  ),
+                  // Gradient overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.5),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.3),
+                          ],
                         ),
                       ),
                     ),
-                    // Gradient overlay
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.5),
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.3),
-                            ],
+                  ),
+                  // Back button & Title
+                  Positioned(
+                    top: topPadding + 6,
+                    left: 10,
+                    right: 16,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                          onPressed: _handleBack,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Final Itinerary',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
                         ),
-                      ),
-                    ),
-                    // Back button & Title
-                    Positioned(
-                      top: topPadding + 6,
-                      left: 10,
-                      right: 16,
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                            onPressed: () {
-                              if (context.canPop()) {
-                                context.pop();
-                              }
-                            },
+                        const Spacer(),
+                        Builder(
+                          builder: (ctx) => IconButton(
+                            icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+                            tooltip: 'Open navigation menu',
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Final Itinerary',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Curved bottom transition
-                    Positioned(
-                      bottom: -1,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: 22,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFAF9F6),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                         ),
+                      ],
+                    ),
+                  ),
+                  // Curved bottom transition
+                  Positioned(
+                    bottom: -1,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFAF9F6),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
 
                 // ── 2. Trip Info Card & Subtabs ────────────────────────
                 Padding(
@@ -398,82 +429,72 @@ class _ItineraryPageState extends State<ItineraryPage> {
                   ),
                 ),
               ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomActionBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      color: const Color(0xFFFAF9F6),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Opening partner bookings for hotels & activities...'),
+                      backgroundColor: Color(0xFF004E64),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B), // Golden amber
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: Text(
+                  'View Booking Links',
+                  style: GoogleFonts.inter(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF004E64),
+                  ),
+                ),
+              ),
             ),
           ),
-
-          // ── Fixed Bottom Actions Bar ─────────────────────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: EdgeInsets.only(
-                left: 18,
-                right: 18,
-                top: 10,
-                bottom: bottomPadding > 0 ? bottomPadding : 16,
+          const SizedBox(width: 12),
+          // Share Button
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF004E64), width: 1.5),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.share_outlined,
+                color: Color(0xFF004E64),
+                size: 20,
               ),
-              color: const Color(0xFFFAF9F6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Opening partner bookings for hotels & activities...'),
-                              backgroundColor: Color(0xFF004E64),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B), // Golden amber
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: Text(
-                          'View Booking Links',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF004E64),
-                          ),
-                        ),
-                      ),
-                    ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Itinerary link copied to clipboard!'),
+                    backgroundColor: Color(0xFF004E64),
                   ),
-                  const SizedBox(width: 12),
-                  // Share Button
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF004E64), width: 1.5),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.share_outlined,
-                        color: Color(0xFF004E64),
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Itinerary link copied to clipboard!'),
-                            backgroundColor: Color(0xFF004E64),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

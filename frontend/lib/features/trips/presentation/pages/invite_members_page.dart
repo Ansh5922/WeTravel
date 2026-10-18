@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_search_bar.dart';
 import '../../domain/entities/trip_member.dart';
 import '../../domain/entities/trip_review_draft.dart';
 import '../widgets/invite_screen_decorations.dart';
@@ -32,6 +33,8 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
   late List<TripMember> _friends;
   late final TripReviewDraft _draft;
   String _searchQuery = '';
+  String _activeFilter = 'All'; // 'All', 'Selected', 'Unselected'
+  String _activeSort = 'suggested'; // 'suggested', 'alphabetical'
 
   @override
   void initState() {
@@ -47,13 +50,24 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
   }
 
   List<TripMember> get _filteredFriends {
-    if (_searchQuery.trim().isEmpty) return _friends;
-    final q = _searchQuery.toLowerCase();
-    return _friends
-        .where((f) =>
-            f.name.toLowerCase().contains(q) ||
-            f.email.toLowerCase().contains(q))
-        .toList();
+    final list = _friends.where((f) {
+      final matchesQuery = _searchQuery.trim().isEmpty ||
+          f.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          f.email.toLowerCase().contains(_searchQuery.toLowerCase());
+
+      final matchesFilter = switch (_activeFilter) {
+        'Selected' => f.isSelected,
+        'Unselected' => !f.isSelected,
+        _ => true,
+      };
+
+      return matchesQuery && matchesFilter;
+    }).toList();
+
+    if (_activeSort == 'alphabetical') {
+      list.sort((a, b) => a.name.compareTo(b.name));
+    }
+    return list;
   }
 
   bool get _isAllSelected =>
@@ -148,28 +162,30 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                     const SizedBox(width: 14),
 
                     // Title & Subtitle
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Invite Members',
-                          style: GoogleFonts.inter(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: -0.3,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Invite Members',
+                            style: GoogleFonts.inter(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.3,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Add your travel buddies to plan together.',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.90),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Add your travel buddies to plan together.',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.90),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -184,77 +200,22 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                 children: [
                   const SizedBox(height: 6),
 
-                  // ── Search Field ─────────────────────────────────────────
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1.0,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.search_rounded,
-                          color: Color(0xFF005F73),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (val) {
-                              setState(() {
-                                _searchQuery = val;
-                              });
-                            },
-                            style: GoogleFonts.inter(
-                              fontSize: 14.5,
-                              color: const Color(0xFF1E293B),
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Search name and email',
-                              hintStyle: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: const Color(0xFF94A3B8),
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                            },
-                            child: const Icon(
-                              Icons.close_rounded,
-                              color: Color(0xFF94A3B8),
-                              size: 18,
-                            ),
-                          ),
-                      ],
-                    ),
+                  // ── Search & Filter Input Bar (Inbox Style) ───────────────
+                  WeTravelSearchBar(
+                    controller: _searchController,
+                    hintText: 'Search name and email...',
+                    hasActiveFilter: _activeFilter != 'All' || _activeSort != 'suggested',
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val;
+                      });
+                    },
+                    onClear: () {
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                    onFilterTap: () => _showFilterSheet(context),
                   ),
 
                   const SizedBox(height: 20),
@@ -558,6 +519,184 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filter & Sort Buddies',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (_activeFilter != 'All' || _activeSort != 'suggested')
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                _activeFilter = 'All';
+                                _activeSort = 'suggested';
+                              });
+                              setState(() {});
+                            },
+                            child: Text(
+                              'Reset',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0D9488),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'STATUS',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        {'label': 'All Buddies', 'value': 'All'},
+                        {'label': 'Selected Only', 'value': 'Selected'},
+                        {'label': 'Not Selected', 'value': 'Unselected'},
+                      ].map((item) {
+                        final isSelected = _activeFilter == item['value'];
+                        return ChoiceChip(
+                          label: Text(item['label']!),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF005F73),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF005F73) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _activeFilter = item['value']!;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'SORT BY',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        {'label': 'Suggested', 'value': 'suggested'},
+                        {'label': 'Alphabetical (A–Z)', 'value': 'alphabetical'},
+                      ].map((sortItem) {
+                        final isSelected = _activeSort == sortItem['value'];
+                        return ChoiceChip(
+                          label: Text(sortItem['label']!),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFF59E0B),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              _activeSort = sortItem['value']!;
+                            });
+                            setState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF005F73),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Apply Filters',
+                          style: GoogleFonts.inter(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

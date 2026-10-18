@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_drawer.dart';
+import '../../../trip_details/presentation/widgets/trip_bottom_nav_bar.dart';
+
 class TripMember {
   final String id;
   final String name;
@@ -554,14 +558,39 @@ class _ExpensesPageState extends State<ExpensesPage> {
     );
   }
 
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(RouteNames.trips);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E2229), // Dark card theme matching screenshot
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1E2229), // Dark card theme matching screenshot
+        drawer: const WeTravelDrawer(),
+        bottomNavigationBar: TripBottomNavBar(
+          currentIndex: 2,
+          onTabSelected: (index) {
+            if (index == 0) {
+              context.push(RouteNames.tripDetailsPath(widget.tripId));
+            } else if (index == 1) {
+              context.push(RouteNames.itineraryPath(widget.tripId));
+            }
+          },
+        ),
+        body: Stack(
         children: [
           // ── Scrollable Body ──────────────────────────────────────────
           SingleChildScrollView(
@@ -838,11 +867,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      }
-                    },
+                    onPressed: _handleBack,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -854,9 +879,12 @@ class _ExpensesPageState extends State<ExpensesPage> {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.pie_chart_outline_rounded, color: Colors.white, size: 22),
-                    onPressed: () {},
+                  Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
+                      tooltip: 'Open navigation menu',
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                    ),
                   ),
                 ],
               ),
@@ -864,6 +892,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

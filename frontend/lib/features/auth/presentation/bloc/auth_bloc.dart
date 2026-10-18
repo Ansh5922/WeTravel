@@ -54,8 +54,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       debugPrint('[AUTH_BLOC] 📡 Token found. Fetching current user profile from GET /api/auth/me...');
       final user = await _getCurrentUserUseCase.execute(token);
-      debugPrint('[AUTH_BLOC] ✅ Session restored! User: ${user.email} (${user.id})');
-      emit(AuthAuthenticatedState(user: user));
+      final hasCompletedPrefs = await _localDataSource.hasCompletedPreferences(user.id);
+      debugPrint('[AUTH_BLOC] ✅ Session restored! User: ${user.email} (${user.id}), hasCompletedPrefs: $hasCompletedPrefs');
+      emit(AuthAuthenticatedState(user: user, isFirstTimeUser: !hasCompletedPrefs));
     } catch (e) {
       debugPrint('[AUTH_BLOC] ⚠️ Session restoration failed: $e. Preserving local state.');
       emit(AuthErrorState(e.toString()));
@@ -78,7 +79,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await _localDataSource.saveToken(result.token!);
         debugPrint('[AUTH_BLOC] 💾 JWT Token saved to secure storage.');
       }
-      debugPrint('[AUTH_BLOC] ✅ Login Success! User ID: ${result.user.id}');
+      // For existing email/password login, mark preferences completed and set isFirstTimeUser: false
+      await _localDataSource.setPreferencesCompleted(userId: result.user.id, completed: true);
+      debugPrint('[AUTH_BLOC] ✅ Login Success! User ID: ${result.user.id}. Bypassing preferences.');
       emit(AuthAuthenticatedState(user: result.user, isFirstTimeUser: false));
     } on Failure catch (e) {
       debugPrint('[AUTH_BLOC] ❌ Login Failure: ${e.message}');
@@ -156,8 +159,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await _localDataSource.saveToken(result.token!);
         debugPrint('[AUTH_BLOC] 💾 JWT Token saved to secure storage.');
       }
-      debugPrint('[AUTH_BLOC] ✅ Google Auth Success! User ID: ${result.user.id}');
-      emit(AuthAuthenticatedState(user: result.user, isFirstTimeUser: false));
+      final hasCompletedPrefs = await _localDataSource.hasCompletedPreferences(result.user.id);
+      debugPrint('[AUTH_BLOC] ✅ Google Auth Success! User ID: ${result.user.id}, hasCompletedPrefs: $hasCompletedPrefs');
+      emit(AuthAuthenticatedState(user: result.user, isFirstTimeUser: !hasCompletedPrefs));
     } on Failure catch (e) {
       debugPrint('[AUTH_BLOC] ❌ Google Auth Failure: ${e.message}');
       emit(AuthErrorState(e.message));
