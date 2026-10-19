@@ -1,0 +1,48 @@
+name: Deploy WeTravel to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - main
+      - ansh
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Oracle Cloud VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 🚀 SSH & Auto-Deploy on Oracle VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            echo "=============================================="
+            echo "🚀 Starting WeTravel Continuous Deployment..."
+            echo "=============================================="
+
+            # 1. Navigate to project root
+            cd /home/ubuntu/WeTravel
+
+            # 2. Pull latest code from current branch
+            echo "📥 Fetching and checking out branch: ${{ github.ref_name }}..."
+            git fetch origin
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+
+            # 3. Build & restart containers
+            echo "🐳 Rebuilding and starting Docker services..."
+            docker compose down
+            docker compose up -d --build
+
+            # 4. Verify running containers
+            echo "📊 Verifying running containers..."
+            docker compose ps
+            echo "=============================================="
+            echo "✅ Deployment completed successfully!"
+            echo "=============================================="
