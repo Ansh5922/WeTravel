@@ -5,12 +5,12 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Application settings loaded from environment variables
     PROJECT_NAME: str = "WeTravel AI Engine"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "").strip("\"'")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # Shared JWT config (must match Node.js backend exactly)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "").strip("\"'")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256").strip("\"'")
 
     class Config:
         env_file = ".env"
