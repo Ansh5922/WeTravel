@@ -7,7 +7,9 @@ abstract class InboxEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class InboxFetchRequested extends InboxEvent {}
+class InboxFetchRequested extends InboxEvent {
+  const InboxFetchRequested();
+}
 
 class InboxInviteAccepted extends InboxEvent {
   final String inviteId;

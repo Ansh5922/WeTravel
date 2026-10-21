@@ -16,9 +16,13 @@ import '../../features/trips/presentation/pages/trips_page.dart';
 import '../../features/trips/presentation/pages/create_trip_page.dart';
 import '../../features/trips/presentation/pages/invite_members_page.dart';
 import '../../features/trips/presentation/pages/review_trip_page.dart';
+import '../../features/trips/presentation/pages/join_trip_landing_page.dart';
 import '../../features/trips/domain/entities/trip_review_draft.dart';
+import '../../features/trips/domain/entities/trip_entity.dart';
 import '../../features/friends/presentation/pages/friends_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/profile/presentation/pages/account_settings_page.dart';
+import '../../features/profile/presentation/pages/privacy_policy_page.dart';
 import '../../features/preferences/presentation/pages/preferences_page.dart';
 import '../../features/preferences/presentation/pages/my_preferences_page.dart';
 import '../../features/trip_details/presentation/pages/trip_details_page.dart';
@@ -153,6 +157,16 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const MyPreferencesPage(),
     ),
+    GoRoute(
+      path: RouteNames.accountSettings,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const AccountSettingsPage(),
+    ),
+    GoRoute(
+      path: RouteNames.privacyPolicy,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const PrivacyPolicyPage(),
+    ),
 
     // ── Create Trip Route ─────────────────────────────────────────────────────
     GoRoute(
@@ -166,8 +180,12 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.inviteMembers,
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
-        final draft = state.extra as TripReviewDraft?;
-        return InviteMembersPage(draft: draft);
+        if (state.extra is TripEntity) {
+          return InviteMembersPage(trip: state.extra as TripEntity);
+        } else if (state.extra is TripReviewDraft) {
+          return InviteMembersPage(draft: state.extra as TripReviewDraft);
+        }
+        return const InviteMembersPage();
       },
     ),
 
@@ -178,6 +196,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final draft = state.extra as TripReviewDraft?;
         return ReviewTripPage(draft: draft);
+      },
+    ),
+
+    // ── Join Trip via Link/Token Route ─────────────────────────────────────────
+    GoRoute(
+      path: RouteNames.joinTrip,
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final token = state.pathParameters['token'] ?? '';
+        return JoinTripLandingPage(token: token);
       },
     ),
 

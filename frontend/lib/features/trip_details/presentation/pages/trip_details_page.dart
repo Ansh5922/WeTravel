@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/widgets/we_travel_drawer.dart';
+import '../../../trips/presentation/bloc/trip_bloc.dart';
+import '../../../trips/presentation/bloc/trip_event.dart';
+import '../../../trips/presentation/bloc/trip_state.dart';
+import '../../../trips/domain/entities/trip_entity.dart';
 import '../../domain/entities/trip_suggestion.dart';
 import '../widgets/group_idea_tile.dart';
 import '../widgets/planning_readiness_card.dart';
 import '../widgets/trip_bottom_nav_bar.dart';
 
-/// "Goa Weekend - Workspace" screen matching the WeTravel design screenshot.
+/// "Trip Workspace" screen matching the WeTravel design screenshot.
 /// Features a scenic tropical hero header, FLAGSHIP badge, planning readiness tracker,
 /// AI Group Insight banner, collaborative ideas list with approvals, "+ Add Suggestion" CTA,
 /// and trip-level bottom navigation (Workspace, Itinerary, Expenses).
@@ -26,6 +31,7 @@ class TripDetailsPage extends StatefulWidget {
 
 class _TripDetailsPageState extends State<TripDetailsPage> {
   int _currentTabIndex = 0;
+  TripEntity? _trip;
 
   // ── Mock Initial Suggestions from Group ──────────────────────────────────
   late List<TripSuggestion> _suggestions;
@@ -33,6 +39,20 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
   @override
   void initState() {
     super.initState();
+    final currentState = context.read<TripBloc>().state;
+    if (currentState is TripDetailLoadedState && currentState.trip.id == widget.tripId) {
+      _trip = currentState.trip;
+    } else if (currentState is TripCreatedState && currentState.trip.id == widget.tripId) {
+      _trip = currentState.trip;
+    }
+
+    if (widget.tripId.isNotEmpty && widget.tripId != 'goa-getaway') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<TripBloc>().add(TripDetailsRequested(widget.tripId));
+        }
+      });
+    }
     _suggestions = [
       const TripSuggestion(
         id: 'sugg_1',
@@ -144,134 +164,180 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
 
   /// Main Workspace View matching the screenshot
   Widget _buildWorkspaceView(double topPadding) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── 1. Hero Scenic Header with Top Bar ───────────────────────
-          Stack(
+    return BlocConsumer<TripBloc, TripState>(
+      listener: (context, state) {
+        if (state is TripDetailLoadedState && state.trip.id == widget.tripId) {
+          setState(() {
+            _trip = state.trip;
+          });
+        } else if (state is TripCreatedState && state.trip.id == widget.tripId) {
+          setState(() {
+            _trip = state.trip;
+          });
+        }
+      },
+      builder: (context, state) {
+        final trip = _trip ??
+            (state is TripDetailLoadedState && state.trip.id == widget.tripId
+                ? state.trip
+                : null);
+
+        final tripTitle = trip != null ? '${trip.name} - Workspace' : 'Trip Workspace';
+        final coverUrl = trip?.coverImageUrl;
+
+        final String dateRange;
+        if (trip != null && trip.tripStartDate != null && trip.tripEndDate != null) {
+          const months = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+          ];
+          final s = trip.tripStartDate!;
+          final e = trip.tripEndDate!;
+          dateRange = '${months[s.month - 1]} ${s.day}–${e.day}';
+        } else {
+          dateRange = 'Upcoming';
+        }
+        final memberCount = trip != null && trip.members.isNotEmpty ? trip.members.length : 1;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hero Photo
-              SizedBox(
-                width: double.infinity,
-                height: topPadding + 180,
-                child: Image.asset(
-                  'assets/images/trip_goa.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFF004E64),
-                    child: const Center(
-                      child: Icon(Icons.beach_access, size: 60, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Top Gradient for contrast
-              Container(
-                width: double.infinity,
-                height: topPadding + 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.6),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-
-              // Navigation Bar
-              Padding(
-                padding: EdgeInsets.only(
-                  top: topPadding + 6,
-                  left: 10,
-                  right: 16,
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      onPressed: _handleBack,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Goa Weekend - Workspace',
-                        style: GoogleFonts.inter(
-                          fontSize: 17.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // FLAGSHIP Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+              // ── 1. Hero Scenic Header with Top Bar ───────────────────────
+              Stack(
+                children: [
+                  // Hero Photo
+                  SizedBox(
+                    width: double.infinity,
+                    height: topPadding + 180,
+                    child: coverUrl != null && coverUrl.startsWith('http')
+                        ? Image.network(
+                            coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFF004E64),
+                              child: const Center(
+                                child: Icon(Icons.beach_access, size: 60, color: Colors.white),
+                              ),
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/images/trip_goa.jpg',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFF004E64),
+                              child: const Center(
+                                child: Icon(Icons.beach_access, size: 60, color: Colors.white),
+                              ),
+                            ),
                           ),
+                  ),
+
+                  // Top Gradient for contrast
+                  Container(
+                    width: double.infinity,
+                    height: topPadding + 80,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.transparent,
                         ],
                       ),
-                      child: Text(
-                        'FLAGSHIP',
-                        style: GoogleFonts.inter(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                          color: const Color(0xFF004E64),
-                        ),
-                      ),
                     ),
-                    const SizedBox(width: 4),
-                    Builder(
-                      builder: (ctx) => IconButton(
-                        icon: const Icon(
-                          Icons.menu_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        tooltip: 'Open navigation menu',
-                        onPressed: () => Scaffold.of(ctx).openDrawer(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // ── 2. Content Body ──────────────────────────────────────────
-          Transform.translate(
-            offset: const Offset(0, -18),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Planning Readiness Card
-                  PlanningReadinessCard(
-                    dateRange: 'Oct 12–15',
-                    memberCount: 4,
-                    readinessProgress: 0.75,
-                    onInsightTap: _showInsightModal,
                   ),
+
+                  // Navigation Bar
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: topPadding + 6,
+                      left: 10,
+                      right: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          onPressed: _handleBack,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            tripTitle,
+                            style: GoogleFonts.inter(
+                              fontSize: 17.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // FLAGSHIP Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            'FLAGSHIP',
+                            style: GoogleFonts.inter(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                              color: const Color(0xFF004E64),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Builder(
+                          builder: (ctx) => IconButton(
+                            icon: const Icon(
+                              Icons.menu_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            tooltip: 'Open navigation menu',
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── 2. Content Body ──────────────────────────────────────────
+              Transform.translate(
+                offset: const Offset(0, -18),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Planning Readiness Card
+                      PlanningReadinessCard(
+                        dateRange: dateRange,
+                        memberCount: memberCount,
+                        readinessProgress: 0.75,
+                        onInsightTap: _showInsightModal,
+                      ),
                   const SizedBox(height: 20),
 
                   // Ideas from Group Section Header
@@ -378,7 +444,9 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
         ],
       ),
     );
-  }
+  },
+);
+}
 
   /// View when switching to Itinerary or Expenses tabs
 }

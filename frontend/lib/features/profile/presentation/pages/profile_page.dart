@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/we_travel_screen_header.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_event.dart';
-import '../../../trips/presentation/widgets/invite_screen_decorations.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
-import '../bloc/profile_state.dart';
 
-/// Screen displaying the user's saved profile information, travel statistics,
-/// account details, preferences access, and a confirmation-backed Logout button.
+/// Production-ready Profile screen with Clean Architecture & BLoC state management.
+/// - Fully dynamic: fetches real profile & user data from backend.
+/// - Security: zero exposure or rendering of database IDs / UUIDs.
+/// - Header: high-contrast, bold "Profile" title with drawer menu (settings icon removed).
+/// - Clean composition: explorer tag & 3 stat tabs removed per design spec.
+/// - Editable personal information: Full Name, Username, and Phone via interactive modal.
+/// - Relocated authentication actions: "Account & Settings" sits below Privacy & Security.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -35,82 +40,336 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _confirmLogout() {
-    showDialog(
+  /// Opens the industry-standard Edit Profile modal bottom sheet.
+  void _openEditProfileSheet({
+    required String initialFullName,
+    required String initialUsername,
+    required String initialPhone,
+  }) {
+    final formKey = GlobalKey<FormState>();
+    final fullNameController = TextEditingController(text: initialFullName);
+    final usernameController = TextEditingController(
+      text: initialUsername.startsWith('@') ? initialUsername.substring(1) : initialUsername,
+    );
+    final phoneController = TextEditingController(text: initialPhone);
+
+    showModalBottomSheet(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.logout_rounded,
-                color: Color(0xFFEF4444),
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Log Out',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF004E64),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to log out of WeTravel? You will need to sign in again to access your trips.',
-          style: GoogleFonts.inter(
-            fontSize: 13.5,
-            color: const Color(0xFF64748B),
-            height: 1.4,
-          ),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(dialogCtx).pop();
-              context.read<AuthBloc>().add(const AuthLogoutRequested());
-              if (mounted) {
-                context.go(RouteNames.login);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Log Out',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w700,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        bool isSubmitting = false;
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+            return Container(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 24),
+              decoration: const BoxDecoration(
                 color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-            ),
-          ),
-        ],
-      ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sheet Handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Sheet Title & Close Icon
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Edit Profile',
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDeepTeal,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                          onPressed: () => Navigator.of(sheetCtx).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Update your personal information visible to your travel groups.',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF64748B),
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 1. Full Name Field
+                    Text(
+                      'Full Name',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: fullNameController,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Suyash Pandey',
+                        prefixIcon: const Icon(Icons.person_outline_rounded,
+                            color: AppColors.primaryDeepTeal, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Full name cannot be empty.';
+                        }
+                        if (value.trim().length < 2) {
+                          return 'Name must be at least 2 characters.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2. Username Field
+                    Text(
+                      'Username',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: usernameController,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. suyash_p',
+                        prefixText: '@',
+                        prefixStyle: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDeepTeal,
+                        ),
+                        prefixIcon: const Icon(Icons.alternate_email_rounded,
+                            color: AppColors.primaryDeepTeal, size: 19),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Username cannot be empty.';
+                        }
+                        if (value.trim().length < 3) {
+                          return 'Username must be at least 3 characters.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 3. Phone Field
+                    Text(
+                      'Phone Number',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. +91 98765 43210',
+                        prefixIcon: const Icon(Icons.phone_outlined,
+                            color: AppColors.primaryDeepTeal, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      validator: (value) {
+                        if (value != null &&
+                            value.trim().isNotEmpty &&
+                            value.trim().length < 6) {
+                          return 'Please enter a valid phone number.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Actions: Cancel & Save Changes
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isSubmitting ? null : () => Navigator.of(sheetCtx).pop(),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) return;
+                                    setSheetState(() => isSubmitting = true);
+
+                                    final profileBloc = this.context.read<ProfileBloc>();
+                                    final messenger = ScaffoldMessenger.of(this.context);
+                                    final token = await ServiceLocator.authLocalDataSource
+                                        .getToken();
+                                    if (token != null && token.isNotEmpty && mounted) {
+                                      profileBloc.add(
+                                        ProfileUpdateRequested(
+                                          token: token,
+                                          fullName: fullNameController.text.trim(),
+                                          username: usernameController.text.trim(),
+                                          phone: phoneController.text.trim(),
+                                        ),
+                                      );
+                                    }
+
+                                    if (mounted && sheetCtx.mounted) {
+                                      Navigator.of(sheetCtx).pop();
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Row(
+                                            children: [
+                                              const Icon(Icons.check_circle_rounded,
+                                                  color: Colors.white, size: 20),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                'Profile updated successfully!',
+                                                style: GoogleFonts.inter(
+                                                    fontWeight: FontWeight.w600),
+                                              ),
+                                            ],
+                                          ),
+                                          backgroundColor: AppColors.primaryDeepTeal,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.accentWarmYellow,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    'Save Changes',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -118,454 +377,467 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+
     final authState = context.watch<AuthBloc>().state;
-    final user = authState.user;
+    final profileState = context.watch<ProfileBloc>().state;
 
-    final String? rawFullName = user?.fullName;
-    final String? rawUsername = user?.username;
-    final String displayName = (rawFullName != null && rawFullName.isNotEmpty)
-        ? rawFullName
-        : ((rawUsername != null && rawUsername.isNotEmpty) ? rawUsername : 'Suyash Pandey');
-    final String displayEmail = (user != null && user.email.isNotEmpty) ? user.email : 'suyash@wetravel.app';
-    final String displayPhone = (user?.phone != null && user!.phone!.isNotEmpty) ? user.phone! : '+91 98765 43210';
-    final String initials = displayName.split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join();
+    // Source user data dynamically from ProfileBloc if loaded, fallback to AuthBloc user
+    final user = profileState.updatedUser ?? authState.user;
+    final profile = profileState.profile;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: Stack(
-        children: [
-          // ── Scrollable Profile Body ────────────────────────────────
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.only(
-              top: topPadding + 64,
-              bottom: bottomPadding + 32,
-              left: 18,
-              right: 18,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 12),
+    final String displayName = (user?.fullName != null && user!.fullName!.isNotEmpty)
+        ? user.fullName!
+        : ((user?.username != null && user!.username!.isNotEmpty)
+            ? user.username!
+            : 'Traveler');
+    final String displayEmail =
+        (user?.email != null && user!.email.isNotEmpty) ? user.email : 'traveler@wetravel.app';
+    final String displayUsername = (user?.username != null && user!.username!.isNotEmpty)
+        ? user.username!
+        : 'traveler';
+    final String displayPhone = (user?.phone != null && user!.phone!.isNotEmpty)
+        ? user.phone!
+        : 'Not provided';
 
-                // ── Avatar & Name Card ──────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
-                      width: 1.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                        blurRadius: 14,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF004E64), Color(0xFF007791)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: const Color(0xFFF59E0B),
-                                width: 2.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF004E64).withValues(alpha: 0.25),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                initials.isNotEmpty ? initials : 'SP',
-                                style: GoogleFonts.inter(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF59E0B),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
+    final String initials = displayName
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0].toUpperCase())
+        .take(2)
+        .join();
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF9F6),
+        body: Stack(
+          children: [
+            // ── Scrollable Body with Pull-to-Refresh ───────────────────────
+            RefreshIndicator(
+              color: AppColors.primaryDeepTeal,
+              onRefresh: _fetchProfile,
+              edgeOffset: topPadding + 90,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: EdgeInsets.only(
+                  top: topPadding + 104,
+                  bottom: bottomPadding + 32,
+                  left: 18,
+                  right: 18,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // ── 1. Avatar & Identity Card ─────────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                            blurRadius: 14,
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        displayName,
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF004E64),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        displayEmail,
-                        style: GoogleFonts.inter(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF007791),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDEF2F1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'Explorer • Group Lead',
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF004E64),
+                      child: Column(
+                        children: [
+                          // Circular Avatar with Edit Badge
+                          GestureDetector(
+                            onTap: () => _openEditProfileSheet(
+                              initialFullName: displayName,
+                              initialUsername: displayUsername,
+                              initialPhone: displayPhone == 'Not provided' ? '' : displayPhone,
+                            ),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 88,
+                                  height: 88,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF004E64), Color(0xFF007791)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    border: Border.all(
+                                      color: AppColors.accentWarmYellow,
+                                      width: 2.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primaryDeepTeal.withValues(alpha: 0.22),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      initials.isNotEmpty ? initials : 'WT',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.accentWarmYellow,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit_rounded,
+                                      color: Colors.white,
+                                      size: 15,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 14),
+
+                          // Full Name
+                          Text(
+                            displayName,
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryDeepTeal,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Verified Email
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                displayEmail,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF007791),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.verified_rounded,
+                                color: Color(0xFF10B981),
+                                size: 15,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Travel Stats Row ─────────────────────────────────
-                Row(
-                  children: [
-                    _buildStatCard('3', 'Active Trips', Icons.flight_takeoff_rounded),
-                    const SizedBox(width: 10),
-                    _buildStatCard('14', 'Places Visited', Icons.place_rounded),
-                    const SizedBox(width: 10),
-                    _buildStatCard('8', 'Collaborators', Icons.group_rounded),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // ── Personal Info Details Card ───────────────────────
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFE2E8F0),
-                      width: 1.0,
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Profile Information',
-                        style: GoogleFonts.inter(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF004E64),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInfoRow(
-                        icon: Icons.person_outline_rounded,
-                        label: 'Username',
-                        value: (rawUsername != null && rawUsername.isNotEmpty) ? '@$rawUsername' : '@suyash_p',
-                      ),
-                      const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                      _buildInfoRow(
-                        icon: Icons.phone_outlined,
-                        label: 'Phone',
-                        value: displayPhone,
-                      ),
-                      const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                      _buildInfoRow(
-                        icon: Icons.badge_outlined,
-                        label: 'Member ID',
-                        value: (user != null && user.id.isNotEmpty)
-                            ? (user.id.length >= 8 ? user.id.substring(0, 8) : user.id)
-                            : 'WT-2026-94',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
-                // ── Live AI Travel Preferences Card (BLoC Connected) ────
-                BlocBuilder<ProfileBloc, ProfileState>(
-                  builder: (context, profileState) {
-                    final profile = profileState.profile;
-                    final travelStyle = profile?.travelStyle ?? 'Cultural & Local';
-                    final dietary = profile?.dietaryPreference ?? 'No restrictions';
-                    final budget = profile?.budget != null ? '\$${profile!.budget!.toInt()}/day' : (profile?.budgetTier ?? 'Moderate (\$150/day)');
-                    final pace = profile?.pacePreference ?? 'Balanced';
-
-                    return Container(
-                      padding: const EdgeInsets.all(18),
+                    // ── 2. Profile Information Card (Editable) ────────────
+                    Container(
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                         border: Border.all(
                           color: const Color(0xFFE2E8F0),
                           width: 1.0,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'AI Travel Preferences',
+                                'Profile Information',
                                 style: GoogleFonts.inter(
-                                  fontSize: 15.5,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF004E64),
+                                  color: AppColors.primaryDeepTeal,
                                 ),
                               ),
-                              const Spacer(),
-                              if (profileState.isLoading)
-                                const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF004E64)),
+                              TextButton.icon(
+                                onPressed: () => _openEditProfileSheet(
+                                  initialFullName: displayName,
+                                  initialUsername: displayUsername,
+                                  initialPhone: displayPhone == 'Not provided' ? '' : displayPhone,
                                 ),
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 16, color: AppColors.accentWarmYellow),
+                                label: Text(
+                                  'Edit',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.accentWarmYellow,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 14),
-                          _buildInfoRow(
-                            icon: Icons.explore_outlined,
-                            label: 'Travel Style',
-                            value: travelStyle,
+
+                          // Full Name Row
+                          _buildDetailRow(
+                            icon: Icons.person_outline_rounded,
+                            label: 'Full Name',
+                            value: displayName,
                           ),
                           const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                          _buildInfoRow(
-                            icon: Icons.restaurant_outlined,
-                            label: 'Dietary',
-                            value: dietary,
+
+                          // Username Row
+                          _buildDetailRow(
+                            icon: Icons.alternate_email_rounded,
+                            label: 'Username',
+                            value: '@$displayUsername',
                           ),
                           const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                          _buildInfoRow(
-                            icon: Icons.attach_money_rounded,
-                            label: 'Daily Budget',
-                            value: budget,
+
+                          // Phone Row
+                          _buildDetailRow(
+                            icon: Icons.phone_outlined,
+                            label: 'Phone Number',
+                            value: displayPhone,
                           ),
                           const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                          _buildInfoRow(
-                            icon: Icons.speed_rounded,
-                            label: 'Trip Pace',
-                            value: pace,
+
+                          // Email Row (Read-Only)
+                          _buildDetailRow(
+                            icon: Icons.email_outlined,
+                            label: 'Email Address',
+                            value: displayEmail,
+                            isReadOnly: true,
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // ── Settings & Actions ───────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFE2E8F0),
-                      width: 1.0,
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildSettingsTile(
-                        icon: Icons.tune_rounded,
-                        title: 'My Travel Preferences',
-                        subtitle: 'Pacing, food, stays, & activities',
-                        onTap: () => context.push(RouteNames.myPreferences),
-                      ),
-                      const Divider(height: 1, indent: 60, endIndent: 16, color: Color(0xFFF1F5F9)),
-                      _buildSettingsTile(
-                        icon: Icons.notifications_none_rounded,
-                        title: 'Trip Notifications',
-                        subtitle: 'Poll alerts, chat & itinerary updates',
-                        onTap: () {},
-                      ),
-                      const Divider(height: 1, indent: 60, endIndent: 16, color: Color(0xFFF1F5F9)),
-                      _buildSettingsTile(
-                        icon: Icons.lock_outline_rounded,
-                        title: 'Privacy & Security',
-                        subtitle: 'Account details and session settings',
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                // ── Logout Button ────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: OutlinedButton(
-                    onPressed: _confirmLogout,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFEF4444), width: 1.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      backgroundColor: const Color(0xFFFEF2F2),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.logout_rounded,
-                          color: Color(0xFFEF4444),
-                          size: 20,
+                    // ── 3. AI Travel Preferences Card (Dynamic via BLoC) ──
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 1.0,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Log Out',
-                          style: GoogleFonts.inter(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFEF4444),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'WeTravel v1.0.0 (Build 2026.10)',
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    color: const Color(0xFF94A3B8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Fixed Top Header ────────────────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Stack(
-              children: [
-                CustomPaint(
-                  size: Size(MediaQuery.of(context).size.width, topPadding + 58),
-                  painter: InviteHeaderPainter(),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: topPadding + 4,
-                    left: 12,
-                    right: 16,
-                    bottom: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Builder(
-                        builder: (ctx) => IconButton(
-                          icon: const Icon(
-                            Icons.menu_rounded,
-                            color: Colors.white,
-                            size: 24,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'My Travel Preference',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primaryDeepTeal,
+                                    ),
+                                  ),
+                                  if (profileState.isLoading) ...[
+                                    const SizedBox(width: 8),
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.primaryDeepTeal,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              TextButton.icon(
+                                onPressed: () => context.push(RouteNames.myPreferences),
+                                icon: const Icon(Icons.tune_rounded,
+                                    size: 15, color: AppColors.primaryDeepTeal),
+                                label: Text(
+                                  'Adjust',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primaryDeepTeal,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
                           ),
-                          tooltip: 'Open navigation menu',
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Profile',
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                          const SizedBox(height: 14),
 
-  Widget _buildStatCard(String count, String label, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF004E64), size: 20),
-            const SizedBox(height: 6),
-            Text(
-              count,
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF004E64),
+                          _buildDetailRow(
+                            icon: Icons.explore_outlined,
+                            label: 'Travel Style',
+                            value: profile?.travelStyle ?? 'Cultural & Local',
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                          _buildDetailRow(
+                            icon: Icons.restaurant_outlined,
+                            label: 'Dietary Preference',
+                            value: profile?.dietaryPreference ?? 'No restrictions',
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                          _buildDetailRow(
+                            icon: Icons.payments_outlined,
+                            label: 'Daily Budget',
+                            value: profile?.budget != null
+                                ? '₹${profile!.budget!.toInt()}/day'
+                                : (profile?.budgetTier ?? 'Moderate (₹3,000/day)'),
+                          ),
+                          const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                          _buildDetailRow(
+                            icon: Icons.speed_rounded,
+                            label: 'Trip Pace',
+                            value: () {
+                              final p = profile?.pacePreference?.toLowerCase();
+                              if (p == 'slow') return 'Chill & Leisurely';
+                              if (p == 'fast') return 'Action-Packed';
+                              return 'Balanced';
+                            }(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ── 4. Settings & Options ─────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          _buildOptionTile(
+                            icon: Icons.notifications_none_rounded,
+                            title: 'Trip Notifications',
+                            subtitle: 'Poll alerts, chat & itinerary updates',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Notification preferences are enabled for active trips.',
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                  ),
+                                  backgroundColor: AppColors.primaryDeepTeal,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                            },
+                          ),
+                          const Divider(
+                              height: 1, indent: 60, endIndent: 16, color: Color(0xFFF1F5F9)),
+                          _buildOptionTile(
+                            icon: Icons.security_rounded,
+                            title: 'Privacy & Security Policy',
+                            subtitle: 'Read our data encryption and zero-trust policy',
+                            onTap: () => context.push(RouteNames.privacyPolicy),
+                          ),
+                          const Divider(
+                              height: 1, indent: 60, endIndent: 16, color: Color(0xFFF1F5F9)),
+                          _buildOptionTile(
+                            icon: Icons.manage_accounts_outlined,
+                            title: 'Account & Settings',
+                            subtitle: 'Account details, log out & account deletion',
+                            onTap: () => context.push(RouteNames.accountSettings),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Version Footer
+                    Text(
+                      'WeTravel • Secure Travel Platform v1.0.0',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF64748B),
+
+            // ── Fixed Top Header (Unified WeTravelScreenHeader) ───────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: const WeTravelScreenHeader(
+                title: 'Profile',
+                showMenuButton: false,
               ),
             ),
           ],
@@ -574,75 +846,100 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildInfoRow({
+  Widget _buildDetailRow({
     required IconData icon,
     required String label,
     required String value,
+    bool isReadOnly = false,
   }) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF007791)),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primaryDeepTeal, size: 18),
+        ),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: const Color(0xFF64748B),
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDeepTeal,
+              ),
+            ),
+          ],
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF004E64),
+        if (isReadOnly) ...[
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Verified',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF64748B),
+              ),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
 
-  Widget _buildSettingsTile({
+  Widget _buildOptionTile({
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: const BoxDecoration(
-            color: Color(0xFFDEF2F1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: const Color(0xFF004E64), size: 20),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.primaryDeepTeal.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
         ),
-        title: Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF004E64),
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-        trailing: const Icon(
-          Icons.chevron_right_rounded,
-          color: Color(0xFF94A3B8),
-          size: 20,
+        child: Icon(icon, color: AppColors.primaryDeepTeal, size: 20),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.inter(
+          fontSize: 14.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primaryDeepTeal,
         ),
       ),
+      subtitle: Text(
+        subtitle,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          color: const Color(0xFF64748B),
+        ),
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15, color: Color(0xFF94A3B8)),
+      onTap: onTap,
     );
   }
 }

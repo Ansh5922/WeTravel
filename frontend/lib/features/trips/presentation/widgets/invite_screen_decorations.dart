@@ -85,42 +85,44 @@ class InviteBottomDecorator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 60,
-      width: double.infinity,
-      child: Stack(
-        children: [
-          // Left Tropical Leaves
-          Positioned(
-            left: -8,
-            bottom: -6,
-            child: CustomPaint(
-              size: const Size(80, 60),
-              painter: _TropicalLeavesPainter(),
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: 60,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            // Left Tropical Leaves
+            Positioned(
+              left: -8,
+              bottom: -6,
+              child: CustomPaint(
+                size: const Size(80, 60),
+                painter: _TropicalLeavesPainter(),
+              ),
             ),
-          ),
 
-          // Right Dotted Map Trail
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: CustomPaint(
-              size: const Size(180, 50),
-              painter: _BottomDashedTrailPainter(),
+            // Right Dotted Map Trail
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: CustomPaint(
+                size: const Size(180, 50),
+                painter: _BottomDashedTrailPainter(),
+              ),
             ),
-          ),
 
-          // Right Yellow Location Pin
-          const Positioned(
-            right: 12,
-            bottom: 12,
-            child: Icon(
-              Icons.location_on,
-              color: Color(0xFFF59E0B),
-              size: 24,
+            // Right Yellow Location Pin
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: Icon(
+                Icons.location_on,
+                color: Color(0xFFF59E0B),
+                size: 24,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -210,11 +212,13 @@ class OrigamiAirplaneIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _OrigamiAirplanePainter(),
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _OrigamiAirplanePainter(),
+        ),
       ),
     );
   }

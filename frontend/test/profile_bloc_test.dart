@@ -4,6 +4,7 @@ import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/profile/data/models/profile_model.dart';
 import 'package:frontend/features/profile/domain/entities/profile_entity.dart';
 import 'package:frontend/features/profile/domain/repositories/profile_repository.dart';
+import 'package:frontend/features/profile/domain/usecases/delete_account_usecase.dart';
 import 'package:frontend/features/profile/domain/usecases/get_profile_usecase.dart';
 import 'package:frontend/features/profile/domain/usecases/update_profile_usecase.dart';
 import 'package:frontend/features/profile/presentation/bloc/profile_bloc.dart';
@@ -18,30 +19,40 @@ class FakeProfileRepository implements ProfileRepository {
 
   int getProfileCallCount = 0;
   int updateProfileCallCount = 0;
+  int deleteAccountCallCount = 0;
 
   @override
-  Future<ProfileEntity> getProfile(String token) async {
+  Future<({ProfileEntity profile, UserEntity? user})> getProfile(String token) async {
     getProfileCallCount++;
     if (failureToThrow != null) throw failureToThrow!;
-    return profileToReturn ??
+    final profile = profileToReturn ??
         const ProfileEntity(
           id: 'prof_fake_1',
           travelStyle: 'Adventure',
           dietaryPreference: 'Vegan',
           budget: 250.0,
         );
+    final user = userToReturn ??
+        const UserEntity(
+          id: 'usr_fake',
+          email: 'test@wetravel.test',
+        );
+    return (profile: profile, user: user);
   }
 
   @override
   Future<({ProfileEntity profile, UserEntity? user, String message})> updateProfile({
     required String token,
     String? fullName,
+    String? username,
     String? phone,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
     String? budgetTier,
     String? pacePreference,
+    Map<String, dynamic>? healthConstraints,
+    Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
   }) async {
     updateProfileCallCount++;
@@ -51,6 +62,8 @@ class FakeProfileRepository implements ProfileRepository {
       travelStyle: travelStyle ?? 'Adventure',
       dietaryPreference: dietaryPreference ?? 'Vegan',
       budget: budget ?? 250.0,
+      healthConstraints: healthConstraints,
+      climateSensitivities: climateSensitivities,
       rawPreferenceNotes: rawPreferenceNotes,
     );
     return (
@@ -58,6 +71,12 @@ class FakeProfileRepository implements ProfileRepository {
       user: userToReturn ?? const UserEntity(id: 'usr_fake', email: 'test@wetravel.test'),
       message: updateMessage ?? 'Profile updated successfully.',
     );
+  }
+
+  @override
+  Future<void> deleteAccount(String token) async {
+    deleteAccountCallCount++;
+    if (failureToThrow != null) throw failureToThrow!;
   }
 }
 
@@ -112,6 +131,7 @@ void main() {
       profileBloc = ProfileBloc(
         getProfileUseCase: GetProfileUseCase(fakeRepository),
         updateProfileUseCase: UpdateProfileUseCase(fakeRepository),
+        deleteAccountUseCase: DeleteAccountUseCase(fakeRepository),
       );
     });
 
@@ -158,6 +178,14 @@ void main() {
       expect(loaded.profile.travelStyle, 'Relaxed');
       expect(loaded.profile.dietaryPreference, 'Vegetarian');
       expect(fakeRepository.updateProfileCallCount, 1);
+    });
+
+    test('ProfileDeleteAccountRequested emits ProfileAccountDeletedState', () async {
+      profileBloc.add(const ProfileDeleteAccountRequested(token: 'valid_jwt'));
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(profileBloc.state, isA<ProfileAccountDeletedState>());
+      expect(fakeRepository.deleteAccountCallCount, 1);
     });
   });
 }

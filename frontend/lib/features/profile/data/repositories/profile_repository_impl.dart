@@ -13,9 +13,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   ProfileRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<ProfileEntity> getProfile(String token) async {
+  Future<({ProfileEntity profile, UserEntity? user})> getProfile(String token) async {
     try {
-      return await remoteDataSource.getProfile(token);
+      final result = await remoteDataSource.getProfile(token);
+      return (profile: result.profile, user: result.user);
     } catch (e) {
       throw _mapExceptionToFailure(e);
     }
@@ -25,26 +26,41 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<({ProfileEntity profile, UserEntity? user, String message})> updateProfile({
     required String token,
     String? fullName,
+    String? username,
     String? phone,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
     String? budgetTier,
     String? pacePreference,
+    Map<String, dynamic>? healthConstraints,
+    Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
   }) async {
     try {
       return await remoteDataSource.updateProfile(
         token: token,
         fullName: fullName,
+        username: username,
         phone: phone,
         travelStyle: travelStyle,
         dietaryPreference: dietaryPreference,
         budget: budget,
         budgetTier: budgetTier,
         pacePreference: pacePreference,
+        healthConstraints: healthConstraints,
+        climateSensitivities: climateSensitivities,
         rawPreferenceNotes: rawPreferenceNotes,
       );
+    } catch (e) {
+      throw _mapExceptionToFailure(e);
+    }
+  }
+
+  @override
+  Future<void> deleteAccount(String token) async {
+    try {
+      await remoteDataSource.deleteAccount(token);
     } catch (e) {
       throw _mapExceptionToFailure(e);
     }

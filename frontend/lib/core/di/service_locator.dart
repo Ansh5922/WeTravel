@@ -19,6 +19,7 @@ import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
 import '../../features/profile/domain/usecases/update_profile_usecase.dart';
+import '../../features/profile/domain/usecases/delete_account_usecase.dart';
 import '../../features/profile/presentation/bloc/profile_bloc.dart';
 
 import '../../features/home/data/datasources/home_remote_data_source.dart';
@@ -189,6 +190,9 @@ class ServiceLocator {
 
   static final UpdateProfileUseCase updateProfileUseCase =
       UpdateProfileUseCase(profileRepository);
+
+  static final DeleteAccountUseCase deleteAccountUseCase =
+      DeleteAccountUseCase(profileRepository);
 
   // ── Home Singletons ─────────────────────────────────────────────────────────
   static final HomeRemoteDataSource homeRemoteDataSource =
@@ -379,6 +383,7 @@ class ServiceLocator {
   static ProfileBloc createProfileBloc() => ProfileBloc(
         getProfileUseCase: getProfileUseCase,
         updateProfileUseCase: updateProfileUseCase,
+        deleteAccountUseCase: deleteAccountUseCase,
       );
 
   static HomeBloc createHomeBloc() => HomeBloc(

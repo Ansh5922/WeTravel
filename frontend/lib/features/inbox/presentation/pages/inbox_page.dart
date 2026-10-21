@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_screen_header.dart';
+import '../../../../core/widgets/we_travel_search_bar.dart';
+import '../../../trips/presentation/bloc/trip_bloc.dart';
+import '../../../trips/presentation/bloc/trip_event.dart';
+import '../../../trips/presentation/bloc/trip_state.dart';
+import '../../domain/entities/inbox_invite_entity.dart';
 import '../../domain/entities/trip_invitation.dart';
+import '../bloc/inbox_bloc.dart';
+import '../bloc/inbox_event.dart';
+import '../bloc/inbox_state.dart';
 import '../widgets/inbox_filter_chips.dart';
-import '../widgets/inbox_header.dart';
 import '../widgets/invitation_card.dart';
 
-/// Inbox Page displaying trip invitations with interactive filtering,
-/// live search, and accept/decline actions.
+/// Inbox Page displaying trip invitations connected to backend via [InboxBloc].
+/// Features interactive status filtering, live search, sort options,
+/// accept/decline actions with instant state updates, and join-via-token capability.
 class InboxPage extends StatefulWidget {
   const InboxPage({super.key});
 
@@ -17,7 +28,6 @@ class InboxPage extends StatefulWidget {
 }
 
 class _InboxPageState extends State<InboxPage> {
-  late List<TripInvitation> _invitations;
   InboxFilterTab _selectedTab = InboxFilterTab.all;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -26,7 +36,11 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void initState() {
     super.initState();
-    _invitations = List.from(TripInvitation.initialInvitations);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<InboxBloc>().add(const InboxFetchRequested());
+      }
+    });
   }
 
   @override
@@ -35,51 +49,10 @@ class _InboxPageState extends State<InboxPage> {
     super.dispose();
   }
 
-  int get _pendingCount =>
-      _invitations.where((i) => i.status == InvitationStatus.pending).length;
-  int get _acceptedCount =>
-      _invitations.where((i) => i.status == InvitationStatus.accepted).length;
-  int get _declinedCount =>
-      _invitations.where((i) => i.status == InvitationStatus.declined).length;
-
-  List<TripInvitation> get _filteredInvitations {
-    final list = _invitations.where((inv) {
-      // 1. Tab filter
-      final matchesTab = switch (_selectedTab) {
-        InboxFilterTab.all => true,
-        InboxFilterTab.pending => inv.status == InvitationStatus.pending,
-        InboxFilterTab.accepted => inv.status == InvitationStatus.accepted,
-        InboxFilterTab.declined => inv.status == InvitationStatus.declined,
-      };
-
-      if (!matchesTab) return false;
-
-      // 2. Search query filter
-      if (_searchQuery.trim().isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return inv.title.toLowerCase().contains(q) ||
-          inv.destination.toLowerCase().contains(q) ||
-          inv.invitedBy.toLowerCase().contains(q);
-    }).toList();
-
-    if (_activeSort == 'oldest') {
-      list.sort((a, b) => a.id.compareTo(b.id));
-    } else if (_activeSort == 'destination') {
-      list.sort((a, b) => a.destination.compareTo(b.destination));
-    } else if (_activeSort == 'title') {
-      list.sort((a, b) => a.title.compareTo(b.title));
-    }
-    return list;
-  }
-
-  void _acceptInvitation(TripInvitation invitation) {
-    setState(() {
-      final index = _invitations.indexWhere((i) => i.id == invitation.id);
-      if (index != -1) {
-        _invitations[index] =
-            invitation.copyWith(status: InvitationStatus.accepted);
-      }
-    });
+  void _acceptInvite(String inviteId, String title) {
+    context.read<InboxBloc>().add(InboxInviteAccepted(inviteId));
+    // Also trigger TripsFetchRequested so "My Trips" is immediately updated
+    context.read<TripBloc>().add(const TripsFetchRequested());
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -89,7 +62,7 @@ class _InboxPageState extends State<InboxPage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Joined "${invitation.title}"! Added to your Trips.',
+                'Joined "$title"! Added to your Trips.',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w500),
               ),
             ),
@@ -103,127 +76,464 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  void _declineInvitation(TripInvitation invitation) {
-    final originalStatus = invitation.status;
-
-    setState(() {
-      final index = _invitations.indexWhere((i) => i.id == invitation.id);
-      if (index != -1) {
-        _invitations[index] =
-            invitation.copyWith(status: InvitationStatus.declined);
-      }
-    });
+  void _declineInvite(String inviteId, String title) {
+    context.read<InboxBloc>().add(InboxInviteDeclined(inviteId));
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Declined invitation to "${invitation.title}".',
+          'Declined invitation to "$title".',
           style: GoogleFonts.inter(fontWeight: FontWeight.w500),
         ),
         backgroundColor: const Color(0xFF475569),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        action: SnackBarAction(
-          label: 'Undo',
-          textColor: const Color(0xFFF59E0B),
-          onPressed: () {
-            setState(() {
-              final index =
-                  _invitations.indexWhere((i) => i.id == invitation.id);
-              if (index != -1) {
-                _invitations[index] =
-                    invitation.copyWith(status: originalStatus);
-              }
-            });
-          },
-        ),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
   void _openInvitationDetails(TripInvitation invitation) {
     context.push(RouteNames.invitationDetails, extra: invitation).then((_) {
-      // Re-render when returning to reflect any accepted/declined updates
-      setState(() {});
+      if (mounted) {
+        // Refresh inbox when returning to reflect any updates made in details page
+        context.read<InboxBloc>().add(const InboxFetchRequested());
+      }
     });
+  }
+
+  void _showJoinViaTokenDialog(BuildContext context) {
+    final tokenController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF004E64).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Color(0xFF004E64),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Join Trip via Code or Link',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Paste the 64-character invite token or full link shared by your trip admin.',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: tokenController,
+                decoration: InputDecoration(
+                  hintText: 'e.g. 8a3f7c9e12... or https://wetravel.app/...',
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF004E64), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF004E64),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    final rawInput = tokenController.text.trim();
+                    if (rawInput.isEmpty) return;
+
+                    Navigator.pop(ctx);
+
+                    // Extract token if user pasted full URL
+                    final token = rawInput.contains('/join/')
+                        ? rawInput.split('/join/').last.trim()
+                        : rawInput;
+
+                    context.read<TripBloc>().add(
+                          TripJoinViaTokenRequested(token),
+                        );
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Joining trip...',
+                              style: GoogleFonts.inter(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF004E64),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Join Trip',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  List<InboxInviteEntity> _filterAndSort(List<InboxInviteEntity> invites) {
+    final query = _searchQuery.trim().toLowerCase();
+
+    final filtered = invites.where((inv) {
+      // 1. Status Filter
+      final matchesTab = switch (_selectedTab) {
+        InboxFilterTab.all => true,
+        InboxFilterTab.pending => inv.status == InboxInviteStatus.pending,
+        InboxFilterTab.accepted => inv.status == InboxInviteStatus.accepted,
+        InboxFilterTab.declined => inv.status == InboxInviteStatus.rejected,
+      };
+
+      if (!matchesTab) return false;
+
+      // 2. Search Query Filter
+      if (query.isEmpty) return true;
+      return inv.groupName.toLowerCase().contains(query) ||
+          inv.inviterFullName.toLowerCase().contains(query) ||
+          inv.inviterUsername.toLowerCase().contains(query);
+    }).toList();
+
+    // 3. Sorting
+    if (_activeSort == 'oldest') {
+      filtered.sort((a, b) => a.id.compareTo(b.id));
+    } else if (_activeSort == 'destination') {
+      filtered.sort((a, b) => a.groupName.toLowerCase().compareTo(b.groupName.toLowerCase()));
+    } else if (_activeSort == 'title') {
+      filtered.sort((a, b) => a.groupName.toLowerCase().compareTo(b.groupName.toLowerCase()));
+    } else {
+      // Newest first by default
+      filtered.sort((a, b) => b.id.compareTo(a.id));
+    }
+
+    return filtered;
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredInvitations;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
-      body: Column(
-        children: [
-          // ── Header with curved teal background and search ─────────────
-          InboxHeader(
-            pendingCount: _pendingCount,
-            searchController: _searchController,
-            onSearchChanged: (val) {
-              setState(() {
-                _searchQuery = val;
-              });
-            },
-            hasActiveFilter:
-                _selectedTab != InboxFilterTab.all || _activeSort != 'newest',
-            onFilterTap: () => _showFilterSheet(context),
-            onScanTap: () {
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<InboxBloc, InboxState>(
+          listener: (context, state) {
+            if (state is InboxLoadedState && state.successMessage != null) {
+              // Refresh trips in background
+              context.read<TripBloc>().add(const TripsFetchRequested());
+            }
+          },
+        ),
+        BlocListener<TripBloc, TripState>(
+          listener: (context, state) {
+            if (state is TripJoinedState) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Trip QR / Invite Code Scanner opening soon!',
-                    style: GoogleFonts.inter(),
+                    '🎉 Successfully joined "${state.trip.name}"!',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
-                  duration: const Duration(seconds: 2),
+                  backgroundColor: const Color(0xFF004E64),
                 ),
               );
-            },
-          ),
+              // Refresh both inbox and trips
+              context.read<InboxBloc>().add(const InboxFetchRequested());
+              context.read<TripBloc>().add(const TripsFetchRequested());
+            } else if (state is TripErrorState) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: const Color(0xFFEF4444),
+                ),
+              );
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<InboxBloc, InboxState>(
+        builder: (context, state) {
+          final allInvites =
+              state is InboxLoadedState ? state.allInvites : <InboxInviteEntity>[];
+          final displayedInvites = _filterAndSort(allInvites);
 
-          // ── Filter Chips Row ───────────────────────────────────────────
-          InboxFilterChips(
-            selectedTab: _selectedTab,
-            onTabChanged: (tab) {
-              setState(() {
-                _selectedTab = tab;
-              });
-            },
-            allCount: _invitations.length,
-            pendingCount: _pendingCount,
-            acceptedCount: _acceptedCount,
-            declinedCount: _declinedCount,
-          ),
+          final pendingCount = allInvites
+              .where((i) => i.status == InboxInviteStatus.pending)
+              .length;
+          final acceptedCount = allInvites
+              .where((i) => i.status == InboxInviteStatus.accepted)
+              .length;
+          final declinedCount = allInvites
+              .where((i) => i.status == InboxInviteStatus.rejected)
+              .length;
 
-          // ── Invitations List ───────────────────────────────────────────
-          Expanded(
-            child: RefreshIndicator(
-              color: const Color(0xFF004E64),
-              onRefresh: () async {
-                await Future.delayed(const Duration(milliseconds: 600));
-                setState(() {});
-              },
-              child: filtered.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(
-                        top: 4,
-                        bottom: 24,
+          final isLoading = state is InboxLoadingState && allInvites.isEmpty;
+
+          return Scaffold(
+            backgroundColor: const Color(0xFFFAF9F6),
+            body: Column(
+              children: [
+                // ── 1. Unified Reusable Header (Scanner Icon Removed) ────────
+                const WeTravelScreenHeader(
+                  title: 'Inbox',
+                  showMenuButton: false,
+                ),
+
+                // ── 2. Fixed Search & Filter Section (Solid Background) ──────
+                Container(
+                  color: const Color(0xFFFAF9F6),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Column(
+                    children: [
+                      WeTravelSearchBar(
+                        controller: _searchController,
+                        hintText: 'Search trips, destinations, members...',
+                        hasActiveFilter: _selectedTab != InboxFilterTab.all ||
+                            _activeSort != 'newest',
+                        onChanged: (val) {
+                          setState(() {
+                            _searchQuery = val.trim();
+                          });
+                        },
+                        onClear: () {
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                        onFilterTap: () => _showFilterSheet(context),
                       ),
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
+                      const SizedBox(height: 10),
+                      InboxFilterChips(
+                        selectedTab: _selectedTab,
+                        onTabChanged: (tab) {
+                          setState(() {
+                            _selectedTab = tab;
+                          });
+                        },
+                        allCount: allInvites.length,
+                        pendingCount: pendingCount,
+                        acceptedCount: acceptedCount,
+                        declinedCount: declinedCount,
                       ),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final invitation = filtered[index];
-                        return InvitationCard(
-                          invitation: invitation,
-                          onTap: () => _openInvitationDetails(invitation),
-                          onAccept: () => _acceptInvitation(invitation),
-                          onDecline: () => _declineInvitation(invitation),
-                        );
+                    ],
+                  ),
+                ),
+
+                // ── 3. Invitations List Body with ClipRect ───────────────────
+                Expanded(
+                  child: ClipRect(
+                    child: RefreshIndicator(
+                      color: const Color(0xFF004E64),
+                      backgroundColor: Colors.white,
+                      onRefresh: () async {
+                        context
+                            .read<InboxBloc>()
+                            .add(const InboxFetchRequested());
+                        await Future.delayed(
+                            const Duration(milliseconds: 600));
                       },
+                      child: Builder(
+                        builder: (context) {
+                          if (isLoading) {
+                            return ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                              itemCount: 3,
+                              itemBuilder: (context, index) =>
+                                  _buildSkeletonInviteCard(),
+                            );
+                          }
+
+                          if (state is InboxErrorState && allInvites.isEmpty) {
+                            return _buildErrorState(state.message);
+                          }
+
+                          if (displayedInvites.isEmpty) {
+                            return _buildEmptyState(allInvites.isEmpty);
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            itemCount: displayedInvites.length,
+                            itemBuilder: (context, index) {
+                              final invite = displayedInvites[index];
+                              final tripInvitation =
+                                  TripInvitation.fromInboxInvite(invite);
+
+                              return InvitationCard(
+                                invitation: tripInvitation,
+                                onTap: () =>
+                                    _openInvitationDetails(tripInvitation),
+                                onAccept:
+                                    invite.status == InboxInviteStatus.pending
+                                        ? () => _acceptInvite(
+                                              invite.id,
+                                              tripInvitation.title,
+                                            )
+                                        : null,
+                                onDecline:
+                                    invite.status == InboxInviteStatus.pending
+                                        ? () => _declineInvite(
+                                              invite.id,
+                                              tripInvitation.title,
+                                            )
+                                        : null,
+                              );
+                            },
+                          );
+                        },
+                      ),
                     ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSkeletonInviteCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 92,
+            height: 96,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 120,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: 80,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -231,29 +541,34 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
+  Widget _buildErrorState(String message) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      child: Container(
+        height: 380,
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
-                color: const Color(0xFF004E64).withValues(alpha: 0.08),
+                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.mail_outline_rounded,
+                Icons.cloud_off_rounded,
                 size: 34,
-                color: Color(0xFF004E64),
+                color: Color(0xFFEF4444),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'No invitations found',
+              'Could not load invitations',
               style: GoogleFonts.inter(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -262,15 +577,143 @@ class _InboxPageState extends State<InboxPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              _searchQuery.isNotEmpty
-                  ? 'No invitations match "$_searchQuery". Try another keyword.'
-                  : 'You have no invitations under this filter.',
+              message,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: const Color(0xFF64748B),
               ),
             ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.read<InboxBloc>().add(const InboxFetchRequested());
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004E64),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isCompletelyEmpty) {
+    return Center(
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                color: const Color(0xFF004E64).withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.mail_outline_rounded,
+                size: 36,
+                color: Color(0xFF004E64),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              isCompletelyEmpty
+                  ? 'Your inbox is clear'
+                  : 'No matching invitations found',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isCompletelyEmpty
+                  ? 'When friends invite you to join their trips, your invitations will show up here.'
+                  : (_searchQuery.isNotEmpty
+                      ? 'No invitations match "$_searchQuery".'
+                      : 'No invitations found under the selected filter.'),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13.5,
+                color: const Color(0xFF64748B),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (isCompletelyEmpty)
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _showJoinViaTokenDialog(context),
+                    icon: const Icon(Icons.qr_code_rounded, size: 18),
+                    label: const Text('Join via Code'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF004E64),
+                      side: const BorderSide(
+                          color: Color(0xFF004E64), width: 1.2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push(RouteNames.createTrip),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Plan Trip'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: const Color(0xFF0F172A),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 11),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _searchQuery = '';
+                    _searchController.clear();
+                    _selectedTab = InboxFilterTab.all;
+                    _activeSort = 'newest';
+                  });
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Reset Filters'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF004E64),
+                  side: const BorderSide(color: Color(0xFF004E64)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -370,7 +813,9 @@ class _InboxPageState extends State<InboxPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: isSelected ? const Color(0xFF004E64) : Colors.transparent,
+                              color: isSelected
+                                  ? const Color(0xFF004E64)
+                                  : Colors.transparent,
                             ),
                           ),
                           onSelected: (selected) {
@@ -414,7 +859,9 @@ class _InboxPageState extends State<InboxPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
+                              color: isSelected
+                                  ? const Color(0xFFF59E0B)
+                                  : Colors.transparent,
                             ),
                           ),
                           onSelected: (selected) {

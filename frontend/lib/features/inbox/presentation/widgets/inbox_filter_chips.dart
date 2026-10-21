@@ -8,6 +8,11 @@ enum InboxFilterTab {
   declined,
 }
 
+/// Filter chips for the Inbox screen matching the exact UI styling of My Trips filter chips:
+/// - Rounded pill shapes (border radius 20)
+/// - Selected: Deep teal background (#004E64) with white text and translucent white count pill
+/// - Unselected: Soft slate background (#F1F5F9) with muted text and grey count pill
+/// - Smooth tap animation and horizontal scrolling
 class InboxFilterChips extends StatelessWidget {
   final InboxFilterTab selectedTab;
   final ValueChanged<InboxFilterTab> onTabChanged;
@@ -30,28 +35,28 @@ class InboxFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
           _buildChip(
             tab: InboxFilterTab.all,
-            label: 'All ($allCount)',
+            label: 'All',
+            count: allCount,
           ),
-          const SizedBox(width: 8),
           _buildChip(
             tab: InboxFilterTab.pending,
-            label: 'Pending ($pendingCount)',
+            label: 'Pending',
+            count: pendingCount,
           ),
-          const SizedBox(width: 8),
           _buildChip(
             tab: InboxFilterTab.accepted,
-            label: 'Accepted ($acceptedCount)',
+            label: 'Accepted',
+            count: acceptedCount,
           ),
-          const SizedBox(width: 8),
           _buildChip(
             tab: InboxFilterTab.declined,
-            label: 'Declined ($declinedCount)',
+            label: 'Declined',
+            count: declinedCount,
           ),
         ],
       ),
@@ -61,43 +66,51 @@ class InboxFilterChips extends StatelessWidget {
   Widget _buildChip({
     required InboxFilterTab tab,
     required String label,
+    required int count,
   }) {
     final isSelected = selectedTab == tab;
 
-    return GestureDetector(
-      onTap: () => onTabChanged(tab),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF004E64) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF004E64) : const Color(0xFFE2E8F0),
-            width: 1.2,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => onTabChanged(tab),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF004E64) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(20),
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF004E64).withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : const Color(0xFF64748B),
                   ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ],
           ),
         ),
       ),

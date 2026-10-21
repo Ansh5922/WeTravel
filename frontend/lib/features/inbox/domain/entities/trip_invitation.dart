@@ -1,3 +1,5 @@
+import 'inbox_invite_entity.dart';
+
 enum InvitationStatus {
   pending,
   accepted,
@@ -13,8 +15,10 @@ class TripInvitation {
   final String budgetRange;
   final int travelersCount;
   final String imageAsset;
+  final String? coverImageUrl;
   final String invitedBy;
   final String organizerAvatar;
+  final String? inviterAvatarUrl;
   final String organizerRole;
   final String timeAgo;
   final String tripDuration;
@@ -35,8 +39,10 @@ class TripInvitation {
     required this.budgetRange,
     required this.travelersCount,
     required this.imageAsset,
+    this.coverImageUrl,
     required this.invitedBy,
     required this.organizerAvatar,
+    this.inviterAvatarUrl,
     this.organizerRole = 'Controller',
     required this.timeAgo,
     this.tripDuration = '4 days',
@@ -58,8 +64,10 @@ class TripInvitation {
     String? budgetRange,
     int? travelersCount,
     String? imageAsset,
+    String? coverImageUrl,
     String? invitedBy,
     String? organizerAvatar,
+    String? inviterAvatarUrl,
     String? organizerRole,
     String? timeAgo,
     String? tripDuration,
@@ -80,8 +88,10 @@ class TripInvitation {
       budgetRange: budgetRange ?? this.budgetRange,
       travelersCount: travelersCount ?? this.travelersCount,
       imageAsset: imageAsset ?? this.imageAsset,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       invitedBy: invitedBy ?? this.invitedBy,
       organizerAvatar: organizerAvatar ?? this.organizerAvatar,
+      inviterAvatarUrl: inviterAvatarUrl ?? this.inviterAvatarUrl,
       organizerRole: organizerRole ?? this.organizerRole,
       timeAgo: timeAgo ?? this.timeAgo,
       tripDuration: tripDuration ?? this.tripDuration,
@@ -92,6 +102,64 @@ class TripInvitation {
       memberAvatars: memberAvatars ?? this.memberAvatars,
       status: status ?? this.status,
       category: category ?? this.category,
+    );
+  }
+
+  /// Construct a rich TripInvitation entity from a backend InboxInviteEntity
+  factory TripInvitation.fromInboxInvite(InboxInviteEntity invite) {
+    final status = switch (invite.status) {
+      InboxInviteStatus.pending => InvitationStatus.pending,
+      InboxInviteStatus.accepted => InvitationStatus.accepted,
+      InboxInviteStatus.rejected => InvitationStatus.declined,
+    };
+
+    final inviter = invite.inviterFullName.trim().isNotEmpty
+        ? invite.inviterFullName.trim()
+        : (invite.inviterUsername.trim().isNotEmpty
+            ? invite.inviterUsername.trim()
+            : 'Travel Buddy');
+
+    final destination = invite.groupName.trim().isNotEmpty
+        ? invite.groupName.trim()
+        : 'Trip Invitation';
+
+    final dateText = invite.expiresAt != null
+        ? 'Expires ${invite.expiresAt!.day}/${invite.expiresAt!.month}/${invite.expiresAt!.year}'
+        : 'Open Invitation';
+
+    const sampleImages = [
+      'assets/images/trip_goa.jpg',
+      'assets/images/trip_kerala.jpg',
+      'assets/images/trip_manali.jpg',
+      'assets/images/hero_coast.jpg',
+    ];
+    final imageIndex = invite.id.hashCode.abs() % sampleImages.length;
+
+    return TripInvitation(
+      id: invite.id,
+      tripId: invite.groupId,
+      title: destination,
+      destination: destination,
+      dateRange: dateText,
+      budgetRange: 'Shared Budget',
+      travelersCount: 2,
+      imageAsset: sampleImages[imageIndex],
+      invitedBy: inviter,
+      organizerAvatar: 'assets/images/avatar_user.jpg',
+      organizerRole: 'Organizer',
+      timeAgo: 'Recently',
+      tripDuration: 'Flexible',
+      tripType: 'Group Journey',
+      tripExpectations:
+          'Collaborative group adventure. Join to vote on polls, view itinerary, and manage shared expenses.',
+      matchPercentage: 88,
+      matchedPreferences: const ['Group Travel', 'Exploration', 'Local Culture'],
+      status: status,
+      category: 'Adventure',
+      memberAvatars: const [
+        'assets/images/avatar_user.jpg',
+        'assets/images/avatar_1.jpg',
+      ],
     );
   }
 

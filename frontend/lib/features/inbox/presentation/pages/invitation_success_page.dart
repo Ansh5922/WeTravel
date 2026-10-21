@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/router/route_names.dart';
+import '../../../trips/presentation/bloc/trip_bloc.dart';
+import '../../../trips/presentation/bloc/trip_event.dart';
 import '../../../trips/presentation/widgets/wave_header_clipper.dart';
 import '../../domain/entities/trip_invitation.dart';
 
-/// "You're In!" Celebration and Onboarding Screen.
-/// Displays when a user accepts a trip invitation, showing:
-/// - Hero celebration illustration with big checkmark
-/// - "You're In!" headline and warm welcome
-/// - Trip summary card with dates, destination, budget, and controller
+/// "You're In!" Celebration and Confirmation Screen.
+/// Displays when a user accepts a trip invitation:
+/// - Hero celebration illustration with big checkmark & wave header
+/// - "You're In!" headline and dynamic welcome message
+/// - Dynamic trip summary card with real destination, dates, budget, and controller
 /// - 4-step "What's Next?" collaboration timeline
-/// - "Set My Preferences" primary CTA & "Go to Trip Dashboard" secondary CTA
+/// - Primary CTA: "Enter Trip Workspace ➔" directing the user directly into the joined trip
+/// - Secondary CTA: "Personalize Travel Preferences"
 class InvitationSuccessPage extends StatelessWidget {
   final TripInvitation invitation;
 
@@ -20,8 +25,19 @@ class InvitationSuccessPage extends StatelessWidget {
     required this.invitation,
   });
 
+  void _enterTripWorkspace(BuildContext context) {
+    // Refresh trips in background and navigate straight to the trip workspace
+    context.read<TripBloc>().add(const TripsFetchRequested());
+    context.read<TripBloc>().add(TripDetailsRequested(invitation.tripId));
+
+    context.go(RouteNames.trips);
+    context.push(RouteNames.tripDetailsPath(invitation.tripId));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final title = invitation.title.isNotEmpty ? invitation.title : 'the trip';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
       body: Stack(
@@ -29,7 +45,7 @@ class InvitationSuccessPage extends StatelessWidget {
           // ── Scrollable Body ──────────────────────────────────────────
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(bottom: 130),
             child: Column(
               children: [
                 // 1. Hero with Checkmark and Wave Clipper
@@ -52,17 +68,17 @@ class InvitationSuccessPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Welcome to ${invitation.title}',
+                        'Welcome to $title',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           color: const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        "You've successfully joined the trip.\nGet ready for an amazing journey\nwith your friends!",
+                        "You've joined the trip squad.\nYour workspace is ready to collaborate\nwith your fellow travel buddies!",
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
                           fontSize: 13.5,
@@ -73,7 +89,7 @@ class InvitationSuccessPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // 3. Trip Summary Card
+                      // 3. Dynamic Trip Summary Card
                       _buildTripSummaryCard(),
 
                       const SizedBox(height: 24),
@@ -102,6 +118,7 @@ class InvitationSuccessPage extends StatelessWidget {
   // ── Hero Header with Big Checkmark Badge ───────────────────────────────────
   Widget _buildHeroWithCheckmark(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final coverUrl = invitation.coverImageUrl;
 
     return Stack(
       alignment: Alignment.center,
@@ -116,13 +133,15 @@ class InvitationSuccessPage extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(
-                  invitation.imageAsset,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFF004E64),
-                  ),
-                ),
+                if (coverUrl != null && coverUrl.isNotEmpty)
+                  Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackHeroImage(),
+                  )
+                else
+                  _buildFallbackHeroImage(),
+
                 // Subtle warm sunset gradient overlay
                 Container(
                   decoration: BoxDecoration(
@@ -148,11 +167,10 @@ class InvitationSuccessPage extends StatelessWidget {
           right: 18,
           child: GestureDetector(
             onTap: () {
-              // Return back to shell or inbox
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go(RouteNames.home);
+                context.go(RouteNames.trips);
               }
             },
             child: Container(
@@ -202,8 +220,20 @@ class InvitationSuccessPage extends StatelessWidget {
     );
   }
 
+  Widget _buildFallbackHeroImage() {
+    return Image.asset(
+      invitation.imageAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: const Color(0xFF004E64),
+      ),
+    );
+  }
+
   // ── Trip Summary Card ──────────────────────────────────────────────────────
   Widget _buildTripSummaryCard() {
+    final coverUrl = invitation.coverImageUrl;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -229,10 +259,13 @@ class InvitationSuccessPage extends StatelessWidget {
                   child: SizedBox(
                     width: 76,
                     height: 76,
-                    child: Image.asset(
-                      invitation.imageAsset,
-                      fit: BoxFit.cover,
-                    ),
+                    child: coverUrl != null && coverUrl.isNotEmpty
+                        ? Image.network(
+                            coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _buildFallbackHeroImage(),
+                          )
+                        : _buildFallbackHeroImage(),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -268,12 +301,16 @@ class InvitationSuccessPage extends StatelessWidget {
                             color: Color(0xFF004E64),
                           ),
                           const SizedBox(width: 3),
-                          Text(
-                            invitation.destination,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
+                          Expanded(
+                            child: Text(
+                              invitation.destination,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -335,48 +372,56 @@ class InvitationSuccessPage extends StatelessWidget {
                       color: Color(0xFF004E64),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      invitation.budgetRange,
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          invitation.budgetRange,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Budget',
+                          style: GoogleFonts.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
 
-                // 3. Controller
+                // 3. Organizer / Controller
                 Row(
                   children: [
-                    ClipOval(
-                      child: SizedBox(
-                        width: 26,
-                        height: 26,
-                        child: Image.asset(
-                          invitation.organizerAvatar,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 16,
+                      color: Color(0xFFF59E0B),
                     ),
                     const SizedBox(width: 6),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          invitation.organizerRole,
+                          invitation.invitedBy.isNotEmpty ? invitation.invitedBy : 'Organizer',
                           style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFD97706),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
-                          invitation.invitedBy,
+                          invitation.organizerRole,
                           style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFFD97706),
                           ),
                         ),
                       ],
@@ -393,84 +438,94 @@ class InvitationSuccessPage extends StatelessWidget {
 
   // ── "What's Next?" Timeline ────────────────────────────────────────────────
   Widget _buildWhatsNextTimeline() {
-    final steps = [
-      (
-        '1',
-        'Set your preferences',
-        'Tell us what you like and need',
-      ),
-      (
-        '2',
-        'AI analyzes group choices',
-        "We'll find the best options for everyone",
-      ),
-      (
-        '3',
-        'Generate travel plans',
-        'Multiple options to choose from',
-      ),
-      (
-        '4',
-        'Vote & finalize itinerary',
-        'Decide together as a group',
-      ),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            "What's Next?",
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF004E64),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F3F5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 16,
+                color: Color(0xFF004E64),
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Text(
+              "What's Next?",
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF004E64),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
 
-        // Timeline items
-        for (int i = 0; i < steps.length; i++)
-          _buildTimelineStep(
-            number: steps[i].$1,
-            title: steps[i].$2,
-            subtitle: steps[i].$3,
-            isLast: i == steps.length - 1,
-          ),
+        _buildTimelineStep(
+          stepNumber: '1',
+          title: 'Review Trip Workspace',
+          subtitle: 'Explore the drafted destination, schedule, and team members.',
+          isFirst: true,
+        ),
+        _buildTimelineStep(
+          stepNumber: '2',
+          title: 'Vote on Itinerary & Polls',
+          subtitle: 'Cast your votes on dates, stays, dining, and daily spots.',
+        ),
+        _buildTimelineStep(
+          stepNumber: '3',
+          title: 'Group Chat Collaboration',
+          subtitle: 'Coordinate real-time decisions directly with your travel squad.',
+        ),
+        _buildTimelineStep(
+          stepNumber: '4',
+          title: 'Track Shared Expenses',
+          subtitle: 'Log payments and settle bills transparently with equal splits.',
+          isLast: true,
+        ),
       ],
     );
   }
 
   Widget _buildTimelineStep({
-    required String number,
+    required String stepNumber,
     required String title,
     required String subtitle,
-    required bool isLast,
+    bool isFirst = false,
+    bool isLast = false,
   }) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Step circle and vertical connector line
+          // Step pill + connecting line
           Column(
             children: [
               Container(
                 width: 28,
                 height: 28,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF004E64),
+                decoration: BoxDecoration(
+                  color: isFirst ? const Color(0xFF004E64) : const Color(0xFFE8F3F5),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isFirst ? const Color(0xFF004E64) : const Color(0xFF0A9396),
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
                   child: Text(
-                    number,
+                    stepNumber,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: isFirst ? Colors.white : const Color(0xFF004E64),
                     ),
                   ),
                 ),
@@ -479,15 +534,15 @@ class InvitationSuccessPage extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: const Color(0xFF004E64),
-                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    color: const Color(0xFFE2E8F0),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
                   ),
                 ),
             ],
           ),
           const SizedBox(width: 14),
 
-          // Step Title & Subtitle
+          // Step content
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
@@ -547,14 +602,12 @@ class InvitationSuccessPage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Primary Button: "Set My Preferences"
+          // Primary Button: "Enter Trip Workspace ➔"
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 52,
             child: ElevatedButton(
-              onPressed: () {
-                context.push(RouteNames.preferences);
-              },
+              onPressed: () => _enterTripWorkspace(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF59E0B),
                 elevation: 0,
@@ -562,25 +615,36 @@ class InvitationSuccessPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: Text(
-                'Set My Preferences',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Enter Trip Workspace',
+                    style: GoogleFonts.inter(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Color(0xFF0F172A),
+                    size: 19,
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 10),
 
-          // Secondary Button: "Go to Trip Dashboard"
+          // Secondary Button: "Set My Preferences"
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 48,
             child: OutlinedButton(
               onPressed: () {
-                context.push(RouteNames.tripDetailsPath(invitation.tripId));
+                context.push(RouteNames.preferences);
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFF004E64), width: 1.2),
@@ -589,10 +653,10 @@ class InvitationSuccessPage extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Go to Trip Dashboard',
+                'Personalize Travel Preferences',
                 style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
                   color: const Color(0xFF004E64),
                 ),
               ),

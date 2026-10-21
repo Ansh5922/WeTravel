@@ -10,6 +10,7 @@ sealed class ProfileState extends Equatable {
   bool get isLoading => this is ProfileLoadingState;
   bool get isLoaded => this is ProfileLoadedState;
   bool get isError => this is ProfileErrorState;
+  bool get isAccountDeleted => this is ProfileAccountDeletedState;
 
   ProfileEntity? get profile =>
       this is ProfileLoadedState ? (this as ProfileLoadedState).profile : null;
@@ -22,6 +23,11 @@ sealed class ProfileState extends Equatable {
 
   @override
   List<Object?> get props => [];
+}
+
+/// State emitted when account deletion succeeds.
+class ProfileAccountDeletedState extends ProfileState {
+  const ProfileAccountDeletedState();
 }
 
 /// Initial uninitialized state.

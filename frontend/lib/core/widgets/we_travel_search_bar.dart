@@ -53,61 +53,59 @@ class WeTravelSearchBar extends StatelessWidget {
                 ),
               ],
             ),
-            child: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (context, value, _) {
-                final hasText = value.text.isNotEmpty;
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  autofocus: autofocus,
-                  onChanged: onChanged,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF0F172A),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlignVertical: TextAlignVertical.center,
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    hintStyle: GoogleFonts.inter(
-                      fontSize: 13.5,
-                      color: const Color(0xFF94A3B8),
-                      fontWeight: FontWeight.w400,
-                    ),
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF94A3B8),
-                      size: 20,
-                    ),
-                    suffixIcon: hasText
-                        ? IconButton(
-                            icon: const Icon(
-                              Icons.clear_rounded,
-                              size: 18,
-                              color: Color(0xFF64748B),
-                            ),
-                            splashRadius: 18,
-                            onPressed: () {
-                              controller.clear();
-                              if (onChanged != null) {
-                                onChanged!('');
-                              }
-                              if (onClear != null) {
-                                onClear!();
-                              }
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    isDense: false,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                );
-              },
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              autofocus: autofocus,
+              onChanged: onChanged,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: const Color(0xFF0F172A),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: GoogleFonts.inter(
+                  fontSize: 13.5,
+                  color: const Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 20,
+                ),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return IconButton(
+                      icon: const Icon(
+                        Icons.clear_rounded,
+                        size: 18,
+                        color: Color(0xFF64748B),
+                      ),
+                      splashRadius: 18,
+                      onPressed: () {
+                        controller.clear();
+                        if (onChanged != null) {
+                          onChanged!('');
+                        }
+                        if (onClear != null) {
+                          onClear!();
+                        }
+                      },
+                    );
+                  },
+                ),
+                border: InputBorder.none,
+                isDense: false,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
             ),
           ),
         ),

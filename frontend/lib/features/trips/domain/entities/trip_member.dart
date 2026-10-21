@@ -1,24 +1,40 @@
+import '../../../friends/domain/entities/friend_entity.dart';
+
 /// Entity representing a friend candidate for trip invitation.
 class TripMember {
   final String id;
   final String name;
   final String email;
   final String avatarAsset;
+  final String? avatarUrl;
   bool isSelected;
 
   TripMember({
     required this.id,
     required this.name,
     required this.email,
-    required this.avatarAsset,
+    this.avatarAsset = 'assets/images/avatar_user.jpg',
+    this.avatarUrl,
     this.isSelected = false,
   });
+
+  factory TripMember.fromFriendEntity(FriendEntity friend, {bool isSelected = false}) {
+    return TripMember(
+      id: friend.userId,
+      name: friend.fullName.trim().isNotEmpty ? friend.fullName : friend.username,
+      email: '@${friend.username}',
+      avatarAsset: 'assets/images/avatar_user.jpg',
+      avatarUrl: friend.avatarUrl,
+      isSelected: isSelected,
+    );
+  }
 
   TripMember copyWith({
     String? id,
     String? name,
     String? email,
     String? avatarAsset,
+    String? avatarUrl,
     bool? isSelected,
   }) {
     return TripMember(
@@ -26,6 +42,7 @@ class TripMember {
       name: name ?? this.name,
       email: email ?? this.email,
       avatarAsset: avatarAsset ?? this.avatarAsset,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       isSelected: isSelected ?? this.isSelected,
     );
   }

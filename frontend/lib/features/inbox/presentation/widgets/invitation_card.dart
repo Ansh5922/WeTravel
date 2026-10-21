@@ -53,18 +53,31 @@ class InvitationCard extends StatelessWidget {
                   child: SizedBox(
                     width: 92,
                     height: 96,
-                    child: Image.asset(
-                      invitation.imageAsset,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: const Color(0xFFE2E8F0),
-                        child: const Icon(
-                          Icons.landscape_rounded,
-                          color: Color(0xFF94A3B8),
-                          size: 32,
-                        ),
-                      ),
-                    ),
+                    child: invitation.imageAsset.startsWith('http')
+                        ? Image.network(
+                            invitation.imageAsset,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFFDEF2F1),
+                              child: const Icon(
+                                Icons.landscape_rounded,
+                                color: Color(0xFF004E64),
+                                size: 32,
+                              ),
+                            ),
+                          )
+                        : Image.asset(
+                            invitation.imageAsset,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFFE2E8F0),
+                              child: const Icon(
+                                Icons.landscape_rounded,
+                                color: Color(0xFF94A3B8),
+                                size: 32,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -227,6 +240,67 @@ class InvitationCard extends StatelessWidget {
                           color: const Color(0xFF64748B),
                         ),
                       ),
+                      if (invitation.status == InvitationStatus.pending &&
+                          (onAccept != null || onDecline != null)) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (onAccept != null)
+                              Expanded(
+                                child: SizedBox(
+                                  height: 30,
+                                  child: ElevatedButton(
+                                    onPressed: onAccept,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF004E64),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Accept',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (onAccept != null && onDecline != null)
+                              const SizedBox(width: 8),
+                            if (onDecline != null)
+                              Expanded(
+                                child: SizedBox(
+                                  height: 30,
+                                  child: OutlinedButton(
+                                    onPressed: onDecline,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF64748B),
+                                      side: const BorderSide(
+                                        color: Color(0xFFCBD5E1),
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Decline',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

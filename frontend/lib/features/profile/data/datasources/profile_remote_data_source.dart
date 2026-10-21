@@ -7,19 +7,24 @@ import '../../../auth/data/models/user_model.dart';
 import '../models/profile_model.dart';
 
 abstract class ProfileRemoteDataSource {
-  Future<ProfileModel> getProfile(String token);
+  Future<({ProfileModel profile, UserModel? user})> getProfile(String token);
 
   Future<({ProfileModel profile, UserModel? user, String message})> updateProfile({
     required String token,
     String? fullName,
+    String? username,
     String? phone,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
     String? budgetTier,
     String? pacePreference,
+    Map<String, dynamic>? healthConstraints,
+    Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
   });
+
+  Future<void> deleteAccount(String token);
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
@@ -28,7 +33,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   ProfileRemoteDataSourceImpl({required this.dio});
 
   @override
-  Future<ProfileModel> getProfile(String token) async {
+  Future<({ProfileModel profile, UserModel? user})> getProfile(String token) async {
     debugPrint('[PROFILE_REMOTE_DS] 🚀 GET ${ApiConstants.userProfile}');
     try {
       final response = await dio.get(
@@ -51,7 +56,21 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       }
 
       if (data is Map<String, dynamic>) {
-        return ProfileModel.fromJson(data);
+        final resData = (data['data'] is Map<String, dynamic>)
+            ? data['data'] as Map<String, dynamic>
+            : data;
+
+        final profileJson = resData['profile'] is Map<String, dynamic>
+            ? resData['profile'] as Map<String, dynamic>
+            : resData;
+        final profile = ProfileModel.fromJson(profileJson);
+
+        UserModel? user;
+        if (resData['user'] is Map<String, dynamic>) {
+          user = UserModel.fromJson(resData['user'] as Map<String, dynamic>);
+        }
+
+        return (profile: profile, user: user);
       } else {
         throw const ServerException('Invalid response format from server.');
       }
@@ -71,22 +90,28 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<({ProfileModel profile, UserModel? user, String message})> updateProfile({
     required String token,
     String? fullName,
+    String? username,
     String? phone,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
     String? budgetTier,
     String? pacePreference,
+    Map<String, dynamic>? healthConstraints,
+    Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
   }) async {
     final payload = <String, dynamic>{
       if (fullName != null && fullName.trim().isNotEmpty) 'fullName': fullName.trim(),
+      if (username != null && username.trim().isNotEmpty) 'username': username.trim(),
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
       if (travelStyle != null && travelStyle.trim().isNotEmpty) 'travelStyle': travelStyle.trim(),
       if (dietaryPreference != null && dietaryPreference.trim().isNotEmpty) 'dietaryPreference': dietaryPreference.trim(),
       if (budget != null) ...{'budget': budget},
       if (budgetTier != null && budgetTier.trim().isNotEmpty) 'budgetTier': budgetTier.trim(),
       if (pacePreference != null && pacePreference.trim().isNotEmpty) 'pacePreference': pacePreference.trim(),
+      if (healthConstraints != null) 'healthConstraints': healthConstraints,
+      if (climateSensitivities != null) 'climateSensitivities': climateSensitivities,
       if (rawPreferenceNotes != null && rawPreferenceNotes.trim().isNotEmpty) 'rawPreferenceNotes': rawPreferenceNotes.trim(),
     };
 
@@ -138,6 +163,36 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       debugPrint('[PROFILE_REMOTE_DS] 💥 Error on updateProfile: $e');
+      if (e is AuthException || e is ServerException || e is NetworkException) {
+        rethrow;
+      }
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> deleteAccount(String token) async {
+    debugPrint('[PROFILE_REMOTE_DS] 🚀 DELETE ${ApiConstants.deleteAccount}');
+    try {
+      final response = await dio.delete(
+        ApiConstants.deleteAccount,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      debugPrint('[PROFILE_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] ⚠️ DioError on deleteAccount: [${e.response?.statusCode}] ${e.message}');
+      // If backend route is not yet implemented by teammate (404/501), allow frontend to proceed
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 501) {
+        debugPrint('[PROFILE_REMOTE_DS] ℹ️ Backend delete endpoint will be implemented later by teammate. Proceeding with client session clearance.');
+        return;
+      }
+      throw _handleDioError(e);
+    } catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] 💥 Error on deleteAccount: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }

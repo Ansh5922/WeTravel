@@ -40,6 +40,26 @@ class UserEntity {
       isPremium.hashCode ^
       createdAt.hashCode;
 
+  UserEntity copyWith({
+    String? id,
+    String? email,
+    String? username,
+    String? fullName,
+    String? phone,
+    bool? isPremium,
+    DateTime? createdAt,
+  }) {
+    return UserEntity(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      isPremium: isPremium ?? this.isPremium,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   @override
   String toString() {
     return 'UserEntity(id: $id, email: $email, username: $username, fullName: $fullName, isPremium: $isPremium, createdAt: $createdAt)';

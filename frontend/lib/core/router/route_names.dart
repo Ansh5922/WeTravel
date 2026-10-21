@@ -17,11 +17,14 @@ class RouteNames {
   static const String profile = '/profile';
   static const String preferences = '/preferences';
   static const String myPreferences = '/profile/preferences';
+  static const String accountSettings = '/profile/account-settings';
+  static const String privacyPolicy = '/profile/privacy-policy';
 
   // ── Trip Details & Nested Trip Routes ───────────────────────────────────────
   static const String createTrip = '/trips/create';
   static const String inviteMembers = '/trips/invite';
   static const String reviewTrip = '/trips/review';
+  static const String joinTrip = '/trips/join/:token';
   static const String invitationDetails = '/inbox/details';
   static const String invitationSuccess = '/inbox/success';
   static const String tripDetails = '/trips/:tripId';
@@ -37,6 +40,7 @@ class RouteNames {
   static const String votingCollaboration = '/trips/:tripId/voting-collaboration';
 
   // ── Dynamic Path Generators ─────────────────────────────────────────────────
+  static String joinTripPath(String token) => '/trips/join/$token';
   static String tripDetailsPath(String tripId) => '/trips/$tripId';
   static String addSuggestionPath(String tripId) => '/trips/$tripId/add-suggestion';
   static String suggestionDetailPath(String tripId) => '/trips/$tripId/suggestion-detail';

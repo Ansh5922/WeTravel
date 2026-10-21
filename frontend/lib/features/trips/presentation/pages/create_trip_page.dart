@@ -5,30 +5,32 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/entities/trip_review_draft.dart';
 import '../widgets/budget_range_pill.dart';
-import '../widgets/dotted_trail_decorator.dart';
 import '../widgets/trip_category_icons.dart';
 import '../widgets/trip_type_tile.dart';
 import '../widgets/wave_header_clipper.dart';
 
 /// Create Trip screen matching the design:
-/// Destination selector, interactive date range cards, trip category tiles,
-/// budget range selection, and sticky Continue button with map trail decoration.
+/// Destination picker, interactive dynamic date range cards,
+/// trip category tiles, interactive budget slider with tier pills,
+/// and sticky Continue button at the bottom.
 class CreateTripPage extends StatefulWidget {
-  const CreateTripPage({super.key});
+  final TripReviewDraft? initialDraft;
+
+  const CreateTripPage({super.key, this.initialDraft});
 
   @override
   State<CreateTripPage> createState() => _CreateTripPageState();
 }
 
 class _CreateTripPageState extends State<CreateTripPage> {
-  final TextEditingController _destinationController =
-      TextEditingController(text: 'Goa, India');
+  final TextEditingController _destinationController = TextEditingController();
 
-  DateTime _startDate = DateTime(2026, 10, 12);
-  DateTime _endDate = DateTime(2026, 10, 15);
+  late DateTime _startDate;
+  late DateTime _endDate;
 
   String _selectedTripType = 'Vacation';
-  String _selectedBudget = '₹20K – ₹50K';
+  double _budgetSliderValue = 35000;
+  String _selectedBudgetTier = '₹20K – ₹50K';
 
   final List<String> _budgetOptions = const [
     '< ₹20K',
@@ -36,6 +38,24 @@ class _CreateTripPageState extends State<CreateTripPage> {
     '₹50K – ₹1L',
     '> ₹1L',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialDraft != null) {
+      final draft = widget.initialDraft!;
+      _destinationController.text = draft.destination;
+      _startDate = draft.startDate;
+      _endDate = draft.endDate;
+      _selectedTripType = draft.tripStyle;
+      _selectedBudgetTier = draft.budget;
+      _budgetSliderValue = 35000;
+    } else {
+      final now = DateTime.now();
+      _startDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 7));
+      _endDate = _startDate.add(const Duration(days: 3));
+    }
+  }
 
   @override
   void dispose() {
@@ -52,11 +72,13 @@ class _CreateTripPageState extends State<CreateTripPage> {
   }
 
   Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _startDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2030),
+      initialDate: _startDate.isBefore(today) ? today : _startDate,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 730)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -84,9 +106,9 @@ class _CreateTripPageState extends State<CreateTripPage> {
   Future<void> _pickEndDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _endDate.isAfter(_startDate) ? _endDate : _startDate,
+      initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
       firstDate: _startDate,
-      lastDate: DateTime(2030),
+      lastDate: _startDate.add(const Duration(days: 730)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -108,13 +130,149 @@ class _CreateTripPageState extends State<CreateTripPage> {
     }
   }
 
+  void _onBudgetSliderChanged(double value) {
+    setState(() {
+      _budgetSliderValue = value;
+      if (value < 20000) {
+        _selectedBudgetTier = '< ₹20K';
+      } else if (value <= 50000) {
+        _selectedBudgetTier = '₹20K – ₹50K';
+      } else if (value <= 100000) {
+        _selectedBudgetTier = '₹50K – ₹1L';
+      } else {
+        _selectedBudgetTier = '> ₹1L';
+      }
+    });
+  }
+
+  void _onBudgetTierTapped(String tier) {
+    setState(() {
+      _selectedBudgetTier = tier;
+      switch (tier) {
+        case '< ₹20K':
+          _budgetSliderValue = 15000;
+          break;
+        case '₹20K – ₹50K':
+          _budgetSliderValue = 35000;
+          break;
+        case '₹50K – ₹1L':
+          _budgetSliderValue = 75000;
+          break;
+        case '> ₹1L':
+          _budgetSliderValue = 125000;
+          break;
+      }
+    });
+  }
+
+  String _formatCurrency(double val) {
+    if (val >= 100000) {
+      final inLakhs = val / 100000;
+      return '₹${inLakhs.toStringAsFixed(1)}L';
+    }
+    final inThousands = (val / 1000).round();
+    return '₹$inThousands' 'K';
+  }
+
+  String _resolveCoverImageUrl(String destination, String style) {
+    final lower = destination.toLowerCase();
+
+    // ── Coastal & Beaches ──────────────────────────────────────────────────
+    if (lower.contains('beach') ||
+        lower.contains('goa') ||
+        lower.contains('bali') ||
+        lower.contains('phuket') ||
+        lower.contains('pondicherry') ||
+        lower.contains('andaman') ||
+        lower.contains('maldives')) {
+      return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1200';
+    }
+
+    // ── Mountains, Hills & Valleys ─────────────────────────────────────────
+    if (lower.contains('manali') ||
+        lower.contains('ladakh') ||
+        lower.contains('mountain') ||
+        lower.contains('himalaya') ||
+        lower.contains('shimla') ||
+        lower.contains('kashmir') ||
+        lower.contains('rishikesh') ||
+        lower.contains('spiti') ||
+        lower.contains('leh') ||
+        lower.contains('kasol') ||
+        lower.contains('ooty')) {
+      return 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1200';
+    }
+
+    // ── Heritage, Palaces & Forts ──────────────────────────────────────────
+    if (lower.contains('jaipur') ||
+        lower.contains('rajasthan') ||
+        lower.contains('palace') ||
+        lower.contains('agra') ||
+        lower.contains('udaipur') ||
+        lower.contains('jodhpur') ||
+        lower.contains('varanasi') ||
+        lower.contains('hampi') ||
+        lower.contains('delhi')) {
+      return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1200';
+    }
+
+    // ── Nature & Backwaters ────────────────────────────────────────────────
+    if (lower.contains('kerala') ||
+        lower.contains('backwater') ||
+        lower.contains('alleppey') ||
+        lower.contains('munnar') ||
+        lower.contains('wayanad') ||
+        lower.contains('coorg') ||
+        lower.contains('forest')) {
+      return 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1200';
+    }
+
+    // ── Metros & Urban Skylines ────────────────────────────────────────────
+    if (lower.contains('mumbai') ||
+        lower.contains('bangalore') ||
+        lower.contains('singapore') ||
+        lower.contains('dubai') ||
+        lower.contains('london') ||
+        lower.contains('paris') ||
+        lower.contains('tokyo') ||
+        lower.contains('new york')) {
+      return 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=1200';
+    }
+
+    // ── Fallback by Selected Trip Style (Copyright-Free Unsplash) ──────────
+    switch (style.toLowerCase()) {
+      case 'adventure':
+        return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200';
+      case 'food':
+        return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200';
+      case 'cultural':
+        return 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200';
+      default:
+        // Scenic travel wanderlust
+        return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200';
+    }
+  }
+
   void _onContinue() {
+    FocusScope.of(context).unfocus();
+
     final destination = _destinationController.text.trim();
     if (destination.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a destination to proceed.'),
-          backgroundColor: Color(0xFFBA1A1A),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Please enter or pick a destination.',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFBA1A1A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -128,11 +286,11 @@ class _CreateTripPageState extends State<CreateTripPage> {
       destination: destination,
       startDate: _startDate,
       endDate: _endDate,
-      budget: _selectedBudget == '₹20K – ₹50K' ? '₹20k–₹30k' : _selectedBudget,
+      budget: '₹${(_budgetSliderValue / 1000).round()}k ($_selectedBudgetTier)',
       tripStyle: tripStyle,
+      coverImageUrl: _resolveCoverImageUrl(destination, tripStyle),
     );
 
-    // Navigate to Invite Members screen passing the draft details
     context.push(RouteNames.inviteMembers, extra: draft);
   }
 
@@ -142,11 +300,64 @@ class _CreateTripPageState extends State<CreateTripPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _onContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: const Color(0xFF0F172A),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Next: Add Buddies',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 19,
+                    color: Color(0xFF0F172A),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: RepaintBoundary(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // ── Top Scenic Header with Curved Edge ─────────────────────────
             ClipPath(
               clipper: WaveHeaderClipper(),
@@ -155,7 +366,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage('assets/images/create_trip_header.jpg'),
+                    image: AssetImage('assets/images/hero_coast.jpg'),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -231,9 +442,57 @@ class _CreateTripPageState extends State<CreateTripPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
+
+                  // ── Step Indicator Pill: "01 Trip Details" ───────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F3F5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFFBCE3E8),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF004E64),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '01',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Trip Details',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E64),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
 
                   // ── 1. Where to? Section ─────────────────────────────────
                   _buildSectionHeader(
@@ -242,27 +501,29 @@ class _CreateTripPageState extends State<CreateTripPage> {
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    height: 48,
+                    height: 50,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.0,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.07),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 14,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Row(
                       children: [
                         // Yellow Location Pin Badge
                         Container(
-                          width: 30,
-                          height: 30,
+                          width: 32,
+                          height: 32,
                           decoration: const BoxDecoration(
                             color: Color(0xFFFEF3C7),
                             shape: BoxShape.circle,
@@ -271,7 +532,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                             child: Icon(
                               Icons.location_on,
                               color: Color(0xFFF59E0B),
-                              size: 17,
+                              size: 18,
                             ),
                           ),
                         ),
@@ -282,41 +543,48 @@ class _CreateTripPageState extends State<CreateTripPage> {
                           child: TextField(
                             controller: _destinationController,
                             style: GoogleFonts.inter(
-                              fontSize: 14.5,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFF1E293B),
                             ),
                             textAlignVertical: TextAlignVertical.center,
                             decoration: InputDecoration(
-                              hintText: 'Enter destination...',
+                              hintText: 'Enter destination (e.g. Goa, Manali, Bali)...',
                               hintStyle: GoogleFonts.inter(
                                 fontSize: 13.5,
                                 color: const Color(0xFF94A3B8),
                                 fontWeight: FontWeight.w400,
                               ),
                               border: InputBorder.none,
-                              isDense: false,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
                               contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             ),
+                            onChanged: (_) => setState(() {}),
                           ),
                         ),
 
                         // Clear Button (x)
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _destinationController.clear();
-                            });
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: Color(0xFF64748B),
-                              size: 20,
+                        if (_destinationController.text.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _destinationController.clear();
+                              });
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Color(0xFF64748B),
+                                size: 20,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -357,7 +625,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                   // ── 3. Trip Type Section ─────────────────────────────────
                   _buildSectionHeader(
                     icon: Icons.tour_rounded,
-                    title: 'Trip type',
+                    title: 'Trip style',
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -410,80 +678,115 @@ class _CreateTripPageState extends State<CreateTripPage> {
 
                   const SizedBox(height: 24),
 
-                  // ── 4. Budget Range Section ──────────────────────────────
-                  _buildSectionHeader(
-                    icon: Icons.currency_rupee_rounded,
-                    title: 'Budget range',
-                    subtitle: ' (per person)',
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _budgetOptions.map((opt) {
-                      return BudgetRangePill(
-                        label: opt,
-                        isSelected: _selectedBudget == opt,
-                        onTap: () {
-                          setState(() {
-                            _selectedBudget = opt;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 36),
-
-                  // ── 5. Continue Button ───────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _onContinue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF59E0B),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  // ── 4. Budget Slider & Tiers Section ─────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSectionHeader(
+                        icon: Icons.currency_rupee_rounded,
+                        title: 'Budget',
+                        subtitle: ' (per person)',
+                      ),
+                      Text(
+                        _formatCurrency(_budgetSliderValue),
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF005F73),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Continue',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.1,
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Interactive Budget Slider Card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ExcludeSemantics(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFFF59E0B),
+                              inactiveTrackColor: const Color(0xFFE2E8F0),
+                              thumbColor: const Color(0xFF005F73),
+                              overlayColor: const Color(0xFF005F73).withValues(alpha: 0.12),
+                              trackHeight: 5,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                            ),
+                            child: Slider(
+                              value: _budgetSliderValue,
+                              min: 5000,
+                              max: 150000,
+                              divisions: 29,
+                              onChanged: _onBudgetSliderChanged,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 19,
-                            color: Colors.white,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '₹5K (Budget)',
+                                style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                              ),
+                              Text(
+                                '₹1.5L+ (Luxury)',
+                                style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  // ── 6. Decorative Dotted Trail ───────────────────────────
-                  const DottedTrailDecorator(),
+                  const SizedBox(height: 12),
 
-                  const SizedBox(height: 16),
+                  // Budget Tier Quick Pills
+                  Semantics(
+                    container: true,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _budgetOptions.map((opt) {
+                        return BudgetRangePill(
+                          label: opt,
+                          isSelected: _selectedBudgetTier == opt,
+                          onTap: () => _onBudgetTierTapped(opt),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── Helper Widgets ────────────────────────────────────────────────────────
 
