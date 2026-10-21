@@ -20,6 +20,7 @@ class ApiConstants {
 
   // User endpoints
   static const String userProfile = '/api/users/profile';
+  static const String deleteAccount = '/api/users/account';
 
   // Friends endpoints
   static const String friendRequest = '/api/friends/request';
