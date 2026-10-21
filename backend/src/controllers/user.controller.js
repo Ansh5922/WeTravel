@@ -98,4 +98,23 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { updateProfile, getProfile };
+/**
+ * DELETE /api/users/account
+ * Delete authenticated user's account and scrub personal data.
+ * Returns confirmation of successful anonymization/deletion.
+ */
+const deleteAccount = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await userService.deleteAccount(userId);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Account deleted successfully and personal data anonymized.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { updateProfile, getProfile, deleteAccount };

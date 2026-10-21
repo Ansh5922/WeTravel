@@ -164,4 +164,14 @@ const getProfile = async (userId) => {
   return userRepository.findProfileByUserId(userId);
 };
 
-module.exports = { updateProfile, getProfile };
+/**
+ * Delete a user's account and scrub personal data.
+ * Complies with Play Store & GDPR data deletion policies.
+ * @param {string} userId
+ * @returns {Promise<object>}
+ */
+const deleteAccount = async (userId) => {
+  return userRepository.anonymizeAndDeleteUser(userId);
+};
+
+module.exports = { updateProfile, getProfile, deleteAccount };
