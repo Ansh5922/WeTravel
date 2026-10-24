@@ -124,6 +124,19 @@ The Backend is the central coordinator of WeTravel built with **Node.js & Expres
   - `message`: "Profile updated successfully."
   - `profile`: Updated profile details.
 
+#### 2.3 Delete Account (Play Store & GDPR Compliant)
+- **What it does:** Permanently deletes user account, scrubs all personal identifying data (PII), and invalidates active sessions while preserving shared group financial ledgers.
+- **Route:** `DELETE /api/users/account`
+- **What is sent in (Request):** None (requires Bearer token).
+- **How it is handled behind the scenes:**
+  - Deletes user's private `UserProfile` and AI preference vectors.
+  - Deletes all friendship connections and pending invites.
+  - Scrubs name to `"Deleted User"`, email to an anonymized placeholder, and sets phone/passwords to `null`.
+  - Immediately revokes the JWT session so the user cannot log in again.
+- **What is returned (Response):**
+  - `status`: `"success"`
+  - `message`: `"Account deleted successfully and personal data anonymized."`
+
 ---
 
 ### 3. Friends & Social Network

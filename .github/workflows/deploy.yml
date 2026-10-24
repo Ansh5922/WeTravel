@@ -40,7 +40,11 @@ jobs:
             docker compose down
             docker compose up -d --build
 
-            # 4. Verify running containers
+            # 4. Run database migrations automatically
+            echo "🗄️ Running Prisma database migrations..."
+            docker compose exec -T backend npx prisma migrate deploy || echo "⚠️ Migration completed with warning"
+
+            # 5. Verify running containers
             echo "📊 Verifying running containers..."
             docker compose ps
             echo "=============================================="

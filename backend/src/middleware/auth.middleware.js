@@ -37,12 +37,12 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ status: 'error', message });
     }
 
-    // 3. Confirm user still exists in DB (protects against deleted accounts)
+    // 3. Confirm user still exists and is not deleted in DB
     const user = await authRepository.findUserById(decoded.sub);
-    if (!user) {
+    if (!user || user.fullName === 'Deleted User' || (user.email && user.email.endsWith('@deleted.wetravel.internal'))) {
       return res.status(401).json({
         status: 'error',
-        message: 'The user belonging to this token no longer exists.',
+        message: 'This account has been deleted or no longer exists.',
       });
     }
 

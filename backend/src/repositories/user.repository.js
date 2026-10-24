@@ -65,8 +65,65 @@ const updateUser = async (userId, data) => {
   });
 };
 
+/**
+ * Anonymize and delete a user's account (Play Store & GDPR compliant soft-delete).
+ * Scrubs all PII, removes private profile & friendships, and preserves ledger integrity.
+ * @param {string} userId
+ * @returns {Promise<object>}
+ */
+const anonymizeAndDeleteUser = async (userId) => {
+  const anonymizedEmail = `deleted_${userId}@deleted.wetravel.internal`;
+  const anonymizedUsername = `deleted_${userId.replace(/-/g, '').slice(0, 12)}`;
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Delete user's private profile & AI preferences
+    await tx.userProfile.deleteMany({
+      where: { userId },
+    });
+
+    // 2. Delete all friendship records (both sent and received)
+    await tx.friendship.deleteMany({
+      where: {
+        OR: [
+          { userId },
+          { friendId: userId },
+        ],
+      },
+    });
+
+    // 3. Delete pending trip invitations sent by this user
+    await tx.tripInvite.deleteMany({
+      where: { inviterId: userId },
+    });
+
+    // 4. Scrub all Personally Identifiable Information (PII) from user record
+    const updatedUser = await tx.user.update({
+      where: { id: userId },
+      data: {
+        fullName: 'Deleted User',
+        email: anonymizedEmail,
+        username: anonymizedUsername,
+        passwordHash: null,
+        googleId: null,
+        avatarUrl: null,
+        phone: null,
+        isPremium: false,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        updatedAt: true,
+      },
+    });
+
+    return updatedUser;
+  });
+};
+
 module.exports = {
   findProfileByUserId,
   upsertProfile,
   updateUser,
+  anonymizeAndDeleteUser,
 };

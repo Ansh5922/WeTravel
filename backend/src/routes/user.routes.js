@@ -19,4 +19,7 @@ router.get('/profile', userController.getProfile);
 // PATCH /api/users/profile — update profile + trigger background AI embedding
 router.patch('/profile', userController.updateProfile);
 
+// DELETE /api/users/account — permanently delete account & scrub PII (Play Store / GDPR compliant)
+router.delete('/account', userController.deleteAccount);
+
 module.exports = router;
