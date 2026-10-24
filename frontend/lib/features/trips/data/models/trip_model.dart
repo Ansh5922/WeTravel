@@ -87,6 +87,7 @@ class GroupConsensusModel extends GroupConsensusEntity {
     super.computedBudgetRange,
     super.hardConstraints,
     super.isLockedByAdmin,
+    super.groupStats,
   });
 
   factory GroupConsensusModel.fromJson(Map<String, dynamic> json) {
@@ -95,12 +96,38 @@ class GroupConsensusModel extends GroupConsensusEntity {
             .toList() ??
         [];
 
+    final stats = json['groupStats'] is Map<String, dynamic>
+        ? json['groupStats'] as Map<String, dynamic>
+        : null;
+
+    String? budgetStr;
+    final rawBudget = json['computedBudgetRange'];
+    if (rawBudget is Map) {
+      final min = rawBudget['min'];
+      final max = rawBudget['max'];
+      final hasMin = min != null && min.toString().toLowerCase() != 'null' && min.toString().trim().isNotEmpty;
+      final hasMax = max != null && max.toString().toLowerCase() != 'null' && max.toString().trim().isNotEmpty;
+      if (hasMin && hasMax) {
+        budgetStr = '₹$min - ₹$max';
+      } else if (hasMin) {
+        budgetStr = '₹$min+';
+      } else if (hasMax) {
+        budgetStr = 'Up to ₹$max';
+      }
+    } else if (rawBudget != null) {
+      final s = rawBudget.toString().trim();
+      if (!s.toLowerCase().contains('null') && s.isNotEmpty) {
+        budgetStr = s;
+      }
+    }
+
     return GroupConsensusModel(
       id: json['id']?.toString() ?? '',
       groupId: json['groupId']?.toString() ?? '',
-      computedBudgetRange: json['computedBudgetRange']?.toString(),
+      computedBudgetRange: budgetStr,
       hardConstraints: constraintsList,
       isLockedByAdmin: json['isLockedByAdmin'] == true,
+      groupStats: stats,
     );
   }
 }

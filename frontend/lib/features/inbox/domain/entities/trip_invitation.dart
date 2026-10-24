@@ -123,17 +123,30 @@ class TripInvitation {
         ? invite.groupName.trim()
         : 'Trip Invitation';
 
-    final dateText = invite.expiresAt != null
-        ? 'Expires ${invite.expiresAt!.day}/${invite.expiresAt!.month}/${invite.expiresAt!.year}'
-        : 'Open Invitation';
+    String dateText;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (invite.tripStartDate != null && invite.tripEndDate != null) {
+      final s = invite.tripStartDate!;
+      final e = invite.tripEndDate!;
+      dateText = '${s.day} ${months[s.month - 1]} – ${e.day} ${months[e.month - 1]}';
+    } else if (invite.tripStartDate != null) {
+      final s = invite.tripStartDate!;
+      dateText = '${s.day} ${months[s.month - 1]} ${s.year}';
+    } else if (invite.expiresAt != null) {
+      final exp = invite.expiresAt!;
+      dateText = 'Expires ${exp.day}/${exp.month}';
+    } else {
+      dateText = 'Upcoming Trip';
+    }
 
-    const sampleImages = [
-      'assets/images/trip_goa.jpg',
-      'assets/images/trip_kerala.jpg',
-      'assets/images/trip_manali.jpg',
-      'assets/images/hero_coast.jpg',
-    ];
-    final imageIndex = invite.id.hashCode.abs() % sampleImages.length;
+    String durationText = 'Flexible';
+    if (invite.tripStartDate != null && invite.tripEndDate != null) {
+      final diff = invite.tripEndDate!.difference(invite.tripStartDate!).inDays;
+      final nights = diff > 0 ? diff : 1;
+      durationText = '${nights + 1} days';
+    }
+
+    final hasNetworkCover = invite.coverImageUrl != null && invite.coverImageUrl!.isNotEmpty;
 
     return TripInvitation(
       id: invite.id,
@@ -142,24 +155,21 @@ class TripInvitation {
       destination: destination,
       dateRange: dateText,
       budgetRange: 'Shared Budget',
-      travelersCount: 2,
-      imageAsset: sampleImages[imageIndex],
+      travelersCount: invite.membersCount > 0 ? invite.membersCount : 1,
+      imageAsset: hasNetworkCover ? invite.coverImageUrl! : 'assets/images/trip_goa.jpg',
+      coverImageUrl: hasNetworkCover ? invite.coverImageUrl : null,
       invitedBy: inviter,
-      organizerAvatar: 'assets/images/avatar_user.jpg',
+      organizerAvatar: '',
       organizerRole: 'Organizer',
       timeAgo: 'Recently',
-      tripDuration: 'Flexible',
-      tripType: 'Group Journey',
-      tripExpectations:
-          'Collaborative group adventure. Join to vote on polls, view itinerary, and manage shared expenses.',
-      matchPercentage: 88,
-      matchedPreferences: const ['Group Travel', 'Exploration', 'Local Culture'],
+      tripDuration: durationText,
+      tripType: 'Trip Group',
+      tripExpectations: '',
+      matchPercentage: 100,
+      matchedPreferences: const [],
       status: status,
-      category: 'Adventure',
-      memberAvatars: const [
-        'assets/images/avatar_user.jpg',
-        'assets/images/avatar_1.jpg',
-      ],
+      category: 'Trip',
+      memberAvatars: const [],
     );
   }
 

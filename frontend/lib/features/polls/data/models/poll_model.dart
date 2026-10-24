@@ -6,13 +6,20 @@ class PollOptionModel extends PollOptionEntity {
     required super.pollId,
     required super.optionText,
     required super.voteCount,
+    super.voterUserIds,
   });
 
   factory PollOptionModel.fromJson(Map<String, dynamic> json) {
     final votes = json['votes'];
     int count = json['_count']?['votes'] ?? 0;
+    final List<String> voterIds = [];
     if (votes is List) {
       count = votes.length;
+      for (final v in votes) {
+        if (v is Map && v['userId'] != null) {
+          voterIds.add(v['userId'].toString());
+        }
+      }
     }
 
     return PollOptionModel(
@@ -20,6 +27,7 @@ class PollOptionModel extends PollOptionEntity {
       pollId: json['pollId'] ?? '',
       optionText: json['optionText'] ?? json['text'] ?? '',
       voteCount: count,
+      voterUserIds: voterIds,
     );
   }
 
@@ -29,6 +37,7 @@ class PollOptionModel extends PollOptionEntity {
       'pollId': pollId,
       'optionText': optionText,
       'voteCount': voteCount,
+      'voterUserIds': voterUserIds,
     };
   }
 }
@@ -48,13 +57,14 @@ class PollModel extends PollEntity {
   factory PollModel.fromJson(Map<String, dynamic> json) {
     final optionsList = json['options'] as List? ?? [];
     final parsedOptions = optionsList.map((item) => PollOptionModel.fromJson(item)).toList();
+    final isClosed = json['isClosed'] == true || json['status'] == 'closed';
 
     return PollModel(
       id: json['id'] ?? '',
       groupId: json['groupId'] ?? json['tripId'] ?? '',
       creatorId: json['creatorId'] ?? '',
       question: json['question'] ?? '',
-      isClosed: json['isClosed'] ?? false,
+      isClosed: isClosed,
       options: parsedOptions,
       userVotedOptionId: json['userVotedOptionId'],
       createdAt: json['createdAt'] != null

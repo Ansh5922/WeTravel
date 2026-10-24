@@ -90,7 +90,22 @@ class FakeExpenseRepository implements ExpenseRepository {
           ),
         ];
   }
+
+  @override
+  Future<ExpenseSettlementEntity> completeSettlement(String tripId, String settlementId) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+    return ExpenseSettlementEntity(
+      id: settlementId,
+      fromUserId: 'usr_2',
+      fromUserName: 'Anshl',
+      toUserId: 'usr_1',
+      toUserName: 'Rashi',
+      amount: 5000.0,
+      isCompleted: true,
+    );
+  }
 }
+
 
 void main() {
   group('ExpenseModel JSON Parsing', () {

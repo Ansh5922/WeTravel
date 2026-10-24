@@ -37,7 +37,6 @@ class InvitationDetailsPage extends StatefulWidget {
 
 class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
   late InvitationStatus _status;
-  bool _isPreferencesExpanded = true;
   bool _isActionInProgress = false;
 
   @override
@@ -138,6 +137,7 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
       child: BlocBuilder<TripBloc, TripState>(
         builder: (context, tripState) {
           TripEntity? loadedTrip;
+          final bool isTripLoading = tripState is TripLoadingState;
           if (tripState is TripDetailLoadedState && tripState.trip.id == widget.invitation.tripId) {
             loadedTrip = tripState.trip;
           }
@@ -176,18 +176,13 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
 
                             const SizedBox(height: 24),
 
-                            // Who's Going Section (Live Members)
-                            _buildWhosGoingSection(inv, loadedTrip),
+                            // Who's Going Section (Live Members from Backend)
+                            _buildWhosGoingSection(inv, loadedTrip, isTripLoading),
 
                             const SizedBox(height: 20),
 
-                            // Group Preferences Section
-                            _buildGroupPreferencesCard(inv),
-
-                            const SizedBox(height: 22),
-
-                            // Trip Expectations Section
-                            _buildExpectationsSection(inv),
+                            // Workspace Features Card
+                            _buildWorkspaceFeaturesCard(),
 
                             const SizedBox(height: 16),
                           ],
@@ -419,7 +414,25 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
 
   // ── Organizer Card ─────────────────────────────────────────────────────────
   Widget _buildOrganizerCard(TripInvitation inv, TripEntity? trip) {
-    final organizerName = inv.invitedBy.isNotEmpty ? inv.invitedBy : 'Trip Organizer';
+    TripGroupMemberEntity? adminMember;
+    if (trip != null && trip.members.isNotEmpty) {
+      try {
+        adminMember = trip.members.firstWhere(
+          (m) => m.role.toLowerCase() == 'creator' || m.role.toLowerCase() == 'admin',
+        );
+      } catch (_) {
+        adminMember = trip.members.first;
+      }
+    }
+
+    final organizerName = (adminMember != null &&
+            (adminMember.fullName.trim().isNotEmpty || adminMember.username.trim().isNotEmpty))
+        ? (adminMember.fullName.trim().isNotEmpty ? adminMember.fullName.trim() : adminMember.username.trim())
+        : (inv.invitedBy.trim().isNotEmpty ? inv.invitedBy.trim() : 'Trip Organizer');
+
+    final roleLabel = adminMember != null
+        ? (adminMember.role.toLowerCase() == 'creator' ? 'Creator' : 'Admin')
+        : inv.organizerRole;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -437,7 +450,7 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
       ),
       child: Row(
         children: [
-          // Organizer Avatar
+          // Organizer Avatar Initial
           Container(
             width: 48,
             height: 48,
@@ -446,13 +459,7 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
               border: Border.all(color: const Color(0xFFF59E0B), width: 1.8),
             ),
             child: ClipOval(
-              child: inv.inviterAvatarUrl != null && inv.inviterAvatarUrl!.isNotEmpty
-                  ? Image.network(
-                      inv.inviterAvatarUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildAvatarInitial(organizerName),
-                    )
-                  : _buildAvatarInitial(organizerName),
+              child: _buildAvatarInitial(organizerName),
             ),
           ),
           const SizedBox(width: 14),
@@ -469,6 +476,8 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -500,7 +509,7 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              inv.organizerRole,
+              roleLabel,
               style: GoogleFonts.inter(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
@@ -516,7 +525,13 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
   Widget _buildAvatarInitial(String name) {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'O';
     return Container(
-      color: const Color(0xFF005F73),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF004E64), Color(0xFF0A9396)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Center(
         child: Text(
           initial,
@@ -532,8 +547,12 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
 
   // ── 2x2 Specs Grid ─────────────────────────────────────────────────────────
   Widget _buildSpecsGrid(TripInvitation inv, TripEntity? trip) {
-    final destination = trip?.name ?? inv.destination;
-    final membersCount = trip?.members.isNotEmpty == true ? '${trip!.members.length} travelers' : '${inv.travelersCount} travelers';
+    final destination = (trip?.name != null && trip!.name.isNotEmpty) ? trip.name : inv.destination;
+    final membersCount = trip != null && trip.members.isNotEmpty
+        ? '${trip.members.length} travelers'
+        : '${inv.travelersCount} ${inv.travelersCount == 1 ? 'traveler' : 'travelers'}';
+    final datesText = _formatTripDates(trip, inv.dateRange);
+    final durationText = _formatTripDuration(trip, inv.tripDuration);
 
     return Column(
       children: [
@@ -549,9 +568,9 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildSpecCard(
-                icon: Icons.account_balance_wallet_rounded,
-                label: 'Budget',
-                value: inv.budgetRange,
+                icon: Icons.calendar_today_rounded,
+                label: 'Dates',
+                value: datesText,
               ),
             ),
           ],
@@ -561,16 +580,16 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
           children: [
             Expanded(
               child: _buildSpecCard(
-                icon: Icons.flight_takeoff_rounded,
-                label: 'Trip Type',
-                value: inv.tripType,
+                icon: Icons.schedule_rounded,
+                label: 'Duration',
+                value: durationText,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildSpecCard(
                 icon: Icons.people_alt_rounded,
-                label: 'Members',
+                label: 'Group Size',
                 value: membersCount,
               ),
             ),
@@ -647,129 +666,214 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
     );
   }
 
-  // ── Who's Going Section (Real Trip Members) ─────────────────────────────────
-  Widget _buildWhosGoingSection(TripInvitation inv, TripEntity? trip) {
-    final List<Widget> memberWidgets = [];
-
-    if (trip != null && trip.members.isNotEmpty) {
-      final membersToShow = trip.members.take(4).toList();
-      for (final m in membersToShow) {
-        memberWidgets.add(
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: _buildAvatarInitial(m.fullName.isNotEmpty ? m.fullName : m.username),
-              ),
+  // ── Who's Going Section (Real Trip Members from Backend) ─────────────────────
+  Widget _buildWhosGoingSection(TripInvitation inv, TripEntity? trip, bool isLoading) {
+    if (isLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Who's Going",
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF005F73),
             ),
           ),
-        );
-      }
-
-      if (trip.members.length > 4) {
-        memberWidgets.add(
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A9396),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+          const SizedBox(height: 12),
+          const SizedBox(
+            height: 48,
             child: Center(
-              child: Text(
-                '+${trip.members.length - 4}',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004E64)),
                 ),
               ),
             ),
           ),
-        );
-      }
-    } else {
-      // Fallback display
-      for (final avatar in inv.memberAvatars.take(3)) {
-        memberWidgets.add(
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  avatar,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => _buildAvatarInitial('U'),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-      memberWidgets.add(
-        Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0A9396),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              '+1',
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-            ),
-          ),
-        ),
+        ],
       );
     }
+
+    final members = trip?.members ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Who's Going",
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF005F73),
-          ),
+        Row(
+          children: [
+            Text(
+              "Who's Going",
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF005F73),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${members.isNotEmpty ? members.length : inv.travelersCount} ${members.length == 1 ? 'Traveler' : 'Travelers'}',
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        Row(children: memberWidgets),
+        if (members.isNotEmpty)
+          Column(
+            children: members.map((m) {
+              final name = m.fullName.trim().isNotEmpty ? m.fullName.trim() : m.username.trim();
+              final role = m.role.toLowerCase();
+              final isAdmin = role == 'admin' || role == 'creator';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF004E64), Color(0xFF0A9396)],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (m.username.isNotEmpty && m.fullName.isNotEmpty)
+                            Text(
+                              '@${m.username}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isAdmin ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        isAdmin ? 'Admin' : 'Member',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isAdmin ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF004E64), Color(0xFF0A9396)],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      inv.invitedBy.isNotEmpty ? inv.invitedBy[0].toUpperCase() : 'O',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    inv.invitedBy.isNotEmpty ? inv.invitedBy : 'Trip Organizer',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Organizer',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFD97706),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
 
-  // ── Group Preferences Card (AI Match Score) ────────────────────────────────
-  Widget _buildGroupPreferencesCard(TripInvitation inv) {
+  // ── Trip Workspace Features Card ───────────────────────────────────────────
+  Widget _buildWorkspaceFeaturesCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -787,157 +891,73 @@ class _InvitationDetailsPageState extends State<InvitationDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row with toggle
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isPreferencesExpanded = !_isPreferencesExpanded;
-              });
-            },
-            child: Row(
-              children: [
-                Text(
-                  'Group Preferences & Alignment',
-                  style: GoogleFonts.inter(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF005F73),
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  _isPreferencesExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  color: const Color(0xFF005F73),
-                  size: 22,
-                ),
-              ],
+          Text(
+            'Included in this Trip',
+            style: GoogleFonts.inter(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF005F73),
             ),
           ),
-
-          if (_isPreferencesExpanded) ...[
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Left Match Badge Box
-                Container(
-                  width: 82,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFECFDF5),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF005F73),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.travel_explore_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'AI Match',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF059669),
-                        ),
-                      ),
-                      Text(
-                        '${inv.matchPercentage}%',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF059669),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // 2. Checklist of shared tags
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Group Compatibility (${inv.matchPercentage}%)',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final pref in inv.matchedPreferences)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_rounded,
-                                size: 16,
-                                color: Color(0xFF10B981),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  pref,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF475569),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+          const SizedBox(height: 12),
+          _buildFeatureRow(
+            Icons.map_rounded,
+            'Collaborative Itinerary',
+            'View, customize, and navigate shared daily plans',
+          ),
+          const SizedBox(height: 10),
+          _buildFeatureRow(
+            Icons.forum_rounded,
+            'Group Chat & Live Polls',
+            'Real-time messages and democratic voting with buddies',
+          ),
+          const SizedBox(height: 10),
+          _buildFeatureRow(
+            Icons.account_balance_wallet_rounded,
+            'Shared Expense Pool',
+            'Equal bill splitting, transparent settlements, and receipts',
+          ),
         ],
       ),
     );
   }
 
-  // ── Trip Expectations ──────────────────────────────────────────────────────
-  Widget _buildExpectationsSection(TripInvitation inv) {
-    return Column(
+  Widget _buildFeatureRow(IconData icon, String title, String subtitle) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Trip Expectations',
-          style: GoogleFonts.inter(
-            fontSize: 14.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF005F73),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFF004E64).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, size: 18, color: const Color(0xFF004E64)),
         ),
-        const SizedBox(height: 6),
-        Text(
-          '“${inv.tripExpectations}”',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-            fontStyle: FontStyle.italic,
-            color: const Color(0xFF64748B),
-            height: 1.45,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
           ),
         ),
       ],

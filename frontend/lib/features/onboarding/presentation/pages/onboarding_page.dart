@@ -36,7 +36,11 @@ class OnboardingPage extends StatelessWidget {
               right: 0,
               bottom: 0,
               child: IgnorePointer(
-                child: AuthScenicBottomDecoration(height: 70),
+                child: AuthScenicBottomDecoration(
+                  height: 70,
+                  showDottedTrail: false,
+                  leafLeftOffset: -28,
+                ),
               ),
             ),
 

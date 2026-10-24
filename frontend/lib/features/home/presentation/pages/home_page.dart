@@ -300,25 +300,55 @@ class _HomePageState extends State<HomePage> {
                                   );
                                 }
 
-                                // 3. Populated Dynamic Trips List
-                                return ListView.separated(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  padding: EdgeInsets.zero,
-                                  itemCount: state.filteredTrips.length,
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 14),
-                                  itemBuilder: (context, index) {
-                                    final trip = state.filteredTrips[index];
-                                    return HomeTripCard.fromEntity(
-                                      trip: trip,
-                                      onTap: () {
-                                        context.push(
-                                          RouteNames.tripDetailsPath(trip.id),
+                                // 3. Populated Dynamic Trips List (Limit to 5 trips on Home)
+                                final displayedTrips =
+                                    state.filteredTrips.take(5).toList();
+
+                                return Column(
+                                  children: [
+                                    ListView.separated(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      padding: EdgeInsets.zero,
+                                      itemCount: displayedTrips.length,
+                                      separatorBuilder: (_, _) =>
+                                          const SizedBox(height: 14),
+                                      itemBuilder: (context, index) {
+                                        final trip = displayedTrips[index];
+                                        return HomeTripCard.fromEntity(
+                                          trip: trip,
+                                          onTap: () {
+                                            context.push(
+                                              RouteNames.tripDetailsPath(trip.id),
+                                            );
+                                          },
                                         );
                                       },
-                                    );
-                                  },
+                                    ),
+                                    if (state.filteredTrips.length > 5) ...[
+                                      const SizedBox(height: 14),
+                                      Center(
+                                        child: TextButton.icon(
+                                          onPressed: () =>
+                                              context.go(RouteNames.trips),
+                                          icon: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 16,
+                                            color: AppColors.primaryDeepTeal,
+                                          ),
+                                          label: Text(
+                                            'View all ${state.filteredTrips.length} trips',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.primaryDeepTeal,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 );
                               }
 
@@ -434,7 +464,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
+                backgroundColor: AppColors.primaryDeepTeal,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

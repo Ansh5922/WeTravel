@@ -59,12 +59,9 @@ class AuthGuard {
     // 1. Authenticated user behavior:
     if (effectiveStatus == AuthStatus.authenticated) {
       if (isAuthScreen || location == RouteNames.onboarding) {
-        return RouteNames.home;
-      }
-      // Bypasses first-time onboarding preferences setup for existing users
-      if (state is AuthAuthenticatedState &&
-          !state.isFirstTimeUser &&
-          location == RouteNames.preferences) {
+        if (state is AuthAuthenticatedState && state.isFirstTimeUser) {
+          return RouteNames.preferences;
+        }
         return RouteNames.home;
       }
       return null;

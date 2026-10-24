@@ -27,6 +27,47 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatSendTextMessageRequested>(_onChatSendTextMessageRequested);
     on<ChatSendImageMessageRequested>(_onChatSendImageMessageRequested);
     on<ChatDisconnectWebSocketRequested>(_onChatDisconnectWebSocketRequested);
+    on<ChatMessageReceived>(_onChatMessageReceived);
+    on<ChatWsConnectionChanged>(_onChatWsConnectionChanged);
+  }
+
+  void _onChatMessageReceived(
+    ChatMessageReceived event,
+    Emitter<ChatState> emit,
+  ) {
+    if (state is ChatLoadedState) {
+      final current = state as ChatLoadedState;
+      // If message ID already exists, do not duplicate
+      if (event.message.id.isNotEmpty && current.messages.any((m) => m.id == event.message.id)) {
+        return;
+      }
+
+      // Check if replacing an optimistic temporary message with matching content
+      final tempIndex = current.messages.indexWhere(
+        (m) => m.id.startsWith('temp_') && m.content == event.message.content,
+      );
+
+      List<ChatMessageEntity> updated;
+      if (tempIndex != -1) {
+        updated = List<ChatMessageEntity>.from(current.messages)..[tempIndex] = event.message;
+      } else {
+        updated = List<ChatMessageEntity>.from(current.messages)..add(event.message);
+      }
+
+      emit(current.copyWith(messages: updated, isWsConnected: true));
+    }
+  }
+
+  void _onChatWsConnectionChanged(
+    ChatWsConnectionChanged event,
+    Emitter<ChatState> emit,
+  ) {
+    if (state is ChatLoadedState) {
+      emit((state as ChatLoadedState).copyWith(
+        isWsConnected: event.isConnected,
+        error: event.error,
+      ));
+    }
   }
 
   Future<void> _onChatMessagesFetchRequested(
@@ -61,17 +102,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _wsSubscription = stream.listen(
       (newMsg) {
         debugPrint('[CHAT_BLOC] 📩 WS Stream received new message: "${newMsg.content}"');
-        if (state is ChatLoadedState) {
-          final current = state as ChatLoadedState;
-          final updated = List<ChatMessageEntity>.from(current.messages)..add(newMsg);
-          emit(current.copyWith(messages: updated, isWsConnected: true));
-        }
+        add(ChatMessageReceived(newMsg));
       },
       onError: (err) {
         debugPrint('[CHAT_BLOC] ❌ WS Stream error: $err');
-        if (state is ChatLoadedState) {
-          emit((state as ChatLoadedState).copyWith(isWsConnected: false, error: err.toString()));
-        }
+        add(ChatWsConnectionChanged(isConnected: false, error: err.toString()));
+      },
+      onDone: () {
+        debugPrint('[CHAT_BLOC] 🔌 WS Stream closed');
+        add(const ChatWsConnectionChanged(isConnected: false));
       },
     );
 
@@ -86,6 +125,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) {
     debugPrint('[CHAT_BLOC] 📤 Event: ChatSendTextMessageRequested -> "${event.content}"');
     repository.sendWsTextMessage(event.content);
+
+    // Optimistically add message so UI updates instantaneously like WhatsApp!
+    if (state is ChatLoadedState) {
+      final current = state as ChatLoadedState;
+      final tempMessage = ChatMessageEntity(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        groupId: '',
+        senderId: 'me',
+        messageType: 'text',
+        content: event.content,
+        createdAt: DateTime.now(),
+      );
+      final updated = List<ChatMessageEntity>.from(current.messages)..add(tempMessage);
+      emit(current.copyWith(messages: updated));
+    }
   }
 
   Future<void> _onChatSendImageMessageRequested(

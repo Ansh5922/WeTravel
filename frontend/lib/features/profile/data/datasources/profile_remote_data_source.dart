@@ -185,11 +185,6 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       debugPrint('[PROFILE_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
     } on DioException catch (e) {
       debugPrint('[PROFILE_REMOTE_DS] ⚠️ DioError on deleteAccount: [${e.response?.statusCode}] ${e.message}');
-      // If backend route is not yet implemented by teammate (404/501), allow frontend to proceed
-      if (e.response?.statusCode == 404 || e.response?.statusCode == 501) {
-        debugPrint('[PROFILE_REMOTE_DS] ℹ️ Backend delete endpoint will be implemented later by teammate. Proceeding with client session clearance.');
-        return;
-      }
       throw _handleDioError(e);
     } catch (e) {
       debugPrint('[PROFILE_REMOTE_DS] 💥 Error on deleteAccount: $e');

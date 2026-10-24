@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../domain/entities/trip_entity.dart';
 import '../../domain/usecases/create_trip_usecase.dart';
 import '../../domain/usecases/get_group_consensus_usecase.dart';
 import '../../domain/usecases/get_my_trips_usecase.dart';
@@ -64,7 +65,16 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     try {
       final trip = await getTripDetailsUseCase(event.tripId);
       debugPrint('[TRIP_BLOC] ✅ Detail Success: "${trip.name}" with ${trip.members.length} member(s)');
-      emit(TripDetailLoadedState(trip: trip));
+
+      GroupConsensusEntity? consensus;
+      try {
+        consensus = await getGroupConsensusUseCase(event.tripId);
+        debugPrint('[TRIP_BLOC] 🧠 Consensus fetched alongside trip details: ${consensus.computedBudgetRange}');
+      } catch (ce) {
+        debugPrint('[TRIP_BLOC] ℹ️ Consensus not available yet: $ce');
+      }
+
+      emit(TripDetailLoadedState(trip: trip, consensus: consensus));
     } on ServerException catch (e) {
       debugPrint('[TRIP_BLOC] ❌ Detail Error: ${e.message}');
       emit(TripErrorState(message: e.message));

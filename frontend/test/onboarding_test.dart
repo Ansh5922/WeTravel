@@ -22,11 +22,11 @@ void main() {
     expect(find.byType(OnboardingPage), findsOneWidget);
     expect(find.text('WeTravel'), findsOneWidget);
     expect(find.text('Adventure'), findsOneWidget);
-    expect(find.text('Plan. Explore. Experience.\nTogether.'), findsOneWidget);
+    expect(find.text('Plan Explore & Experience Together'), findsOneWidget);
 
     // ── 2. Feature Badges Verification ──────────────────────────────────────
     expect(find.text('Plan\nSmart'), findsOneWidget);
-    expect(find.text('Meet\nLike-minded\nTravelers'), findsOneWidget);
+    expect(find.text('Manage\nMultiple\nInterests'), findsOneWidget);
     expect(find.text('Explore\nThe World'), findsOneWidget);
 
     // ── 3. Actions Verification ─────────────────────────────────────────────

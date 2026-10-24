@@ -223,10 +223,14 @@ class AuthTopBar extends StatelessWidget {
 /// and dynamic full-width dotted travel trail that never discontinues.
 class AuthScenicBottomDecoration extends StatelessWidget {
   final double height;
+  final bool showDottedTrail;
+  final double leafLeftOffset;
 
   const AuthScenicBottomDecoration({
     super.key,
     this.height = 110,
+    this.showDottedTrail = true,
+    this.leafLeftOffset = 0,
   });
 
   @override
@@ -246,15 +250,16 @@ class AuthScenicBottomDecoration extends StatelessWidget {
             ),
 
             // 2. Full-width responsive dotted flight trail + destination pin
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _DottedFlightTrailPainter(),
+            if (showDottedTrail)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _DottedFlightTrailPainter(),
+                ),
               ),
-            ),
 
             // 3. Botanical leaves cluster on bottom-left flush to bottom edge
             Positioned(
-              left: 0,
+              left: leafLeftOffset,
               bottom: 0,
               child: BotanicalLeavesCluster(
                 size: Size(130, height * 0.95),

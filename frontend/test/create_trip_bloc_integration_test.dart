@@ -57,7 +57,7 @@ void main() {
     await tester.pump();
 
     // Verify validation snackbar is shown
-    expect(find.text('Please enter or pick a destination.'), findsOneWidget);
+    expect(find.text('Please enter a valid destination.'), findsOneWidget);
   });
 
   testWidgets('CreateTripPage navigates to InviteMembersPage upon Next: Add Buddies with destination filled', (tester) async {
@@ -87,7 +87,7 @@ void main() {
     // Verify Step 2: InviteMembersPage is displayed
     expect(find.byType(InviteMembersPage), findsOneWidget);
     expect(find.text('Invite Members'), findsWidgets);
-    expect(find.text('Add buddies for your trip to Goa, India'), findsOneWidget);
+    expect(find.text('Add buddies for your Trip'), findsOneWidget);
   });
 
   testWidgets('InviteMembersPage in wizard mode navigates to ReviewTripPage upon Next', (tester) async {
@@ -124,7 +124,7 @@ void main() {
     // Verify Step 3: ReviewTripPage is displayed
     expect(find.byType(ReviewTripPage), findsOneWidget);
     expect(find.text('Goa, India'), findsWidgets);
-    expect(find.widgetWithText(OutlinedButton, 'Edit Details'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Edit'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Create Trip'), findsOneWidget);
   });
 

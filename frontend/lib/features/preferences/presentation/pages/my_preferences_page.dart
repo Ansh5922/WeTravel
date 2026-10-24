@@ -9,6 +9,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/we_travel_screen_header.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 
@@ -20,7 +21,12 @@ import '../../../profile/presentation/bloc/profile_event.dart';
 /// - Sticky bottom CTA button with zero content overlap.
 /// - Instant 0ms optimistic state management via ProfileBloc.
 class MyPreferencesPage extends StatefulWidget {
-  const MyPreferencesPage({super.key});
+  final bool isFirstTimeUser;
+
+  const MyPreferencesPage({
+    super.key,
+    this.isFirstTimeUser = false,
+  });
 
   @override
   State<MyPreferencesPage> createState() => _MyPreferencesPageState();
@@ -302,6 +308,15 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
     }
 
     if (mounted) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticatedState) {
+        await ServiceLocator.authLocalDataSource.setPreferencesCompleted(
+          userId: authState.user.id,
+          completed: true,
+        );
+      }
+      if (!mounted) return;
+
       messenger.showSnackBar(
         SnackBar(
           content: Row(
@@ -310,7 +325,7 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Preferences saved immediately!',
+                  widget.isFirstTimeUser ? 'Preferences set successfully!' : 'Preferences saved immediately!',
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -323,7 +338,9 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
         ),
       );
 
-      if (context.canPop()) {
+      if (widget.isFirstTimeUser) {
+        context.go(RouteNames.home);
+      } else if (context.canPop()) {
         context.pop();
       } else {
         context.go(RouteNames.profile);
@@ -893,22 +910,24 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
               left: 0,
               right: 0,
               child: WeTravelScreenHeader(
-                title: 'My Preferences',
-                leading: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  tooltip: 'Back',
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go(RouteNames.profile);
-                    }
-                  },
-                ),
+                title: widget.isFirstTimeUser ? 'Set My Preference' : 'My Preferences',
+                leading: widget.isFirstTimeUser
+                    ? null
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        tooltip: 'Back',
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(RouteNames.profile);
+                          }
+                        },
+                      ),
                 showMenuButton: false,
               ),
             ),
@@ -966,7 +985,7 @@ class _MyPreferencesPageState extends State<MyPreferencesPage> {
                               const Icon(Icons.check_rounded, size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Save Preferences',
+                                widget.isFirstTimeUser ? 'Save & Continue' : 'Save Preferences',
                                 style: GoogleFonts.inter(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,

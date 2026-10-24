@@ -102,13 +102,10 @@ class _SignupPageState extends State<SignupPage> {
           backgroundColor: AppColors.backgroundWarm,
           body: SafeArea(
             bottom: false,
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                       Center(
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 440),
@@ -596,22 +593,19 @@ class _SignupPageState extends State<SignupPage> {
                             ),
                           ),
 
-                          const Spacer(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
 
                           // ── 15. Full-Width Bottom Scenic Decoration ─────────
                           const AuthScenicBottomDecoration(height: 110),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
-        },
-    );
-  }
+        }
 
   InputDecoration _buildInputDecoration({
     required String hintText,

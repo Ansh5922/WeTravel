@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/widgets/auth_scenic_decorations.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
 
 /// Top scenic hero header with brand bar, notification bell, profile avatar,
 /// and inspirational greeting.
@@ -22,6 +27,22 @@ class HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
+    final authState = context.watch<AuthBloc>().state;
+    final profileState = context.watch<ProfileBloc>().state;
+    final user = profileState.updatedUser ?? authState.user;
+
+    final String displayName = (user?.fullName != null && user!.fullName!.isNotEmpty)
+        ? user.fullName!
+        : ((user?.username != null && user!.username!.isNotEmpty)
+            ? user.username!
+            : 'Traveler');
+
+    final String initials = displayName
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0].toUpperCase())
+        .take(2)
+        .join();
 
     return Stack(
       children: [
@@ -91,13 +112,9 @@ class HomeHeader extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Transform.rotate(
-                            angle: 0.7,
-                            child: const Icon(
-                              Icons.send_rounded,
-                              color: Color(0xFFF59E0B),
-                              size: 22,
-                            ),
+                          const CustomPaint(
+                            size: Size(24 * 1.15, 24),
+                            painter: PaperPlaneLogoPainter(),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -141,7 +158,7 @@ class HomeHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 14),
 
-                      // User Profile Picture
+                      // Dynamic User Profile Avatar (matching Profile Screen)
                       GestureDetector(
                         onTap: onProfileTap,
                         child: Container(
@@ -153,9 +170,20 @@ class HomeHeader extends StatelessWidget {
                               color: Colors.white,
                               width: 2.0,
                             ),
-                            image: const DecorationImage(
-                              image: AssetImage('assets/images/avatar_user.jpg'),
-                              fit: BoxFit.cover,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF004E64), Color(0xFF007791)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initials.isNotEmpty ? initials : 'WT',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),

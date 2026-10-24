@@ -7,6 +7,10 @@ import '../router/route_names.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
+import '../../features/friends/presentation/bloc/friend_bloc.dart';
+import '../../features/friends/presentation/bloc/friend_state.dart';
+import '../../features/inbox/presentation/bloc/inbox_bloc.dart';
+import '../../features/inbox/presentation/bloc/inbox_state.dart';
 
 /// Premium sidebar navigation drawer for WeTravel.
 /// Provides streamlined access to primary screens, active trip workspace,
@@ -17,6 +21,16 @@ class WeTravelDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
+    final inboxState = context.watch<InboxBloc>().state;
+    final friendState = context.watch<FriendBloc>().state;
+
+    final int pendingInvites =
+        inboxState is InboxLoadedState ? inboxState.pendingCount : 0;
+    final int pendingFriends = friendState is FriendsLoadedState
+        ? friendState.pendingRequests.length
+        : 0;
+    final int totalPending = pendingInvites + pendingFriends;
+
     String userName = 'Alex Morgan';
     String userEmail = 'alex.morgan@wetravel.app';
 
@@ -215,7 +229,7 @@ class WeTravelDrawer extends StatelessWidget {
                     icon: Icons.mail_outline_rounded,
                     label: 'Friends & Inbox',
                     isSelected: currentPath == RouteNames.friends,
-                    badgeCount: 2,
+                    badgeCount: totalPending > 0 ? totalPending : null,
                     onTap: () {
                       Navigator.of(context).pop();
                       context.go(RouteNames.friends);
@@ -450,7 +464,9 @@ class _DrawerItem extends StatelessWidget {
         color: isSelected ? const Color(0xFFE8F3F5) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         dense: true,
@@ -489,6 +505,7 @@ class _DrawerItem extends StatelessWidget {
                 ? const Icon(Icons.check_circle_rounded,
                     size: 16, color: Color(0xFF004E64))
                 : null),
+        ),
       ),
     );
   }

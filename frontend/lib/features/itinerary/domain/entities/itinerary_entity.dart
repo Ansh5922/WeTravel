@@ -27,6 +27,8 @@ class ItineraryItemEntity extends Equatable {
     this.isMissed = false,
   });
 
+  String get activityTitle => activityName;
+
   @override
   List<Object?> get props => [
         id,
@@ -65,6 +67,18 @@ class ItineraryEntity extends Equatable {
     this.isSelected = false,
     required this.items,
   });
+
+  String get variant => variantType ?? 'optimal';
+
+  String get title {
+    if (summary != null && summary!.isNotEmpty) return summary!;
+    final v = variant;
+    if (v.isEmpty) return 'Optimal Plan';
+    return '${v[0].toUpperCase()}${v.substring(1)} Plan';
+  }
+
+  double get totalEstimatedCost =>
+      totalCostPerPerson ?? items.fold<double>(0.0, (sum, i) => sum + i.estimatedCost);
 
   @override
   List<Object?> get props => [

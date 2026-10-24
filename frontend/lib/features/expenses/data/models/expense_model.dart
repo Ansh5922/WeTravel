@@ -17,11 +17,15 @@ class ExpenseModel extends ExpenseEntity {
   });
 
   factory ExpenseModel.fromJson(Map<String, dynamic> json) {
-    final payerObj = (json['payer'] is Map<String, dynamic>)
-        ? json['payer'] as Map<String, dynamic>
-        : (json['paidBy'] is Map<String, dynamic>)
-            ? json['paidBy'] as Map<String, dynamic>
-            : {};
+    final payerObj = (json['creator'] is Map<String, dynamic>)
+        ? json['creator'] as Map<String, dynamic>
+        : (json['payer'] is Map<String, dynamic>)
+            ? json['payer'] as Map<String, dynamic>
+            : (json['paidBy'] is Map<String, dynamic>)
+                ? json['paidBy'] as Map<String, dynamic>
+                : (json['user'] is Map<String, dynamic>)
+                    ? json['user'] as Map<String, dynamic>
+                    : {};
 
     final splitsList = (json['splits'] as List<dynamic>?)
             ?.map((s) => (s is Map<String, dynamic>) ? s['userId']?.toString() ?? '' : s.toString())
@@ -36,13 +40,25 @@ class ExpenseModel extends ExpenseEntity {
       } catch (_) {}
     }
 
+    final paidByUserId = json['paidByUserId']?.toString() ??
+        json['createdBy']?.toString() ??
+        json['paidById']?.toString() ??
+        payerObj['id']?.toString() ??
+        '';
+    final paidByUsername = payerObj['username']?.toString() ?? json['paidByUsername']?.toString() ?? '';
+    final paidByFullName = payerObj['fullName']?.toString() ??
+        payerObj['name']?.toString() ??
+        (paidByUsername.isNotEmpty ? paidByUsername : 'You');
+
     return ExpenseModel(
       id: json['id']?.toString() ?? '',
       groupId: json['groupId']?.toString() ?? '',
-      paidByUserId: json['paidByUserId']?.toString() ?? json['paidById']?.toString() ?? payerObj['id']?.toString() ?? '',
-      paidByUsername: payerObj['username']?.toString() ?? '',
-      paidByFullName: payerObj['fullName']?.toString() ?? payerObj['username']?.toString() ?? 'Payer',
-      amount: (json['amount'] is num) ? (json['amount'] as num).toDouble() : 0.0,
+      paidByUserId: paidByUserId,
+      paidByUsername: paidByUsername,
+      paidByFullName: paidByFullName,
+      amount: (json['amount'] is num)
+          ? (json['amount'] as num).toDouble()
+          : (double.tryParse(json['amount']?.toString() ?? '') ?? 0.0),
       description: json['description']?.toString() ?? 'Expense',
       category: json['category']?.toString() ?? 'General',
       status: json['status']?.toString() ?? 'approved',
@@ -62,17 +78,26 @@ class ExpenseLedgerModel extends ExpenseLedgerEntity {
   });
 
   factory ExpenseLedgerModel.fromJson(Map<String, dynamic> json) {
-    final dataObj = (json['ledger'] is Map<String, dynamic>)
-        ? json['ledger'] as Map<String, dynamic>
-        : (json['summary'] is Map<String, dynamic>)
-            ? json['summary'] as Map<String, dynamic>
-            : json;
+    final root = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final dataObj = (root['ledger'] is Map<String, dynamic>)
+        ? root['ledger'] as Map<String, dynamic>
+        : (root['summary'] is Map<String, dynamic>)
+            ? root['summary'] as Map<String, dynamic>
+            : root;
+
+    final grandTotalNum = dataObj['totalGroupExpense'] ?? dataObj['grandTotal'] ?? 0.0;
+    final myPaidNum = dataObj['totalPaid'] ?? dataObj['myPaidAmount'] ?? 0.0;
+    final myShareNum = dataObj['totalOwed'] ?? dataObj['myShareAmount'] ?? 0.0;
+    final myBalanceNum = dataObj['netBalance'] ?? dataObj['myBalance'] ?? 0.0;
 
     return ExpenseLedgerModel(
-      grandTotal: (dataObj['grandTotal'] is num) ? (dataObj['grandTotal'] as num).toDouble() : 0.0,
-      myPaidAmount: (dataObj['myPaidAmount'] is num) ? (dataObj['myPaidAmount'] as num).toDouble() : 0.0,
-      myShareAmount: (dataObj['myShareAmount'] is num) ? (dataObj['myShareAmount'] as num).toDouble() : 0.0,
-      myBalance: (dataObj['myBalance'] is num) ? (dataObj['myBalance'] as num).toDouble() : 0.0,
+      grandTotal: (grandTotalNum is num) ? grandTotalNum.toDouble() : double.tryParse(grandTotalNum.toString()) ?? 0.0,
+      myPaidAmount: (myPaidNum is num) ? myPaidNum.toDouble() : double.tryParse(myPaidNum.toString()) ?? 0.0,
+      myShareAmount: (myShareNum is num) ? myShareNum.toDouble() : double.tryParse(myShareNum.toString()) ?? 0.0,
+      myBalance: (myBalanceNum is num) ? myBalanceNum.toDouble() : double.tryParse(myBalanceNum.toString()) ?? 0.0,
     );
   }
 }
@@ -98,7 +123,9 @@ class ExpenseSettlementModel extends ExpenseSettlementEntity {
       fromUserName: fromUser['fullName']?.toString() ?? fromUser['username']?.toString() ?? 'Payer',
       toUserId: json['toUserId']?.toString() ?? toUser['id']?.toString() ?? '',
       toUserName: toUser['fullName']?.toString() ?? toUser['username']?.toString() ?? 'Receiver',
-      amount: (json['amount'] is num) ? (json['amount'] as num).toDouble() : 0.0,
+      amount: (json['amount'] is num)
+          ? (json['amount'] as num).toDouble()
+          : (double.tryParse(json['amount']?.toString() ?? '') ?? 0.0),
       isCompleted: json['isCompleted'] == true || json['status'] == 'completed',
     );
   }

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/chat_message_entity.dart';
 
 abstract class ChatEvent extends Equatable {
   const ChatEvent();
@@ -53,4 +54,21 @@ class ChatSendImageMessageRequested extends ChatEvent {
 
 class ChatDisconnectWebSocketRequested extends ChatEvent {
   const ChatDisconnectWebSocketRequested();
+}
+
+class ChatMessageReceived extends ChatEvent {
+  final ChatMessageEntity message;
+  const ChatMessageReceived(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class ChatWsConnectionChanged extends ChatEvent {
+  final bool isConnected;
+  final String? error;
+  const ChatWsConnectionChanged({required this.isConnected, this.error});
+
+  @override
+  List<Object?> get props => [isConnected, error];
 }

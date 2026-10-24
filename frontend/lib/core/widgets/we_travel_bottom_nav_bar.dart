@@ -7,12 +7,14 @@ class WeTravelBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTabSelected;
   final VoidCallback onAddTap;
+  final bool hasInboxNotification;
 
   const WeTravelBottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTabSelected,
     required this.onAddTap,
+    this.hasInboxNotification = false,
   });
 
   @override
@@ -88,12 +90,12 @@ class WeTravelBottomNavBar extends StatelessWidget {
             ),
           ),
 
-          // 4. Inbox (with orange notification badge dot)
+          // 4. Inbox (with dynamic notification badge dot)
           _NavBarItem(
             icon: Icons.mail_outline_rounded,
             label: 'Inbox',
             isSelected: currentIndex == 2,
-            hasBadge: true,
+            hasBadge: hasInboxNotification,
             onTap: () => onTabSelected(2),
           ),
 

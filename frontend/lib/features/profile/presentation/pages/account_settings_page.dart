@@ -331,6 +331,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     return BlocListener<ProfileBloc, ProfileState>(
       listener: (context, state) {
         if (state.isAccountDeleted) {
+          if (_isDeleting && Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
           context.read<AuthBloc>().add(const AuthLogoutRequested());
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -345,6 +348,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           );
           context.go(RouteNames.login);
         } else if (state.isError) {
+          if (_isDeleting && Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
           setState(() => _isDeleting = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -419,25 +425,27 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Account Details',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primaryDeepTeal,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Account Details',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDeepTeal,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Protected with JWT Session',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: const Color(0xFF64748B),
+                            Text(
+                              'Protected with JWT Session',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFF64748B),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -475,38 +483,41 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryDeepTeal.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
+              child: Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDeepTeal.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.security_rounded,
+                      color: AppColors.primaryDeepTeal,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.security_rounded,
-                    color: AppColors.primaryDeepTeal,
-                    size: 20,
+                  title: Text(
+                    'Privacy & Security Policy',
+                    style: GoogleFonts.inter(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDeepTeal,
+                    ),
                   ),
+                  subtitle: Text(
+                    'Read our data encryption and zero-trust policy',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 16, color: Color(0xFF94A3B8)),
+                  onTap: () => context.push(RouteNames.privacyPolicy),
                 ),
-                title: Text(
-                  'Privacy & Security Policy',
-                  style: GoogleFonts.inter(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryDeepTeal,
-                  ),
-                ),
-                subtitle: Text(
-                  'Read our data encryption and zero-trust policy',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                    size: 16, color: Color(0xFF94A3B8)),
-                onTap: () => context.push(RouteNames.privacyPolicy),
               ),
             ),
             const SizedBox(height: 28),
@@ -640,14 +651,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF64748B),
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
+            ),
           ),
         ),
+        const SizedBox(width: 12),
         if (isBadge)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -665,25 +680,35 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
           )
         else
-          Row(
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primaryDeepTeal,
+          Flexible(
+            flex: 3,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDeepTeal,
+                    ),
+                  ),
                 ),
-              ),
-              if (isVerified) ...[
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.verified_rounded,
-                  color: Color(0xFF10B981),
-                  size: 16,
-                ),
+                if (isVerified) ...[
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: Color(0xFF10B981),
+                    size: 16,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
       ],
     );

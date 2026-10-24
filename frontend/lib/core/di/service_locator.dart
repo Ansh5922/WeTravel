@@ -54,6 +54,7 @@ import '../../features/itinerary/presentation/bloc/itinerary_bloc.dart';
 import '../../features/expenses/data/datasources/expense_remote_data_source.dart';
 import '../../features/expenses/data/repositories/expense_repository_impl.dart';
 import '../../features/expenses/domain/repositories/expense_repository.dart';
+import '../../features/expenses/domain/usecases/complete_settlement_usecase.dart';
 import '../../features/expenses/domain/usecases/create_expense_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_expenses_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_ledger_usecase.dart';
@@ -268,6 +269,10 @@ class ServiceLocator {
   static final GetSettlementsUseCase getSettlementsUseCase =
       GetSettlementsUseCase(expenseRepository);
 
+  static final CompleteSettlementUseCase completeSettlementUseCase =
+      CompleteSettlementUseCase(expenseRepository);
+
+
   // ── Trip Singletons ─────────────────────────────────────────────────────────
   static final TripRemoteDataSource tripRemoteDataSource =
       TripRemoteDataSourceImpl(dio: _dio);
@@ -412,7 +417,9 @@ class ServiceLocator {
         createExpenseUseCase: createExpenseUseCase,
         getGroupLedgerUseCase: getGroupLedgerUseCase,
         getSettlementsUseCase: getSettlementsUseCase,
+        completeSettlementUseCase: completeSettlementUseCase,
       );
+
 
   static TripBloc createTripBloc() => TripBloc(
         createTripUseCase: createTripUseCase,

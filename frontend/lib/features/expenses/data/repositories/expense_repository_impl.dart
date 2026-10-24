@@ -40,4 +40,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   Future<List<ExpenseSettlementEntity>> getSettlements(String tripId) {
     return remoteDataSource.getSettlements(tripId);
   }
+
+  @override
+  Future<ExpenseSettlementEntity> completeSettlement(String tripId, String settlementId) {
+    return remoteDataSource.completeSettlement(tripId, settlementId);
+  }
 }
+

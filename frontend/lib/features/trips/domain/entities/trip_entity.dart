@@ -64,6 +64,7 @@ class GroupConsensusEntity extends Equatable {
   final String? computedBudgetRange;
   final List<String> hardConstraints;
   final bool isLockedByAdmin;
+  final Map<String, dynamic>? groupStats;
 
   const GroupConsensusEntity({
     required this.id,
@@ -71,7 +72,52 @@ class GroupConsensusEntity extends Equatable {
     this.computedBudgetRange,
     this.hardConstraints = const [],
     this.isLockedByAdmin = false,
+    this.groupStats,
   });
+
+  String get dominantTravelStyle {
+    final style = groupStats?['travel_styles']?['dominant_style']?.toString();
+    if (style != null && style.isNotEmpty) {
+      return style[0].toUpperCase() + style.substring(1);
+    }
+    return 'Relaxed';
+  }
+
+  String get majorityPace {
+    final pace = groupStats?['pace']?['majority_pace']?.toString();
+    if (pace != null && pace.isNotEmpty) {
+      return pace[0].toUpperCase() + pace.substring(1);
+    }
+    return 'Moderate';
+  }
+
+  String get budgetDisplay {
+    final budget = groupStats?['budget'];
+    if (budget is Map<String, dynamic>) {
+      final avg = budget['group_avg'];
+      final curr = budget['currency'] ?? '₹';
+      final currSign = curr == 'INR' ? '₹' : (curr == 'USD' ? '\$' : '$curr ');
+      if (avg != null && avg.toString().toLowerCase() != 'null' && avg.toString().trim().isNotEmpty) {
+        return '$currSign$avg';
+      }
+    }
+    if (computedBudgetRange != null &&
+        computedBudgetRange!.isNotEmpty &&
+        !computedBudgetRange!.toLowerCase().contains('null')) {
+      return computedBudgetRange!;
+    }
+    return 'Flexible';
+  }
+
+  List<String> get dietaryRestrictions {
+    final list = groupStats?['dietary']?['restrictions'] as List<dynamic>?;
+    return list?.map((e) => e.toString()).toList() ?? [];
+  }
+
+  List<String> get climateSensitivities {
+    final list = groupStats?['climate']?['sensitivities'] as List<dynamic>?;
+    return list?.map((e) => e.toString()).toList() ?? [];
+  }
 
   @override
   List<Object?> get props => [
@@ -80,5 +126,7 @@ class GroupConsensusEntity extends Equatable {
         computedBudgetRange,
         hardConstraints,
         isLockedByAdmin,
+        groupStats,
       ];
 }
+

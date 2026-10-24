@@ -24,6 +24,7 @@ class CreateTripPage extends StatefulWidget {
 
 class _CreateTripPageState extends State<CreateTripPage> {
   final TextEditingController _destinationController = TextEditingController();
+  final FocusNode _destinationFocusNode = FocusNode();
 
   late DateTime _startDate;
   late DateTime _endDate;
@@ -42,6 +43,15 @@ class _CreateTripPageState extends State<CreateTripPage> {
   @override
   void initState() {
     super.initState();
+    _destinationFocusNode.addListener(() {
+      if (!_destinationFocusNode.hasFocus) {
+        final text = _destinationController.text.trim();
+        if (text.isNotEmpty && !_isValidDestination(text)) {
+          _showInvalidDestinationSnackbar();
+        }
+      }
+    });
+
     if (widget.initialDraft != null) {
       final draft = widget.initialDraft!;
       _destinationController.text = draft.destination;
@@ -60,6 +70,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
   @override
   void dispose() {
     _destinationController.dispose();
+    _destinationFocusNode.dispose();
     super.dispose();
   }
 
@@ -253,28 +264,48 @@ class _CreateTripPageState extends State<CreateTripPage> {
     }
   }
 
+  bool _isValidDestination(String input) {
+    final trimmed = input.trim();
+    if (trimmed.length < 2 || trimmed.length > 60) return false;
+    // Must contain at least two alphabetic characters
+    if (!RegExp(r'[a-zA-Z].*[a-zA-Z]').hasMatch(trimmed)) return false;
+    // Allowed characters: letters, numbers (for places like Sector 17), spaces, commas, hyphens, dots, apostrophes
+    if (!RegExp(r"^[a-zA-Z0-9\s,'\.-]+$").hasMatch(trimmed)) return false;
+    // Reject repeating single character sequences like "aaaaaa" or "....."
+    if (RegExp(r'^(.)\1+$').hasMatch(trimmed)) return false;
+    return true;
+  }
+
+  void _showInvalidDestinationSnackbar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Please enter a valid destination.',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFBA1A1A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   void _onContinue() {
     FocusScope.of(context).unfocus();
 
     final destination = _destinationController.text.trim();
-    if (destination.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Text(
-                'Please enter or pick a destination.',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFBA1A1A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    if (!_isValidDestination(destination)) {
+      _showInvalidDestinationSnackbar();
       return;
     }
 
@@ -445,54 +476,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 8),
-
-                  // ── Step Indicator Pill: "01 Trip Details" ───────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F3F5),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: const Color(0xFFBCE3E8),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF004E64),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '01',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Trip Details',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E64),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
                   // ── 1. Where to? Section ─────────────────────────────────
                   _buildSectionHeader(
@@ -542,6 +526,9 @@ class _CreateTripPageState extends State<CreateTripPage> {
                         Expanded(
                           child: TextField(
                             controller: _destinationController,
+                            focusNode: _destinationFocusNode,
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: (_) => _onContinue(),
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -589,7 +576,11 @@ class _CreateTripPageState extends State<CreateTripPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  // ── Destination Autofill Suggestions ──────────────────────
+                  const SizedBox(height: 8),
+                  _buildDestinationSuggestions(),
+
+                  const SizedBox(height: 20),
 
                   // ── 2. When? Section ─────────────────────────────────────
                   _buildSectionHeader(
@@ -891,6 +882,86 @@ class _CreateTripPageState extends State<CreateTripPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  static const List<String> _popularDestinations = [
+    'Goa',
+    'Manali',
+    'Ladakh',
+    'Jaipur',
+    'Bali',
+    'Rishikesh',
+    'Kerala',
+    'Udaipur',
+    'Shimla',
+    'Kasol',
+    'Paris',
+    'Tokyo',
+    'Dubai',
+  ];
+
+  Widget _buildDestinationSuggestions() {
+    final query = _destinationController.text.trim().toLowerCase();
+    final matches = _popularDestinations.where((d) {
+      if (query.isEmpty) return true;
+      return d.toLowerCase().contains(query);
+    }).toList();
+
+    if (matches.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 32,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: matches.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final dest = matches[i];
+          final isSelected = _destinationController.text.trim().toLowerCase() == dest.toLowerCase();
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _destinationController.text = dest;
+              });
+              FocusScope.of(context).unfocus();
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF005F73) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF005F73) : const Color(0xFFE2E8F0),
+                  width: 1.0,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.explore_outlined,
+                    size: 13,
+                    color: isSelected ? Colors.white : const Color(0xFF005F73),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    dest,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : const Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -66,6 +66,14 @@ class _SplashPageState extends State<SplashPage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Pre-cache onboarding images during splash animation so onboarding loads with zero lag
+    precacheImage(const AssetImage('assets/images/hero_coast.jpg'), context);
+    precacheImage(const AssetImage('assets/images/onboarding_traveler.jpg'), context);
+  }
+
+  @override
   void dispose() {
     _navigationTimer?.cancel();
     _controller.dispose();

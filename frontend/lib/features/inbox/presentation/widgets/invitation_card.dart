@@ -38,10 +38,10 @@ class InvitationCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -49,35 +49,27 @@ class InvitationCard extends StatelessWidget {
               children: [
                 // ── Left: Destination Image Thumbnail ─────────────────────
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   child: SizedBox(
-                    width: 92,
-                    height: 96,
-                    child: invitation.imageAsset.startsWith('http')
+                    width: 78,
+                    height: 78,
+                    child: (invitation.coverImageUrl != null && invitation.coverImageUrl!.isNotEmpty)
                         ? Image.network(
-                            invitation.imageAsset,
+                            invitation.coverImageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFDEF2F1),
-                              child: const Icon(
-                                Icons.landscape_rounded,
-                                color: Color(0xFF004E64),
-                                size: 32,
-                              ),
-                            ),
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderThumbnail(),
                           )
-                        : Image.asset(
-                            invitation.imageAsset,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFE2E8F0),
-                              child: const Icon(
-                                Icons.landscape_rounded,
-                                color: Color(0xFF94A3B8),
-                                size: 32,
-                              ),
-                            ),
-                          ),
+                        : (invitation.imageAsset.startsWith('http')
+                            ? Image.network(
+                                invitation.imageAsset,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => _buildPlaceholderThumbnail(),
+                              )
+                            : Image.asset(
+                                invitation.imageAsset,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => _buildPlaceholderThumbnail(),
+                              )),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -90,7 +82,7 @@ class InvitationCard extends StatelessWidget {
                     children: [
                       // 1. Title + Status Badge
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             child: Text(
@@ -110,145 +102,68 @@ class InvitationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
 
-                      // 2. Destination Pin
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_rounded,
-                            size: 13,
-                            color: Color(0xFF004E64),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            invitation.destination,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // 3. Info Grid (Dates & Budget)
-                      Row(
-                        children: [
-                          // Dates
-                          Expanded(
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 12,
-                                  color: Color(0xFF0A9396),
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    invitation.dateRange,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF475569),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Budget
-                          Expanded(
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.currency_rupee_rounded,
-                                  size: 13,
-                                  color: Color(0xFF0A9396),
-                                ),
-                                const SizedBox(width: 2),
-                                Flexible(
-                                  child: Text(
-                                    invitation.budgetRange,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF475569),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // 4. Travelers info
-                      Row(
-                        children: [
-                          const Spacer(),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.group_outlined,
-                                size: 13,
-                                color: Color(0xFF0A9396),
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                '${invitation.travelersCount} travelers',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF475569),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // 5. Member Avatars & Inviter row + Chevron
-                      Row(
-                        children: [
-                          // Avatars stack
-                          _buildAvatarStack(invitation.memberAvatars),
-                          const Spacer(),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: Color(0xFF94A3B8),
-                          ),
-                        ],
-                      ),
-
-                      // 6. Inviter byline
-                      const SizedBox(height: 4),
+                      // 2. Inviter byline
                       Text(
-                        'Invited by ${invitation.invitedBy}  •  ${invitation.timeAgo}',
+                        'Invited by ${invitation.invitedBy}',
                         style: GoogleFonts.inter(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF64748B),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 6),
+
+                      // 3. Compact specs row: Dates & Travelers count
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 12,
+                            color: Color(0xFF0A9396),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              invitation.dateRange,
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF475569),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.group_outlined,
+                            size: 13,
+                            color: Color(0xFF0A9396),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${invitation.travelersCount} ${invitation.travelersCount == 1 ? 'traveler' : 'travelers'}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // 4. Accept & Decline action buttons
                       if (invitation.status == InvitationStatus.pending &&
                           (onAccept != null || onDecline != null)) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             if (onAccept != null)
                               Expanded(
                                 child: SizedBox(
-                                  height: 30,
+                                  height: 32,
                                   child: ElevatedButton(
                                     onPressed: onAccept,
                                     style: ElevatedButton.styleFrom(
@@ -263,7 +178,7 @@ class InvitationCard extends StatelessWidget {
                                     child: Text(
                                       'Accept',
                                       style: GoogleFonts.inter(
-                                        fontSize: 12,
+                                        fontSize: 12.5,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -275,7 +190,7 @@ class InvitationCard extends StatelessWidget {
                             if (onDecline != null)
                               Expanded(
                                 child: SizedBox(
-                                  height: 30,
+                                  height: 32,
                                   child: OutlinedButton(
                                     onPressed: onDecline,
                                     style: OutlinedButton.styleFrom(
@@ -291,7 +206,7 @@ class InvitationCard extends StatelessWidget {
                                     child: Text(
                                       'Decline',
                                       style: GoogleFonts.inter(
-                                        fontSize: 12,
+                                        fontSize: 12.5,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -307,6 +222,19 @@ class InvitationCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderThumbnail() {
+    return Container(
+      color: const Color(0xFFDEF2F1),
+      child: const Center(
+        child: Icon(
+          Icons.landscape_rounded,
+          color: Color(0xFF004E64),
+          size: 28,
         ),
       ),
     );
@@ -349,72 +277,6 @@ class InvitationCard extends StatelessWidget {
           color: textColor,
         ),
       ),
-    );
-  }
-
-  Widget _buildAvatarStack(List<String> avatars) {
-    final displayAvatars = avatars.take(4).toList();
-    final remainingCount = avatars.length - displayAvatars.length;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (int i = 0; i < displayAvatars.length; i++)
-          Align(
-            widthFactor: 0.72,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  displayAvatars[i],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFFCBD5E1),
-                    child: const Icon(
-                      Icons.person,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (remainingCount > 0)
-          Align(
-            widthFactor: 0.75,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  '+$remainingCount',
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

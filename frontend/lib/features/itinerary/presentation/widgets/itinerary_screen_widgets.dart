@@ -1,0 +1,1111 @@
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/widgets/auth_scenic_decorations.dart';
+import '../../domain/entities/itinerary_entity.dart';
+
+/// ── 1. Top Banner: AI Plan Selected with Regenerate CTA ─────────────────────
+class ItineraryAiPlanBanner extends StatelessWidget {
+  final bool hasItinerary;
+  final String? planTitle;
+  final String? planSummary;
+  final VoidCallback onRegenerate;
+
+  const ItineraryAiPlanBanner({
+    super.key,
+    this.hasItinerary = true,
+    this.planTitle,
+    this.planSummary,
+    required this.onRegenerate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = hasItinerary
+        ? (planTitle != null && planTitle!.isNotEmpty
+            ? '${planTitle![0].toUpperCase()}${planTitle!.substring(1)} Plan Selected'
+            : 'AI Plan Selected')
+        : 'AI Itinerary Generator';
+
+    final subtitle = hasItinerary
+        ? (planSummary ?? 'Customized based on your group consensus and pace preference.')
+        : 'Synthesize optimal day-by-day travel plans from group consensus.';
+
+    final buttonText = hasItinerary ? 'Regenerate / Customize Plan' : 'Generate Itinerary with AI';
+    final buttonIcon = hasItinerary ? Icons.sync_rounded : Icons.auto_awesome_rounded;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDF8F7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFC7EAE6)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: AppColors.primaryDeepTeal,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDeepTeal,
+                    letterSpacing: -0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF475569),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Primary Warm Amber Action Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: onRegenerate,
+              icon: Icon(
+                buttonIcon,
+                size: 20,
+                color: AppColors.primaryDeepTeal,
+              ),
+              label: Text(
+                buttonText,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDeepTeal,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentWarmYellow,
+                foregroundColor: AppColors.primaryDeepTeal,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── 2. Filter / Constraint Cards (Pace & Focus) ─────────────────────────────
+class ItineraryPaceFocusFilters extends StatelessWidget {
+  final String pace;
+  final String focus;
+  final VoidCallback onTapPace;
+  final VoidCallback onTapFocus;
+
+  const ItineraryPaceFocusFilters({
+    super.key,
+    required this.pace,
+    required this.focus,
+    required this.onTapPace,
+    required this.onTapFocus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Left Card: Pace
+        Expanded(
+          child: _buildFilterCard(
+            icon: Icons.speed_rounded,
+            label: 'Pace',
+            value: pace,
+            onTap: onTapPace,
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        // Right Card: Focus
+        Expanded(
+          child: _buildFilterCard(
+            icon: Icons.track_changes_rounded,
+            label: 'Focus',
+            value: focus,
+            onTap: onTapFocus,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEAE2D8)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F6F4),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.primaryDeepTeal,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          value,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ── 3. Travel Plans Section Header & Plan Variant Cards ─────────────────────
+class ItineraryPlanCardsRow extends StatelessWidget {
+  final List<ItineraryEntity> itineraries;
+  final String? selectedItineraryId;
+  final ValueChanged<String> onSelectPlan;
+
+  const ItineraryPlanCardsRow({
+    super.key,
+    required this.itineraries,
+    required this.selectedItineraryId,
+    required this.onSelectPlan,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (itineraries.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header
+        Row(
+          children: [
+            const Icon(
+              Icons.people_outline_rounded,
+              color: AppColors.primaryDeepTeal,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Travel Plans',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDeepTeal,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Horizontal Plan Cards
+        SizedBox(
+          height: 116,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: itineraries.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final plan = itineraries[index];
+              final isSelected = plan.id == selectedItineraryId ||
+                  (selectedItineraryId == null && index == 0);
+              final isRecommended = index == 0 || plan.variant.toLowerCase() == 'optimal';
+
+              String displayTitle = plan.variant;
+              if (displayTitle.isNotEmpty) {
+                displayTitle = displayTitle[0].toUpperCase() + displayTitle.substring(1);
+              } else {
+                displayTitle = 'Plan ${index + 1}';
+              }
+
+              final costInt = plan.totalEstimatedCost.round();
+              final activitiesCount = plan.items.length;
+
+              return InkWell(
+                onTap: () => onSelectPlan(plan.id),
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  width: 154,
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primaryDeepTeal : const Color(0xFFEAE2D8),
+                      width: isSelected ? 2.0 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isSelected
+                            ? AppColors.primaryDeepTeal.withValues(alpha: 0.08)
+                            : const Color(0xFF0F172A).withValues(alpha: 0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Recommended Badge or Spacer
+                          if (isRecommended)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentWarmYellow,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 11,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Recommended',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            const SizedBox(height: 18),
+                          const SizedBox(height: 6),
+
+                          // Plan Name
+                          Text(
+                            displayTitle,
+                            style: GoogleFonts.inter(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected
+                                  ? AppColors.primaryDeepTeal
+                                  : const Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+
+                          // Cost & activities count
+                          Text(
+                            '₹$costInt · $activitiesCount activities',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.primaryDeepTeal
+                                  : const Color(0xFF64748B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+
+                      // Radio Indicator on bottom right
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: isSelected
+                            ? Container(
+                                width: 22,
+                                height: 22,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primaryDeepTeal,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check_rounded,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              )
+                            : Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFFCBD5E1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// ── 4. Day Selector (Day 1 Fri 24, Day 2 Sat 25...) ─────────────────────────
+class ItineraryDaySelector extends StatelessWidget {
+  final List<int> days;
+  final int selectedDay;
+  final DateTime? tripStartDate;
+  final ValueChanged<int> onDaySelected;
+
+  const ItineraryDaySelector({
+    super.key,
+    required this.days,
+    required this.selectedDay,
+    this.tripStartDate,
+    required this.onDaySelected,
+  });
+
+  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  @override
+  Widget build(BuildContext context) {
+    if (days.isEmpty) return const SizedBox.shrink();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: days.map((dayNum) {
+          final isSelected = dayNum == selectedDay;
+
+          String dateSubtitle = 'Day $dayNum';
+          if (tripStartDate != null) {
+            final targetDate = tripStartDate!.add(Duration(days: dayNum - 1));
+            final weekday = _weekdays[targetDate.weekday - 1];
+            dateSubtitle = '$weekday ${targetDate.day}';
+          }
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: SizedBox(
+              width: 78,
+              child: InkWell(
+                onTap: () => onDaySelected(dayNum),
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryDeepTeal : const Color(0xFFFBF9F6),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primaryDeepTeal : const Color(0xFFEAE2D8),
+                      width: 1.2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primaryDeepTeal.withValues(alpha: 0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Day $dayNum',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : AppColors.primaryDeepTeal,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dateSubtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.85)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+/// ── 5. Timeline Activity Item Matching Mockup ──────────────────────────────
+class ItineraryTimelineItem extends StatelessWidget {
+  final ItineraryItemEntity item;
+  final bool isLast;
+
+  const ItineraryTimelineItem({
+    super.key,
+    required this.item,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Parse time into 2 lines: Time & AM/PM
+    final rawTime = item.startTime ?? (item.timeSlot.isNotEmpty ? item.timeSlot : '09:00 AM');
+    String timePart = rawTime;
+    String periodPart = 'AM';
+
+    if (rawTime.contains(' ')) {
+      final parts = rawTime.split(' ');
+      timePart = parts[0];
+      periodPart = parts.length > 1 ? parts[1].toUpperCase() : 'AM';
+    } else if (rawTime.contains(':')) {
+      final parts = rawTime.split(':');
+      final hour = int.tryParse(parts[0]) ?? 9;
+      if (hour >= 12) {
+        periodPart = 'PM';
+        final h = hour > 12 ? hour - 12 : 12;
+        final min = parts.length > 1 ? parts[1] : '00';
+        timePart = '${h.toString().padLeft(2, '0')}:$min';
+      } else {
+        periodPart = 'AM';
+        timePart = rawTime;
+      }
+    }
+
+    final assetThumbnail = _getAssetForActivity(item.activityTitle);
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Left: Time Pill + Timeline Line & Dot ──────────────────────
+          SizedBox(
+            width: 72,
+            child: Row(
+              children: [
+                // Time Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDF8F7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timePart,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDeepTeal,
+                        ),
+                      ),
+                      Text(
+                        periodPart,
+                        style: GoogleFonts.inter(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDeepTeal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Dot & Vertical Line
+                Expanded(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryDeepTeal,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryDeepTeal.withValues(alpha: 0.25),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isLast)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            color: const Color(0xFFC7EAE6),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // ── Right: Activity Card ──────────────────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFEAE2D8)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Photo Thumbnail (66x66)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 66,
+                        height: 66,
+                        child: Image.asset(
+                          assetThumbnail,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: const Color(0xFFE8F6F4),
+                            child: const Icon(
+                              Icons.beach_access_rounded,
+                              color: AppColors.primaryDeepTeal,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Title, Location, Description, Transit & Price
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title & Price Pill
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.activityTitle,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primaryDeepTeal,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (item.estimatedCost > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE6F4EA),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '₹${item.estimatedCost.round()}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF0F766E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+
+                          // Location
+                          if (item.location != null && item.location!.isNotEmpty)
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.place_rounded,
+                                  size: 13,
+                                  color: AppColors.secondaryTeal,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    item.location!,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF475569),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                          // Description
+                          if (item.description != null && item.description!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              item.description!,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+
+                          // Transit mode
+                          if (item.transitMode != null && item.transitMode!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.directions_car_rounded,
+                                  size: 14,
+                                  color: AppColors.primaryDeepTeal,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  item.transitMode!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF475569),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getAssetForActivity(String title) {
+    final t = title.toLowerCase();
+    if (t.contains('breakfast') || t.contains('lunch') || t.contains('dinner') || t.contains('food')) {
+      return 'assets/images/beach_dinner.jpg';
+    }
+    if (t.contains('old goa') || t.contains('bom jesus') || t.contains('church') || t.contains('heritage')) {
+      return 'assets/images/local_markets.jpg';
+    }
+    if (t.contains('fort') || t.contains('sunset') || t.contains('aguada')) {
+      return 'assets/images/sunset_beach_plan.jpg';
+    }
+    if (t.contains('waterfall') || t.contains('dudhsagar')) {
+      return 'assets/images/dudhsagar_falls.jpg';
+    }
+    if (t.contains('dolphin') || t.contains('cruise') || t.contains('boat')) {
+      return 'assets/images/dolphin_watching.jpg';
+    }
+    if (t.contains('market') || t.contains('shop') || t.contains('bazaar')) {
+      return 'assets/images/local_markets.jpg';
+    }
+    if (t.contains('calangute') || t.contains('baga')) {
+      return 'assets/images/baga_beach.jpg';
+    }
+    return 'assets/images/agonda_beach.jpg';
+  }
+}
+
+/// ── 6. Booking Hub Card Matching Mockup ─────────────────────────────────────
+class ItineraryBookingHub extends StatelessWidget {
+  final VoidCallback onHotels;
+  final VoidCallback onFlights;
+  final VoidCallback onTrains;
+  final VoidCallback onCabs;
+  final VoidCallback onBuses;
+
+  const ItineraryBookingHub({
+    super.key,
+    required this.onHotels,
+    required this.onFlights,
+    required this.onTrains,
+    required this.onCabs,
+    required this.onBuses,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEAE2D8)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F6F4),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.confirmation_number_outlined,
+                  size: 18,
+                  color: AppColors.primaryDeepTeal,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Booking Hub',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDeepTeal,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  Text(
+                    'Book hotels, flights, trains, buses & cabs',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 5 Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: _buildBookingTile(
+                  icon: Icons.hotel_rounded,
+                  label: 'Hotels',
+                  onTap: onHotels,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildBookingTile(
+                  icon: Icons.flight_takeoff_rounded,
+                  label: 'Flights',
+                  onTap: onFlights,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildBookingTile(
+                  icon: Icons.train_rounded,
+                  label: 'Trains',
+                  onTap: onTrains,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildBookingTile(
+                  icon: Icons.directions_bus_rounded,
+                  label: 'Buses',
+                  onTap: onBuses,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildBookingTile(
+                  icon: Icons.local_taxi_rounded,
+                  label: 'Cabs',
+                  onTap: onCabs,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBF9F6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEAE2D8)),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: AppColors.primaryDeepTeal,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDeepTeal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ── 7. Scenic Botanical Leaves & Full-Width Dotted Flight Trail Footer ──────
+class ItineraryScenicFooter extends StatelessWidget {
+  const ItineraryScenicFooter({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 110,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Dotted flight trail covering entire screen width
+          Positioned(
+            left: -15,
+            right: -15,
+            bottom: 8,
+            child: SizedBox(
+              height: 65,
+              child: CustomPaint(
+                painter: _ItineraryTrailPainter(),
+              ),
+            ),
+          ),
+
+          // Botanical leaf cluster shifted down and left
+          const Positioned(
+            left: -24,
+            bottom: -18,
+            child: BotanicalLeavesCluster(
+              size: Size(130, 95),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItineraryTrailPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.accentWarmYellow
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final p0 = Offset(size.width * 0.05, size.height * 0.90);
+    final p1 = Offset(size.width * 0.38, size.height * 0.86);
+    final p2 = Offset(size.width * 0.70, size.height * 0.65);
+    final p3 = Offset(size.width * 0.96, size.height * 0.36);
+
+    final path = Path()
+      ..moveTo(p0.dx, p0.dy)
+      ..cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
+
+    final metrics = path.computeMetrics();
+    for (final metric in metrics) {
+      double distance = 0.0;
+      const dashLength = 5.0;
+      const dashSpace = 4.0;
+      while (distance < metric.length) {
+        final extractPath = metric.extractPath(
+          distance,
+          math.min(distance + dashLength, metric.length),
+        );
+        canvas.drawPath(extractPath, paint);
+        distance += dashLength + dashSpace;
+      }
+    }
+
+    // Destination Pin marker at the end
+    final pinCenter = Offset(p3.dx, p3.dy - 6);
+    const pinRadius = 6.0;
+
+    final pinPaint = Paint()
+      ..color = AppColors.primaryDeepTeal
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(pinCenter, pinRadius, pinPaint);
+
+    final tipPath = Path()
+      ..moveTo(pinCenter.dx - pinRadius * 0.8, pinCenter.dy + 1)
+      ..lineTo(p3.dx, p3.dy)
+      ..lineTo(pinCenter.dx + pinRadius * 0.8, pinCenter.dy + 1)
+      ..close();
+    canvas.drawPath(tipPath, pinPaint);
+
+    final innerDotPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(pinCenter, 2.2, innerDotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

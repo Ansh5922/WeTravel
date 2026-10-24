@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AppConfig {
   final String apiBaseUrl;
@@ -12,12 +10,20 @@ class AppConfig {
     required this.wsBaseUrl,
   });
 
-  factory AppConfig.development() {
-    final host = (!kIsWeb && Platform.isAndroid) ? '10.0.2.2' : 'localhost';
-    return AppConfig(
-      apiBaseUrl: 'http://$host:3000',
-      aiBaseUrl: 'http://$host:8000',
-      wsBaseUrl: 'ws://$host:3000/ws',
+  // Cloud Server URLs (Oracle VM / Caddy SSL):
+  static const String defaultBackendBaseUrl = 'https://wetravel-server.duckdns.org';
+  static const String defaultAiBaseUrl      = 'http://wetravel-server.duckdns.org:8000';
+  static const String defaultWsBaseUrl      = 'wss://wetravel-server.duckdns.org/ws';
+
+  factory AppConfig.cloud() {
+    return const AppConfig(
+      apiBaseUrl: defaultBackendBaseUrl,
+      aiBaseUrl: defaultAiBaseUrl,
+      wsBaseUrl: defaultWsBaseUrl,
     );
+  }
+
+  factory AppConfig.development() {
+    return AppConfig.cloud();
   }
 }

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/widgets/we_travel_screen_header.dart';
+import '../../../../core/widgets/we_travel_filter_chips.dart';
 import '../../../../core/widgets/we_travel_search_bar.dart';
 import '../../../trips/presentation/bloc/trip_bloc.dart';
 import '../../../trips/presentation/bloc/trip_event.dart';
@@ -21,7 +22,12 @@ import '../widgets/invitation_card.dart';
 /// Features interactive status filtering, live search, sort options,
 /// accept/decline actions with instant state updates, and join-via-token capability.
 class InboxPage extends StatefulWidget {
-  const InboxPage({super.key});
+  final bool isEmbedded;
+
+  const InboxPage({
+    super.key,
+    this.isEmbedded = false,
+  });
 
   @override
   State<InboxPage> createState() => _InboxPageState();
@@ -102,166 +108,6 @@ class _InboxPageState extends State<InboxPage> {
     });
   }
 
-  void _showJoinViaTokenDialog(BuildContext context) {
-    final tokenController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF004E64).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      color: Color(0xFF004E64),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Join Trip via Code or Link',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Paste the 64-character invite token or full link shared by your trip admin.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: tokenController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. 8a3f7c9e12... or https://wetravel.app/...',
-                  hintStyle: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: const Color(0xFF94A3B8),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF004E64), width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF004E64),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () {
-                    final rawInput = tokenController.text.trim();
-                    if (rawInput.isEmpty) return;
-
-                    Navigator.pop(ctx);
-
-                    // Extract token if user pasted full URL
-                    final token = rawInput.contains('/join/')
-                        ? rawInput.split('/join/').last.trim()
-                        : rawInput;
-
-                    context.read<TripBloc>().add(
-                          TripJoinViaTokenRequested(token),
-                        );
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Joining trip...',
-                              style: GoogleFonts.inter(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: const Color(0xFF004E64),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    'Join Trip',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   List<InboxInviteEntity> _filterAndSort(List<InboxInviteEntity> invites) {
     final query = _searchQuery.trim().toLowerCase();
@@ -355,127 +201,165 @@ class _InboxPageState extends State<InboxPage> {
 
           final isLoading = state is InboxLoadingState && allInvites.isEmpty;
 
-          return Scaffold(
-            backgroundColor: const Color(0xFFFAF9F6),
-            body: Column(
-              children: [
-                // ── 1. Unified Reusable Header (Scanner Icon Removed) ────────
+          final content = Column(
+            children: [
+              // ── 1. Unified Reusable Header (Scanner Icon Removed) ────────
+              if (!widget.isEmbedded)
                 const WeTravelScreenHeader(
                   title: 'Inbox',
                   showMenuButton: false,
                 ),
 
-                // ── 2. Fixed Search & Filter Section (Solid Background) ──────
-                Container(
-                  color: const Color(0xFFFAF9F6),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Column(
-                    children: [
-                      WeTravelSearchBar(
-                        controller: _searchController,
-                        hintText: 'Search trips, destinations, members...',
-                        hasActiveFilter: _selectedTab != InboxFilterTab.all ||
-                            _activeSort != 'newest',
-                        onChanged: (val) {
-                          setState(() {
-                            _searchQuery = val.trim();
-                          });
-                        },
-                        onClear: () {
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                        onFilterTap: () => _showFilterSheet(context),
-                      ),
-                      const SizedBox(height: 10),
-                      InboxFilterChips(
-                        selectedTab: _selectedTab,
-                        onTabChanged: (tab) {
-                          setState(() {
-                            _selectedTab = tab;
-                          });
-                        },
-                        allCount: allInvites.length,
-                        pendingCount: pendingCount,
-                        acceptedCount: acceptedCount,
-                        declinedCount: declinedCount,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── 3. Invitations List Body with ClipRect ───────────────────
-                Expanded(
-                  child: ClipRect(
-                    child: RefreshIndicator(
-                      color: const Color(0xFF004E64),
-                      backgroundColor: Colors.white,
-                      onRefresh: () async {
-                        context
-                            .read<InboxBloc>()
-                            .add(const InboxFetchRequested());
-                        await Future.delayed(
-                            const Duration(milliseconds: 600));
+              // ── 2. Fixed Search & Filter Section (Solid Background) ──────
+              Container(
+                color: const Color(0xFFFAF9F6),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Column(
+                  children: [
+                    WeTravelSearchBar(
+                      controller: _searchController,
+                      hintText: 'Search trips, destinations, members...',
+                      hasActiveFilter: _selectedTab != InboxFilterTab.all ||
+                          _activeSort != 'newest',
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val.trim();
+                        });
                       },
-                      child: Builder(
-                        builder: (context) {
-                          if (isLoading) {
-                            return ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                              itemCount: 3,
-                              itemBuilder: (context, index) =>
-                                  _buildSkeletonInviteCard(),
-                            );
-                          }
+                      onClear: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                      showFilterButton: false, // Commented out filter button for now
+                    ),
+                    const SizedBox(height: 10),
+                    WeTravelFilterChips<InboxFilterTab>(
+                      selectedValue: _selectedTab,
+                      onSelected: (tab) {
+                        setState(() {
+                          _selectedTab = tab;
+                        });
+                      },
+                      items: [
+                        FilterChipItem(
+                          value: InboxFilterTab.all,
+                          label: 'All',
+                          count: allInvites.length,
+                        ),
+                        FilterChipItem(
+                          value: InboxFilterTab.pending,
+                          label: 'Pending',
+                          count: pendingCount,
+                        ),
+                        FilterChipItem(
+                          value: InboxFilterTab.accepted,
+                          label: 'Accepted',
+                          count: acceptedCount,
+                        ),
+                        FilterChipItem(
+                          value: InboxFilterTab.declined,
+                          label: 'Declined',
+                          count: declinedCount,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
 
-                          if (state is InboxErrorState && allInvites.isEmpty) {
-                            return _buildErrorState(state.message);
-                          }
-
-                          if (displayedInvites.isEmpty) {
-                            return _buildEmptyState(allInvites.isEmpty);
-                          }
-
+              // ── 3. Invitations List Body with ClipRect ───────────────────
+              Expanded(
+                child: ClipRect(
+                  child: RefreshIndicator(
+                    color: const Color(0xFF004E64),
+                    backgroundColor: Colors.white,
+                    onRefresh: () async {
+                      context
+                          .read<InboxBloc>()
+                          .add(const InboxFetchRequested());
+                      await Future.delayed(
+                          const Duration(milliseconds: 600));
+                    },
+                    child: Builder(
+                      builder: (context) {
+                        if (isLoading) {
                           return ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                            physics: const AlwaysScrollableScrollPhysics(
-                              parent: BouncingScrollPhysics(),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              8,
+                              16,
+                              widget.isEmbedded ? 96 : 24,
                             ),
-                            itemCount: displayedInvites.length,
-                            itemBuilder: (context, index) {
-                              final invite = displayedInvites[index];
-                              final tripInvitation =
-                                  TripInvitation.fromInboxInvite(invite);
-
-                              return InvitationCard(
-                                invitation: tripInvitation,
-                                onTap: () =>
-                                    _openInvitationDetails(tripInvitation),
-                                onAccept:
-                                    invite.status == InboxInviteStatus.pending
-                                        ? () => _acceptInvite(
-                                              invite.id,
-                                              tripInvitation.title,
-                                            )
-                                        : null,
-                                onDecline:
-                                    invite.status == InboxInviteStatus.pending
-                                        ? () => _declineInvite(
-                                              invite.id,
-                                              tripInvitation.title,
-                                            )
-                                        : null,
-                              );
-                            },
+                            itemCount: 3,
+                            itemBuilder: (context, index) =>
+                                _buildSkeletonInviteCard(),
                           );
-                        },
-                      ),
+                        }
+
+                        if (state is InboxErrorState && allInvites.isEmpty) {
+                          return _buildErrorState(state.message);
+                        }
+
+                        if (displayedInvites.isEmpty) {
+                          return _buildEmptyState(allInvites.isEmpty);
+                        }
+
+                        return ListView.builder(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            4,
+                            16,
+                            widget.isEmbedded ? 96 : 24,
+                          ),
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          itemCount: displayedInvites.length,
+                          itemBuilder: (context, index) {
+                            final invite = displayedInvites[index];
+                            final tripInvitation =
+                                TripInvitation.fromInboxInvite(invite);
+
+                            return InvitationCard(
+                              invitation: tripInvitation,
+                              onTap: () =>
+                                  _openInvitationDetails(tripInvitation),
+                              onAccept:
+                                  invite.status == InboxInviteStatus.pending
+                                      ? () => _acceptInvite(
+                                            invite.id,
+                                            tripInvitation.title,
+                                          )
+                                      : null,
+                              onDecline:
+                                  invite.status == InboxInviteStatus.pending
+                                      ? () => _declineInvite(
+                                            invite.id,
+                                            tripInvitation.title,
+                                          )
+                                      : null,
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
+          );
+
+          if (widget.isEmbedded) {
+            return Container(
+              color: const Color(0xFFFAF9F6),
+              child: content,
+            );
+          }
+
+          return Scaffold(
+            backgroundColor: const Color(0xFFFAF9F6),
+            body: content,
           );
         },
       ),
@@ -657,42 +541,20 @@ class _InboxPageState extends State<InboxPage> {
             ),
             const SizedBox(height: 24),
             if (isCompletelyEmpty)
-              Wrap(
-                spacing: 12,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _showJoinViaTokenDialog(context),
-                    icon: const Icon(Icons.qr_code_rounded, size: 18),
-                    label: const Text('Join via Code'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF004E64),
-                      side: const BorderSide(
-                          color: Color(0xFF004E64), width: 1.2),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+              ElevatedButton.icon(
+                onPressed: () => context.push(RouteNames.createTrip),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Plan Trip'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF004E64),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 22, vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () => context.push(RouteNames.createTrip),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Plan Trip'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: const Color(0xFF0F172A),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 11),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               )
             else
               OutlinedButton.icon(
@@ -720,6 +582,7 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  // ignore: unused_element
   void _showFilterSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,

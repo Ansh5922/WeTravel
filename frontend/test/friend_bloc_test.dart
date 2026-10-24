@@ -90,6 +90,30 @@ void main() {
       expect(model.fullName, 'John Doe');
       expect(model.avatarUrl, 'https://example.com/avatar.jpg');
     });
+
+    test('FriendRequestModel.fromJson parses backend user and requester formats', () {
+      final json = {
+        'id': 'fr_101',
+        'userId': 'usr_sender_99',
+        'friendId': 'usr_recipient_1',
+        'status': 'pending',
+        'user': {
+          'id': 'usr_sender_99',
+          'username': 'travel_buddy',
+          'fullName': 'Buddy User',
+          'avatarUrl': null,
+        }
+      };
+
+      final model = FriendRequestModel.fromJson(json);
+
+      expect(model.id, 'fr_101');
+      expect(model.requesterId, 'usr_sender_99');
+      expect(model.addresseeId, 'usr_recipient_1');
+      expect(model.status, 'pending');
+      expect(model.requesterUsername, 'travel_buddy');
+      expect(model.requesterFullName, 'Buddy User');
+    });
   });
 
   group('FriendBloc Unit Tests', () {
@@ -131,6 +155,18 @@ void main() {
       expect(friendBloc.state, isA<FriendsLoadedState>());
       final loaded = friendBloc.state as FriendsLoadedState;
       expect(loaded.successMessage, contains('Friend request sent'));
+    });
+
+    test('FriendRespondRequestRequested accepts request and updates state', () async {
+      friendBloc.add(const FriendRespondRequestRequested(
+        friendshipId: 'fr_1',
+        action: 'accept',
+      ));
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(friendBloc.state, isA<FriendsLoadedState>());
+      final loaded = friendBloc.state as FriendsLoadedState;
+      expect(loaded.successMessage, contains('accepted'));
     });
   });
 }

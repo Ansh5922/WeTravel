@@ -537,22 +537,22 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
 
-                          const Spacer(),
-                          const SizedBox(height: 16),
+                            const Spacer(),
+                            const SizedBox(height: 16),
 
-                          // ── 11. Full-Width Bottom Scenic Decoration ─────────
-                          const AuthScenicBottomDecoration(height: 110),
-                        ],
+                            // ── 11. Full-Width Bottom Scenic Decoration ─────────
+                            const AuthScenicBottomDecoration(height: 110),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-    );
-  }
+            );
+          },
+        );
+      }
 
   /// Stylized Google 'G' logo
   Widget _buildGoogleGLogo() {

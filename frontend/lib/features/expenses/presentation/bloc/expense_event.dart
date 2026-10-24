@@ -65,3 +65,17 @@ class SettlementsRequested extends ExpenseEvent {
   @override
   List<Object?> get props => [tripId];
 }
+
+class SettlementCompleteRequested extends ExpenseEvent {
+  final String tripId;
+  final String settlementId;
+
+  const SettlementCompleteRequested({
+    required this.tripId,
+    required this.settlementId,
+  });
+
+  @override
+  List<Object?> get props => [tripId, settlementId];
+}
+

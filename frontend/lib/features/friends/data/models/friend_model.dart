@@ -43,11 +43,11 @@ class FriendRequestModel extends FriendRequestEntity {
   });
 
   factory FriendRequestModel.fromJson(Map<String, dynamic> json) {
-    final reqUser = json['requester'] ?? {};
+    final reqUser = json['user'] ?? json['requester'] ?? {};
     return FriendRequestModel(
       id: json['id'] ?? '',
-      requesterId: json['requesterId'] ?? reqUser['id'] ?? '',
-      addresseeId: json['addresseeId'] ?? '',
+      requesterId: json['userId'] ?? json['requesterId'] ?? reqUser['id'] ?? '',
+      addresseeId: json['friendId'] ?? json['addresseeId'] ?? '',
       status: json['status'] ?? 'pending',
       requesterUsername: reqUser['username'] ?? 'User',
       requesterFullName: reqUser['fullName'] ?? reqUser['username'] ?? 'WeTravel User',

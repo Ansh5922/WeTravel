@@ -23,7 +23,6 @@ import '../../features/friends/presentation/pages/friends_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/account_settings_page.dart';
 import '../../features/profile/presentation/pages/privacy_policy_page.dart';
-import '../../features/preferences/presentation/pages/preferences_page.dart';
 import '../../features/preferences/presentation/pages/my_preferences_page.dart';
 import '../../features/trip_details/presentation/pages/trip_details_page.dart';
 import '../../features/trip_details/presentation/pages/add_suggestion_page.dart';
@@ -150,7 +149,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.preferences,
       parentNavigatorKey: rootNavigatorKey,
-      builder: (context, state) => const PreferencesPage(),
+      builder: (context, state) => const MyPreferencesPage(isFirstTimeUser: true),
     ),
     GoRoute(
       path: RouteNames.myPreferences,

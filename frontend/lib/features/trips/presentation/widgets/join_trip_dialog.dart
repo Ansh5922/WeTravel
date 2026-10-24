@@ -85,7 +85,7 @@ Future<void> showJoinTripDialog(BuildContext context) {
                           ),
                         ),
                         Text(
-                          'Enter or paste invite link',
+                          'Enter invite link or code',
                           style: GoogleFonts.inter(
                             fontSize: 12.5,
                             color: const Color(0xFF64748B),
@@ -101,7 +101,7 @@ Future<void> showJoinTripDialog(BuildContext context) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Paste the invite link or token shared by your travel buddies:',
+                    'Paste the invite link or code shared by your travel buddies:',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       color: const Color(0xFF475569),
@@ -114,7 +114,7 @@ Future<void> showJoinTripDialog(BuildContext context) {
                     autofocus: true,
                     style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
-                      hintText: 'https://wetravel.app/trips/join/...',
+                      hintText: 'Paste link or code (e.g. 64-char hex / URL)',
                       hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),

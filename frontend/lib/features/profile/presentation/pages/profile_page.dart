@@ -152,12 +152,20 @@ class _ProfilePageState extends State<ProfilePage> {
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        final trimmed = value?.trim() ?? '';
+                        if (trimmed.isEmpty) {
                           return 'Full name cannot be empty.';
                         }
-                        if (value.trim().length < 2) {
-                          return 'Name must be at least 2 characters.';
+                        if (trimmed.length < 2) {
+                          return 'Full name must be at least 2 characters.';
+                        }
+                        if (trimmed.length > 50) {
+                          return 'Full name cannot exceed 50 characters.';
+                        }
+                        if (!RegExp(r"^[a-zA-Z\s\-'.]+$").hasMatch(trimmed)) {
+                          return 'Full name can only contain letters, spaces, hyphens, and dots.';
                         }
                         return null;
                       },
@@ -176,6 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: usernameController,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: InputDecoration(
                         hintText: 'e.g. suyash_p',
                         prefixText: '@',
@@ -204,11 +213,21 @@ class _ProfilePageState extends State<ProfilePage> {
                             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        final trimmed = value?.trim() ?? '';
+                        if (trimmed.isEmpty) {
                           return 'Username cannot be empty.';
                         }
-                        if (value.trim().length < 3) {
+                        if (trimmed.length < 3) {
                           return 'Username must be at least 3 characters.';
+                        }
+                        if (trimmed.length > 30) {
+                          return 'Username cannot exceed 30 characters.';
+                        }
+                        if (trimmed.contains(' ')) {
+                          return 'Username cannot contain spaces.';
+                        }
+                        if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(trimmed)) {
+                          return 'Only letters, numbers, underscores, and dots are allowed.';
                         }
                         return null;
                       },
@@ -228,6 +247,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     TextFormField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       decoration: InputDecoration(
                         hintText: 'e.g. +91 98765 43210',
                         prefixIcon: const Icon(Icons.phone_outlined,
@@ -251,10 +271,13 @@ class _ProfilePageState extends State<ProfilePage> {
                             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
                       validator: (value) {
-                        if (value != null &&
-                            value.trim().isNotEmpty &&
-                            value.trim().length < 6) {
-                          return 'Please enter a valid phone number.';
+                        final trimmed = value?.trim() ?? '';
+                        if (trimmed.isEmpty) return null;
+                        final digitsOnly = trimmed.replaceAll(RegExp(r'\D'), '');
+                        if (digitsOnly.length < 7 ||
+                            digitsOnly.length > 15 ||
+                            !RegExp(r'^\+?[0-9\s\-()]{7,20}$').hasMatch(trimmed)) {
+                          return 'Enter a valid phone number (e.g. +91 98765 43210).';
                         }
                         return null;
                       },
@@ -522,6 +545,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           // Full Name
                           Text(
                             displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: GoogleFonts.inter(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -531,24 +557,32 @@ class _ProfilePageState extends State<ProfilePage> {
                           const SizedBox(height: 4),
 
                           // Verified Email
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                displayEmail,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF007791),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    displayEmail,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF007791),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.verified_rounded,
-                                color: Color(0xFF10B981),
-                                size: 15,
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 15,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -863,30 +897,34 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Icon(icon, color: AppColors.primaryDeepTeal, size: 18),
         ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF64748B),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF64748B),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primaryDeepTeal,
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDeepTeal,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (isReadOnly) ...[
-          const Spacer(),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
@@ -913,8 +951,10 @@ class _ProfilePageState extends State<ProfilePage> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -940,6 +980,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15, color: Color(0xFF94A3B8)),
       onTap: onTap,
-    );
-  }
+    ),
+  );
+}
 }

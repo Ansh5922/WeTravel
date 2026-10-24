@@ -15,6 +15,10 @@ class InboxInviteEntity extends Equatable {
   final String inviterFullName;
   final String inviteType; // 'friend', 'email', 'whatsapp', 'link'
   final String inviteToken;
+  final String? coverImageUrl;
+  final DateTime? tripStartDate;
+  final DateTime? tripEndDate;
+  final int membersCount;
   final DateTime? expiresAt;
   final InboxInviteStatus status;
 
@@ -27,6 +31,10 @@ class InboxInviteEntity extends Equatable {
     required this.inviterFullName,
     required this.inviteType,
     required this.inviteToken,
+    this.coverImageUrl,
+    this.tripStartDate,
+    this.tripEndDate,
+    this.membersCount = 1,
     this.expiresAt,
     required this.status,
   });
@@ -40,6 +48,10 @@ class InboxInviteEntity extends Equatable {
     String? inviterFullName,
     String? inviteType,
     String? inviteToken,
+    String? coverImageUrl,
+    DateTime? tripStartDate,
+    DateTime? tripEndDate,
+    int? membersCount,
     DateTime? expiresAt,
     InboxInviteStatus? status,
   }) {
@@ -52,6 +64,10 @@ class InboxInviteEntity extends Equatable {
       inviterFullName: inviterFullName ?? this.inviterFullName,
       inviteType: inviteType ?? this.inviteType,
       inviteToken: inviteToken ?? this.inviteToken,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      tripStartDate: tripStartDate ?? this.tripStartDate,
+      tripEndDate: tripEndDate ?? this.tripEndDate,
+      membersCount: membersCount ?? this.membersCount,
       expiresAt: expiresAt ?? this.expiresAt,
       status: status ?? this.status,
     );
@@ -67,6 +83,10 @@ class InboxInviteEntity extends Equatable {
         inviterFullName,
         inviteType,
         inviteToken,
+        coverImageUrl,
+        tripStartDate,
+        tripEndDate,
+        membersCount,
         expiresAt,
         status,
       ];

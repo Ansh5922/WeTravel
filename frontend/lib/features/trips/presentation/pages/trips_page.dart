@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/widgets/we_travel_filter_chips.dart';
 import '../../../../core/widgets/we_travel_screen_header.dart';
 import '../../../../core/widgets/we_travel_search_bar.dart';
 import '../../domain/entities/trip_entity.dart';
@@ -49,6 +50,7 @@ class _TripsPageState extends State<TripsPage> {
 
   List<TripEntity> _filterAndSortTrips(List<TripEntity> rawTrips) {
     final query = _searchQuery.trim().toLowerCase();
+    final now = DateTime.now();
 
     final filtered = rawTrips.where((trip) {
       final matchesQuery = query.isEmpty ||
@@ -60,11 +62,25 @@ class _TripsPageState extends State<TripsPage> {
           );
 
       final statusLower = trip.status.toLowerCase();
+      final isOngoing = statusLower == 'ongoing' ||
+          statusLower == 'active' ||
+          (trip.tripStartDate != null &&
+              trip.tripEndDate != null &&
+              now.isAfter(trip.tripStartDate!) &&
+              now.isBefore(trip.tripEndDate!));
+      final isUpcoming = (statusLower == 'planning' ||
+              statusLower == 'upcoming' ||
+              (trip.tripStartDate != null && trip.tripStartDate!.isAfter(now))) &&
+          statusLower != 'completed' &&
+          !isOngoing;
+      final isCompleted = statusLower == 'completed' ||
+          (trip.tripEndDate != null && trip.tripEndDate!.isBefore(now));
+
       final matchesFilter = switch (_activeFilter) {
         'All' => true,
-        'Upcoming' => statusLower != 'completed',
-        'Planning' => statusLower == 'planning',
-        'Completed' => statusLower == 'completed',
+        'Ongoing' => isOngoing,
+        'Upcoming' => isUpcoming,
+        'Completed' => isCompleted,
         _ => true,
       };
 
@@ -91,6 +107,22 @@ class _TripsPageState extends State<TripsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'joinTripFab',
+        onPressed: () => showJoinTripDialog(context),
+        backgroundColor: const Color(0xFF004E64),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.group_add_rounded, size: 20),
+        label: Text(
+          'Join a Trip',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
       body: BlocConsumer<TripBloc, TripState>(
         listener: (context, state) {
           if (state is MyTripsLoadedState) {
@@ -109,7 +141,7 @@ class _TripsPageState extends State<TripsPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Joined "${state.trip.name}" successfully!'),
-                backgroundColor: const Color(0xFF005F73),
+                backgroundColor: const Color(0xFF004E64),
               ),
             );
             context.read<TripBloc>().add(const TripsFetchRequested());
@@ -124,6 +156,37 @@ class _TripsPageState extends State<TripsPage> {
           final rawTrips = _cachedTrips;
           final displayedTrips = _filterAndSortTrips(rawTrips);
           final isLoading = state is TripLoadingState && rawTrips.isEmpty;
+
+          final allCount = rawTrips.length;
+          final now = DateTime.now();
+          final ongoingCount = rawTrips.where((t) {
+            final s = t.status.toLowerCase();
+            return s == 'ongoing' ||
+                s == 'active' ||
+                (t.tripStartDate != null &&
+                    t.tripEndDate != null &&
+                    now.isAfter(t.tripStartDate!) &&
+                    now.isBefore(t.tripEndDate!));
+          }).length;
+          final upcomingCount = rawTrips.where((t) {
+            final s = t.status.toLowerCase();
+            final isOngoing = s == 'ongoing' ||
+                s == 'active' ||
+                (t.tripStartDate != null &&
+                    t.tripEndDate != null &&
+                    now.isAfter(t.tripStartDate!) &&
+                    now.isBefore(t.tripEndDate!));
+            return (s == 'planning' ||
+                    s == 'upcoming' ||
+                    (t.tripStartDate != null && t.tripStartDate!.isAfter(now))) &&
+                s != 'completed' &&
+                !isOngoing;
+          }).length;
+          final completedCount = rawTrips.where((t) {
+            final s = t.status.toLowerCase();
+            return s == 'completed' ||
+                (t.tripEndDate != null && t.tripEndDate!.isBefore(now));
+          }).length;
 
           return Column(
             children: [
@@ -142,6 +205,7 @@ class _TripsPageState extends State<TripsPage> {
                     WeTravelSearchBar(
                       controller: _searchController,
                       hintText: 'Search destinations or trips...',
+                      showFilterButton: false, // Commented out filter button for now
                       hasActiveFilter:
                           _activeFilter != 'All' || _activeSort != 'default',
                       onChanged: (val) {
@@ -154,69 +218,21 @@ class _TripsPageState extends State<TripsPage> {
                           _searchQuery = '';
                         });
                       },
-                      onFilterTap: () => _showFilterSheet(context),
                     ),
-                    const SizedBox(height: 12),
-                    // Filter Chips Row
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: [
-                          InkWell(
-                            onTap: () => showJoinTripDialog(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF005F73).withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF005F73).withValues(alpha: 0.25),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.link_rounded, size: 16, color: Color(0xFF005F73)),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Join with Link',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF005F73),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          _buildFilterChip('All', rawTrips.length),
-                          _buildFilterChip(
-                            'Upcoming',
-                            rawTrips
-                                .where((t) =>
-                                    t.status.toLowerCase() != 'completed')
-                                .length,
-                          ),
-                          _buildFilterChip(
-                            'Planning',
-                            rawTrips
-                                .where((t) =>
-                                    t.status.toLowerCase() == 'planning')
-                                .length,
-                          ),
-                          _buildFilterChip(
-                            'Completed',
-                            rawTrips
-                                .where((t) =>
-                                    t.status.toLowerCase() == 'completed')
-                                .length,
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 10),
+                    WeTravelFilterChips<String>(
+                      selectedValue: _activeFilter,
+                      onSelected: (val) {
+                        setState(() {
+                          _activeFilter = val;
+                        });
+                      },
+                      items: [
+                        FilterChipItem(value: 'All', label: 'All', count: allCount),
+                        FilterChipItem(value: 'Ongoing', label: 'Ongoing', count: ongoingCount),
+                        FilterChipItem(value: 'Upcoming', label: 'Upcoming', count: upcomingCount),
+                        FilterChipItem(value: 'Completed', label: 'Completed', count: completedCount),
+                      ],
                     ),
                   ],
                 ),
@@ -239,7 +255,7 @@ class _TripsPageState extends State<TripsPage> {
                       // ── Trips Body State Handling ────────────────────────
                       if (isLoading)
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) => _buildSkeletonCard(),
@@ -259,7 +275,7 @@ class _TripsPageState extends State<TripsPage> {
                         )
                       else
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
@@ -518,6 +534,7 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
+  // ignore: unused_element
   void _showFilterSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -696,6 +713,7 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFilterChip(String label, int count) {
     final isSelected = _activeFilter == label;
     return Padding(

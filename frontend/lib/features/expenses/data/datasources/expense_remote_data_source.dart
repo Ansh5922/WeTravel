@@ -16,6 +16,7 @@ abstract class ExpenseRemoteDataSource {
   });
   Future<ExpenseLedgerModel> getGroupLedger(String tripId);
   Future<List<ExpenseSettlementModel>> getSettlements(String tripId);
+  Future<ExpenseSettlementModel> completeSettlement(String tripId, String settlementId);
 }
 
 class ExpenseRemoteDataSourceImpl implements ExpenseRemoteDataSource {
@@ -140,4 +141,29 @@ class ExpenseRemoteDataSourceImpl implements ExpenseRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
+  @override
+  Future<ExpenseSettlementModel> completeSettlement(String tripId, String settlementId) async {
+    final endpoint = '${ApiConstants.trips}/$tripId/expenses/settlements/$settlementId/complete';
+    debugPrint('[EXPENSE_REMOTE_DS] 🚀 PATCH $endpoint');
+
+    try {
+      final response = await dio.patch(endpoint);
+      debugPrint('[EXPENSE_REMOTE_DS] ✅ Response Status: ${response.statusCode}');
+      debugPrint('[EXPENSE_REMOTE_DS] 📦 Data: ${response.data}');
+
+      final data = response.data as Map<String, dynamic>;
+      final settlementJson = (data['data'] as Map<String, dynamic>?)?['settlement'] as Map<String, dynamic>? ?? data;
+
+      return ExpenseSettlementModel.fromJson(settlementJson);
+    } on DioException catch (e) {
+      debugPrint('[EXPENSE_REMOTE_DS] ❌ DioError on completeSettlement: [${e.response?.statusCode}] ${e.message}');
+      final msg = e.response?.data?['message']?.toString() ?? 'Failed to complete settlement.';
+      throw ServerException(msg, e.response?.statusCode);
+    } catch (e) {
+      debugPrint('[EXPENSE_REMOTE_DS] 💥 Unexpected Error on completeSettlement: $e');
+      throw ServerException(e.toString());
+    }
+  }
 }
+

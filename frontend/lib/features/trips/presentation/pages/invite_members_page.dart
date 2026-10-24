@@ -18,7 +18,7 @@ import '../../domain/entities/trip_entity.dart';
 import '../../domain/entities/trip_member.dart';
 import '../../domain/entities/trip_review_draft.dart';
 import '../widgets/invite_screen_decorations.dart';
-import '../widgets/join_trip_dialog.dart';
+import '../../../auth/presentation/widgets/auth_scenic_decorations.dart';
 
 /// Invite Members screen (Screen 04) matching the Eraser design specification:
 /// - Real friends dynamically fetched and managed via FriendBloc with real UUIDs
@@ -74,8 +74,8 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
   }
 
   String _searchQuery = '';
-  String _activeFilter = 'All'; // 'All', 'Selected', 'Unselected'
-  String _activeSort = 'suggested'; // 'suggested', 'alphabetical'
+  final String _activeFilter = 'All'; // 'All', 'Selected', 'Unselected'
+  final String _activeSort = 'suggested'; // 'suggested', 'alphabetical'
 
   @override
   void initState() {
@@ -159,7 +159,9 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Invite link copied to clipboard! Share it with your group.',
+                _tripId.isNotEmpty
+                    ? 'Invite link copied to clipboard! Share it with your group.'
+                    : 'Invite link copied! Note: Link activates once your trip is created in the next step.',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
             ),
@@ -299,7 +301,7 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
             const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF005F73), size: 22),
             const SizedBox(width: 8),
             Text(
-              'Add Friend',
+              'Add & Invite Buddy',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w700,
                 fontSize: 18,
@@ -313,7 +315,7 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Enter username to send an instant friend request on WeTravel:',
+              'Enter username to send a friend request AND invite them to this trip simultaneously:',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: const Color(0xFF64748B),
@@ -325,10 +327,10 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
               autofocus: true,
               textInputAction: TextInputAction.send,
               onSubmitted: (val) {
-                final username = val.trim();
+                final raw = val.trim();
+                final username = raw.startsWith('@') ? raw.substring(1).trim() : raw;
                 if (username.isNotEmpty) {
-                  context.read<FriendBloc>().add(FriendSendRequestRequested(username));
-                  Navigator.pop(dialogCtx);
+                  _submitFriendAndInvite(username, dialogCtx);
                 }
               },
               decoration: InputDecoration(
@@ -355,10 +357,10 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final username = usernameController.text.trim();
+              final raw = usernameController.text.trim();
+              final username = raw.startsWith('@') ? raw.substring(1).trim() : raw;
               if (username.isNotEmpty) {
-                context.read<FriendBloc>().add(FriendSendRequestRequested(username));
-                Navigator.pop(dialogCtx);
+                _submitFriendAndInvite(username, dialogCtx);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -366,11 +368,44 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
-              'Send Request',
+              'Add & Invite',
               style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _submitFriendAndInvite(String username, BuildContext dialogCtx) {
+    Navigator.pop(dialogCtx);
+
+    // 1. Send the friend request
+    context.read<FriendBloc>().add(FriendSendRequestRequested(username));
+
+    // 2. Simultaneously add to trip invites
+    setState(() {
+      _selectedMemberIds.add('user_$username');
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Friend request sent & @$username invited to trip!',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF005F73),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -418,7 +453,7 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
             children: [
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Expanded(child: Text('${friend.name} added to $_tripName!')),
+              Expanded(child: Text('Invite sent to ${friend.name} (Pending)')),
             ],
           ),
           backgroundColor: const Color(0xFF005F73),
@@ -502,76 +537,73 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFFAF9F6),
         body: RepaintBoundary(
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Top Teal Curved Header with Golden Accent ───────────────
-                CustomPaint(
-                  painter: InviteHeaderPainter(),
-                  child: Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.only(
-                      top: statusBarHeight + 10,
-                      left: 16,
-                      right: 16,
-                      bottom: 42,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Back Button
-                        IconButton(
-                          onPressed: () => context.pop(),
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top Teal Curved Header with Golden Accent (Pinned to Top) ──
+              CustomPaint(
+                painter: InviteHeaderPainter(),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(
+                    top: statusBarHeight + 10,
+                    left: 16,
+                    right: 16,
+                    bottom: 38,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Back Button
+                      IconButton(
+                        onPressed: () => context.pop(),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 24,
                         ),
-                        const SizedBox(width: 14),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 14),
 
-                        // Title & Subtitle
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Invite Members',
-                                style: GoogleFonts.inter(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: -0.3,
-                                ),
+                      // Title & Subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Invite Members',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _tripName.isNotEmpty
-                                    ? 'Add buddies for your trip to $_tripName'
-                                    : 'Add your travel buddies to plan together.',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white.withValues(alpha: 0.90),
-                                ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Add buddies for your Trip',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.90),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
 
-                        // Top Header Action: Next (in wizard mode) or Done (standalone)
+                      // Top Header Action: only Done in standalone mode (no Next in wizard mode)
+                      if (!_isWizardMode)
                         TextButton(
-                          onPressed: _isWizardMode ? _onNext : _onDone,
+                          onPressed: _onDone,
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFFFDE68A),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           ),
                           child: Text(
-                            _isWizardMode ? 'Next' : 'Done',
+                            'Done',
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -579,72 +611,27 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
+              ),
 
-                // ── Main Content Area ──────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              // ── Scrollable Body Content ──────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 14),
 
-                      if (_isWizardMode) ...[
-                        // ── Step Indicator Pill: "02 Add Buddies" ───────────────
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F3F5),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFFBCE3E8),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF004E64),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '02',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Add Buddies',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF004E64),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // ── Search & Filter Input Bar ────────────────────────
+                      // ── Search Bar (Filter button removed as requested) ──
                       WeTravelSearchBar(
                         controller: _searchController,
                         hintText: 'Search buddy name or @username...',
-                        hasActiveFilter: _activeFilter != 'All' || _activeSort != 'suggested',
+                        showFilterButton: false,
                         onChanged: (val) {
                           setState(() {
                             _searchQuery = val;
@@ -655,7 +642,6 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                             _searchQuery = '';
                           });
                         },
-                        onFilterTap: () => _showFilterSheet(context),
                       ),
 
                       const SizedBox(height: 20),
@@ -713,11 +699,11 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFE8F3F5),
+                                            color: const Color(0xFFFEF3C7),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(
-                                            '${_selectedMemberIds.length} selected',
+                                            '${_selectedMemberIds.length} pending',
                                             style: GoogleFonts.inter(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w700,
@@ -946,27 +932,27 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                                                             vertical: 6,
                                                           ),
                                                           decoration: BoxDecoration(
-                                                            color: const Color(0xFFDCFCE7),
+                                                            color: const Color(0xFFFEF3C7),
                                                             borderRadius: BorderRadius.circular(12),
                                                             border: Border.all(
-                                                              color: const Color(0xFF86EFAC),
+                                                              color: const Color(0xFFFCD34D),
                                                             ),
                                                           ),
                                                           child: Row(
                                                             mainAxisSize: MainAxisSize.min,
                                                             children: [
                                                               const Icon(
-                                                                Icons.check_rounded,
-                                                                size: 14,
-                                                                color: Color(0xFF16A34A),
+                                                                Icons.hourglass_top_rounded,
+                                                                size: 13,
+                                                                color: Color(0xFFD97706),
                                                               ),
                                                               const SizedBox(width: 4),
                                                               Text(
-                                                                'Added',
+                                                                'Pending',
                                                                 style: GoogleFonts.inter(
                                                                   fontSize: 12.5,
                                                                   fontWeight: FontWeight.w700,
-                                                                  color: const Color(0xFF16A34A),
+                                                                  color: const Color(0xFFD97706),
                                                                 ),
                                                               ),
                                                             ],
@@ -1028,7 +1014,43 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
 
                       const SizedBox(height: 20),
 
-                      // ── Share Invitation Link Card ───────────────────────
+                      // ── Direct Channels ──────────────────────────────────────────
+                      Text(
+                        'Invite via',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF005F73),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDirectChannelButton(
+                              label: 'WhatsApp',
+                              icon: Icons.chat_bubble_rounded,
+                              color: const Color(0xFF16A34A),
+                              bgColor: const Color(0xFFDCFCE7),
+                              onTap: _launchWhatsApp,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDirectChannelButton(
+                              label: 'Email',
+                              icon: Icons.mail_rounded,
+                              color: const Color(0xFF0284C7),
+                              bgColor: const Color(0xFFE0F2FE),
+                              onTap: _launchEmail,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ── Share Invitation Link Card (Moved to Bottom, Real Logo, No share icon) ───
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -1046,7 +1068,10 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                           children: [
                             Row(
                               children: [
-                                const OrigamiAirplaneIcon(size: 28),
+                                CustomPaint(
+                                  size: const Size(28, 24),
+                                  painter: const PaperPlaneLogoPainter(),
+                                ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
@@ -1071,17 +1096,6 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                                       ),
                                     ],
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: _shareInviteLink,
-                                  tooltip: 'Share via Apps',
-                                  icon: const Icon(
-                                    Icons.share_rounded,
-                                    color: Color(0xFF005F73),
-                                    size: 21,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
                                 ),
                               ],
                             ),
@@ -1151,267 +1165,65 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                         ),
                       ),
 
-                      const SizedBox(height: 18),
-
-                      const SizedBox(height: 12),
-
-                      // Enter Invite Link / Join Trip Row
-                      InkWell(
-                        onTap: () => showJoinTripDialog(context),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F3F5),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFBCE3E8)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF005F73),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.link_rounded, color: Colors.white, size: 16),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Have an invite link?',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF005F73),
-                                      ),
-                                    ),
-                                    Text(
-                                      'Paste link or enter code to join another trip ➔',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        color: const Color(0xFF005F73).withValues(alpha: 0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // ── Direct WhatsApp & Email Channels ─────────────────
-                      Text(
-                        'Direct Channels',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF005F73),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // WhatsApp Direct Action Card
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFDCFCE7),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.chat_bubble_rounded, color: Color(0xFF16A34A), size: 20),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Invite via WhatsApp',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Opens WhatsApp directly. Choose any friend or group to send the link.',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: const Color(0xFF64748B),
-                                      height: 1.25,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              onPressed: _launchWhatsApp,
-                              icon: const Icon(Icons.arrow_forward_rounded, size: 15),
-                              label: const Text('Open'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A34A),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Email Direct Action Card
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFE0F2FE),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.mail_rounded, color: Color(0xFF0284C7), size: 20),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Invite via Email',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Opens your mail app with link pre-filled. Select contacts from address book.',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: const Color(0xFF64748B),
-                                      height: 1.25,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              onPressed: _launchEmail,
-                              icon: const Icon(Icons.arrow_forward_rounded, size: 15),
-                              label: const Text('Open'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0284C7),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 26),
-
-                      // ── Bottom Action Button ─────────────────────────────
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isWizardMode ? _onNext : _onDone,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
-                            foregroundColor: const Color(0xFF0F172A),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _isWizardMode ? 'Next: Review Trip' : 'Done & Open Trip',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F172A),
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                _isWizardMode
-                                    ? Icons.arrow_forward_rounded
-                                    : Icons.check_circle_outline_rounded,
-                                size: 20,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // ── Bottom Decorative Leaves and Dotted Trail ─────────
-                      const InviteBottomDecorator(),
-
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, -4),
+                ),
               ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isWizardMode ? _onNext : _onDone,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF0F172A),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isWizardMode ? 'Next: Review Trip' : 'Done & Open Trip',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      _isWizardMode
+                          ? Icons.arrow_forward_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 20,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1450,181 +1262,42 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Filter & Sort Buddies',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        if (_activeFilter != 'All' || _activeSort != 'suggested')
-                          GestureDetector(
-                            onTap: () {
-                              setModalState(() {
-                                _activeFilter = 'All';
-                                _activeSort = 'suggested';
-                              });
-                              setState(() {});
-                            },
-                            child: Text(
-                              'Reset',
-                              style: GoogleFonts.inter(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0D9488),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'STATUS',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      children: [
-                        {'label': 'All Buddies', 'value': 'All'},
-                        {'label': 'Selected Only', 'value': 'Selected'},
-                        {'label': 'Not Selected', 'value': 'Unselected'},
-                      ].map((item) {
-                        final isSelected = _activeFilter == item['value'];
-                        return ChoiceChip(
-                          label: Text(item['label']!),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFF005F73),
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          labelStyle: GoogleFonts.inter(
-                            color: isSelected ? Colors.white : const Color(0xFF334155),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: isSelected ? const Color(0xFF005F73) : Colors.transparent,
-                            ),
-                          ),
-                          onSelected: (selected) {
-                            setModalState(() {
-                              _activeFilter = item['value']!;
-                            });
-                            setState(() {});
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'SORT BY',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      children: [
-                        {'label': 'Suggested', 'value': 'suggested'},
-                        {'label': 'Alphabetical (A–Z)', 'value': 'alphabetical'},
-                      ].map((sortItem) {
-                        final isSelected = _activeSort == sortItem['value'];
-                        return ChoiceChip(
-                          label: Text(sortItem['label']!),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFF59E0B),
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          labelStyle: GoogleFonts.inter(
-                            color: isSelected ? Colors.white : const Color(0xFF334155),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
-                            ),
-                          ),
-                          onSelected: (selected) {
-                            setModalState(() {
-                              _activeSort = sortItem['value']!;
-                            });
-                            setState(() {});
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 46,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF005F73),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(
-                          'Apply Filters',
-                          style: GoogleFonts.inter(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
+  Widget _buildDirectChannelButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color bgColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: color.withValues(alpha: 0.35),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: color,
               ),
-            );
-          },
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
