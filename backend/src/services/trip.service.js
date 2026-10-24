@@ -1,5 +1,6 @@
 const tripRepository   = require('../repositories/trip.repository');
 const friendRepository = require('../repositories/friend.repository');
+const authRepository   = require('../repositories/auth.repository');
 
 /**
  * Trip Service
@@ -99,7 +100,7 @@ const getTripDetails = async (userId, tripId) => {
  * Returns the invite record. For link/email/whatsapp also returns the `inviteToken`
  * which the client uses to build the shareable URL.
  */
-const inviteMember = async (inviterId, tripId, { type, friendId, email, phone }) => {
+const inviteMember = async (inviterId, tripId, { type, friendId, username, email, phone }) => {
   // 1. Verify inviter is a member of the trip
   const membership = await tripRepository.findMembership(inviterId, tripId);
   if (!membership) {
@@ -108,37 +109,58 @@ const inviteMember = async (inviterId, tripId, { type, friendId, email, phone })
     throw err;
   }
 
-  // 2. For 'friend' invites — extra validations
-  if (type === 'friend') {
-    if (!friendId) {
-      const err = new Error('friendId is required for friend invites.');
+  // 2. Resolve targetUserId from friendId or username
+  let targetUserId = friendId;
+  if (!targetUserId && username) {
+    const target = await authRepository.findUserByUsername(username);
+    if (target) {
+      targetUserId = target.id;
+    } else {
+      const err = new Error(`User with username "${username}" not found.`);
+      err.statusCode = 404;
+      throw err;
+    }
+  }
+
+  // 3. For direct user invites (friend or username)
+  if (type === 'friend' || targetUserId) {
+    if (!targetUserId) {
+      const err = new Error('friendId or username is required for friend invites.');
       err.statusCode = 400;
       throw err;
     }
 
-    // Check they are actually friends
-    const friendship = await friendRepository.findFriendship(inviterId, friendId);
-    if (!friendship || friendship.status !== 'accepted') {
-      const err = new Error('You can only invite users who are your friends.');
-      err.statusCode = 403;
+    if (targetUserId === inviterId) {
+      const err = new Error('You cannot invite yourself to the trip.');
+      err.statusCode = 400;
       throw err;
     }
 
     // Check invitee is not already a member
-    const alreadyMember = await tripRepository.findMembership(friendId, tripId);
+    const alreadyMember = await tripRepository.findMembership(targetUserId, tripId);
     if (alreadyMember) {
       const err = new Error('This user is already a member of the trip.');
       err.statusCode = 409;
       throw err;
     }
+
+    // If not friends yet, automatically send friend request simultaneously:
+    const friendship = await friendRepository.findFriendship(inviterId, targetUserId);
+    if (!friendship) {
+      try {
+        await friendRepository.createFriendRequest(inviterId, targetUserId);
+      } catch (_) {
+        // Silently ignore if request already exists
+      }
+    }
   }
 
-  // 3. Create invite record
+  // 4. Create invite record
   const invite = await tripRepository.createInvite({
     groupId:      tripId,
     invitedBy:    inviterId,
     inviteType:   type,
-    inviteeId:    type === 'friend'   ? friendId : null,
+    inviteeId:    (type === 'friend' || targetUserId) ? targetUserId : null,
     inviteeEmail: type === 'email'    ? email    : null,
     inviteePhone: type === 'whatsapp' ? phone    : null,
   });
@@ -151,32 +173,51 @@ const inviteMember = async (inviterId, tripId, { type, friendId, email, phone })
  * Any authenticated user can use this endpoint with a valid token.
  */
 const joinViaToken = async (userId, token) => {
-  // 1. Find valid invite
-  const invite = await tripRepository.findInviteByToken(token);
-  if (!invite) {
+  // 1. Find valid invite or fallback to tripId
+  let invite = await tripRepository.findInviteByToken(token);
+  let targetGroupId = invite?.groupId;
+  let trip = invite?.group;
+
+  if (!targetGroupId) {
+    // Check if token itself is a valid tripId (UUID direct universal link)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+    if (isUuid) {
+      try {
+        trip = await tripRepository.findTripById(token);
+        if (trip) {
+          targetGroupId = trip.id;
+        }
+      } catch (_) {
+        // Safe fallback if UUID lookup fails
+      }
+    }
+  }
+
+  if (!targetGroupId) {
     const err = new Error('Invite link is invalid or has expired.');
     err.statusCode = 404;
     throw err;
   }
 
-  // 2. Check not already a member
-  const alreadyMember = await tripRepository.findMembership(userId, invite.groupId);
+  // 2. Idempotent check: if already a member, return existing trip smoothly
+  const alreadyMember = await tripRepository.findMembership(userId, targetGroupId);
   if (alreadyMember) {
-    const err = new Error('You are already a member of this trip.');
-    err.statusCode = 409;
-    throw err;
+    const existingTrip = await tripRepository.findTripById(targetGroupId);
+    return { trip: existingTrip, alreadyMember: true };
   }
 
-  // 3. Add user and mark invite as accepted
-  await tripRepository.addMember(userId, invite.groupId);
-  await tripRepository.updateInviteStatus(invite.id, 'accepted');
+  // 3. Add user and mark invite as accepted (if from an invite record)
+  await tripRepository.addMember(userId, targetGroupId);
+  if (invite) {
+    await tripRepository.updateInviteStatus(invite.id, 'accepted');
+  }
 
   // 4. Fire-and-forget: re-compute group preference with all current members
-  const updatedTrip = await tripRepository.findTripById(invite.groupId);
+  const updatedTrip = await tripRepository.findTripById(targetGroupId);
   const allMemberIds = updatedTrip.members.map((m) => m.userId);
-  triggerGroupPreference(invite.groupId, allMemberIds, makeInternalToken(userId));
+  triggerGroupPreference(targetGroupId, allMemberIds, makeInternalToken(userId));
 
-  return { trip: invite.group };
+  return { trip: updatedTrip };
 };
 
 /**

@@ -37,7 +37,7 @@ const getTripDetails = async (req, res, next) => {
 /** POST /api/trips/:tripId/invite */
 const inviteMember = async (req, res, next) => {
   try {
-    const { type, friendId, email, phone } = req.body;
+    const { type, friendId, username, email, phone } = req.body;
 
     if (!['friend', 'email', 'whatsapp', 'link'].includes(type)) {
       return res.status(400).json({
@@ -46,7 +46,13 @@ const inviteMember = async (req, res, next) => {
       });
     }
 
-    const invite = await tripService.inviteMember(req.user.id, req.params.tripId, { type, friendId, email, phone });
+    const invite = await tripService.inviteMember(req.user.id, req.params.tripId, {
+      type,
+      friendId,
+      username,
+      email,
+      phone,
+    });
 
     // Build the shareable join URL (frontend deep link)
     const joinUrl = `${process.env.APP_BASE_URL || 'https://wetravel.app'}/trips/join/${invite.inviteToken}`;
@@ -65,7 +71,10 @@ const inviteMember = async (req, res, next) => {
 const joinViaToken = async (req, res, next) => {
   try {
     const result = await tripService.joinViaToken(req.user.id, req.params.token);
-    res.status(200).json({ status: 'success', message: `You have joined "${result.trip.name}"!`, data: result });
+    const message = result.alreadyMember
+      ? `You are already a member of "${result.trip.name}".`
+      : `You have joined "${result.trip.name}"!`;
+    res.status(200).json({ status: 'success', message, data: result });
   } catch (err) { next(err); }
 };
 
