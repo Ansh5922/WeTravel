@@ -82,7 +82,9 @@ const attachWsServer = (httpServer) => {
   });
 
   wss.on('connection', (ws, { tripId, user }) => {
-    console.log(`🔌 [WS] ${user.fullName} joined trip room: ${tripId}`);
+    const displayName = user?.fullName || user?.username || 'Traveler';
+
+    console.log(`🔌 [WS] ${displayName} joined trip room: ${tripId}`);
 
     // Add to room
     if (!rooms.has(tripId)) rooms.set(tripId, new Set());
@@ -92,13 +94,14 @@ const attachWsServer = (httpServer) => {
     broadcast(rooms, tripId, {
       type: 'member_joined',
       userId: user.id,
-      fullName: user.fullName,
+      fullName: displayName,
+      username: user.username,
     }, ws);
 
     // Send welcome ack to the joining client
     ws.send(JSON.stringify({
       type: 'connected',
-      message: `Welcome to the trip chat, ${user.fullName}!`,
+      message: `Welcome to the trip chat, ${displayName}!`,
       tripId,
       onlineCount: rooms.get(tripId)?.size || 1,
     }));
@@ -121,13 +124,14 @@ const attachWsServer = (httpServer) => {
       broadcast(rooms, tripId, {
         type: 'member_left',
         userId: user.id,
-        fullName: user.fullName,
+        fullName: displayName,
+        username: user.username,
       });
-      console.log(`❌ [WS] ${user.fullName} left trip room: ${tripId}`);
+      console.log(`❌ [WS] ${displayName} left trip room: ${tripId}`);
     });
 
     ws.on('error', (err) => {
-      console.error(`[WS] Client error for ${user.fullName}:`, err.message);
+      console.error(`[WS] Client error for ${displayName}:`, err.message);
     });
   });
 

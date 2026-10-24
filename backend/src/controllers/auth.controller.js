@@ -20,10 +20,18 @@ const signup = async (req, res, next) => {
     const { email, password, username, fullName, phone } = req.body;
 
     // Basic input validation
-    if (!email || !password || !username) {
+    if (!email || !password || !username || !fullName) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email, password, and username are required.',
+        message: 'Full name, email, password, and username are required.',
+      });
+    }
+
+    const trimmedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+    if (trimmedFullName.length < 2 || trimmedFullName.length > 100) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Full name must be between 2 and 100 characters.',
       });
     }
 
@@ -41,7 +49,13 @@ const signup = async (req, res, next) => {
       });
     }
 
-    const { user, token } = await authService.signup({ email, password, username, fullName, phone });
+    const { user, token } = await authService.signup({
+      email,
+      password,
+      username,
+      fullName: trimmedFullName,
+      phone,
+    });
 
     res.status(201).json({
       status: 'success',

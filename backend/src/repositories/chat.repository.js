@@ -40,7 +40,7 @@ const createPoll = async ({ groupId, createdBy, question, options }) => {
         create: options.map((text) => ({ optionText: text })),
       },
     },
-    include: { options: true, creator: { select: { id: true, fullName: true } } },
+    include: { options: true, creator: { select: { id: true, fullName: true, username: true } } },
   });
 };
 
@@ -50,7 +50,7 @@ const getPollById = async (pollId) => {
     include: {
       options: { include: { votes: true } },
       votes: true,
-      creator: { select: { id: true, fullName: true } },
+      creator: { select: { id: true, fullName: true, username: true } },
     },
   });
 };
@@ -61,7 +61,7 @@ const getPollsByGroup = async (groupId) => {
     orderBy: { id: 'desc' },
     include: {
       options: { include: { votes: true } },
-      creator: { select: { id: true, fullName: true } },
+      creator: { select: { id: true, fullName: true, username: true } },
     },
   });
 };
@@ -84,7 +84,7 @@ const closePoll = async (pollId) => {
     data: { status: 'closed' },
     include: {
       options: { include: { votes: true } },
-      creator: { select: { id: true, fullName: true } },
+      creator: { select: { id: true, fullName: true, username: true } },
     },
   });
 };

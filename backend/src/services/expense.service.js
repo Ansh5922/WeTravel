@@ -443,7 +443,9 @@ const shareExpenseToChat = async (userId, groupId, expenseId, { message }) => {
 
   // Identify payer (the one who actually made the payment)
   const payer = expense.creator;
-  const payerTag = payer?.username ? `@${payer.username}` : `@${payer?.fullName || 'payer'}`;
+  const userDisplayName = user?.fullName || user?.username || 'Member';
+  const payerDisplayName = payer?.fullName || payer?.username || 'Payer';
+  const payerTag = payer?.username ? `@${payer.username}` : `@${payerDisplayName}`;
 
   // Find user's split if they were part of this expense
   const userSplit = expense.splits?.find((s) => s.userId === userId);
@@ -468,7 +470,7 @@ const shareExpenseToChat = async (userId, groupId, expenseId, { message }) => {
   broadcast(rooms, groupId, {
     type: 'message',
     id: savedMessage.id,
-    sender: { id: user.id, fullName: user.fullName, username: user.username },
+    sender: { id: user.id, fullName: userDisplayName, username: user.username },
     content: savedMessage.content,
     imageUrl: savedMessage.imageUrl,
     createdAt: savedMessage.createdAt,
@@ -477,7 +479,7 @@ const shareExpenseToChat = async (userId, groupId, expenseId, { message }) => {
       description: expense.description,
       totalAmount: expense.amount,
       payerId: payer?.id,
-      payerName: payer?.fullName,
+      payerName: payerDisplayName,
       receiptImageUrl: expense.receiptImageUrl,
     },
   });
@@ -487,8 +489,8 @@ const shareExpenseToChat = async (userId, groupId, expenseId, { message }) => {
     type: 'EXPENSE_DISPUTED',
     tripId: groupId,
     expenseId: expense.id,
-    disputedBy: { id: user.id, fullName: user.fullName, username: user.username },
-    payer: { id: payer?.id, fullName: payer?.fullName, username: payer?.username },
+    disputedBy: { id: user.id, fullName: userDisplayName, username: user.username },
+    payer: { id: payer?.id, fullName: payerDisplayName, username: payer?.username },
     note,
   });
 

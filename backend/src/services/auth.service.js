@@ -48,10 +48,19 @@ const signup = async ({ email, password, username, fullName, phone }) => {
   // 3. Hash the password
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  // 4. Persist new user
-  const user = await authRepository.createUser({ email, username, passwordHash, fullName, phone });
+  // 4. Defensive resolution: fallback to username if fullName is empty
+  const resolvedFullName = (fullName && fullName.trim()) || username;
 
-  // 5. Issue JWT
+  // 5. Persist new user
+  const user = await authRepository.createUser({
+    email,
+    username,
+    passwordHash,
+    fullName: resolvedFullName,
+    phone,
+  });
+
+  // 6. Issue JWT
   const token = signToken(user.id);
 
   return { user, token };
@@ -189,11 +198,13 @@ const googleLogin = async (idToken) => {
         username = `${username}_${Math.floor(1000 + Math.random() * 9000)}`;
       }
 
+      const resolvedFullName = (fullName && fullName.trim()) || username;
+
       user = await authRepository.createGoogleUser({
         email,
         username,
         googleId,
-        fullName,
+        fullName: resolvedFullName,
         avatarUrl,
       });
     }

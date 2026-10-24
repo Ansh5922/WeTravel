@@ -51,6 +51,7 @@ const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
   }
 
   const { type, content, imageUrl, fileName } = parsed;
+  const displayName = user?.fullName || user?.username || 'Traveler';
 
   switch (type) {
     case 'message': {
@@ -67,7 +68,7 @@ const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
       broadcast(rooms, tripId, {
         type: 'message',
         id: saved.id,
-        sender: { id: user.id, fullName: user.fullName, username: user.username },
+        sender: { id: user.id, fullName: displayName, username: user.username },
         content: saved.content,
         createdAt: saved.createdAt,
       });
@@ -89,7 +90,7 @@ const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
       broadcast(rooms, tripId, {
         type: 'image',
         id: saved.id,
-        sender: { id: user.id, fullName: user.fullName, username: user.username },
+        sender: { id: user.id, fullName: displayName, username: user.username },
         imageUrl: saved.imageUrl,
         fileName: saved.content,
         createdAt: saved.createdAt,
@@ -102,7 +103,8 @@ const handleMessage = async (ws, rawData, { rooms, tripId, user }) => {
       broadcast(rooms, tripId, {
         type: 'typing',
         userId: user.id,
-        fullName: user.fullName,
+        fullName: displayName,
+        username: user.username,
       }, ws);
       break;
     }
