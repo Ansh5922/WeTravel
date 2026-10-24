@@ -137,6 +137,26 @@ const createGoogleUser = async ({ email, username, googleId, fullName, avatarUrl
   });
 };
 
+/**
+ * Update a user's password hash.
+ * @param {string} userId
+ * @param {string} passwordHash
+ * @returns {Promise<User>}
+ */
+const updateUserPassword = async (userId, passwordHash) => {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      fullName: true,
+      updatedAt: true,
+    },
+  });
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -145,5 +165,6 @@ module.exports = {
   updateUserGoogleId,
   createGoogleUser,
   createUser,
+  updateUserPassword,
 };
 

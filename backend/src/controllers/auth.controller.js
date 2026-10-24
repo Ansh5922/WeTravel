@@ -136,4 +136,60 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { signup, login, googleLogin, getMe };
+/**
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'A valid email address is required.',
+      });
+    }
+
+    const result = await authService.forgotPassword(email);
+
+    res.status(200).json({
+      status: 'success',
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/auth/reset-password
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, token, newPassword, password } = req.body;
+
+    const result = await authService.resetPassword({
+      email,
+      otp,
+      token,
+      newPassword,
+      password,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  signup,
+  login,
+  googleLogin,
+  getMe,
+  forgotPassword,
+  resetPassword,
+};
