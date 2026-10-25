@@ -5,6 +5,11 @@ on:
     branches:
       - main
       - ansh
+    paths:
+      - 'backend/**'
+      - 'ai/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 jobs:
