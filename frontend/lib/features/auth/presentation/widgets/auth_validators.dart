@@ -63,14 +63,17 @@ class AuthValidators {
     return null;
   }
 
-  /// Validates full name (optional field validator).
+  /// Validates full name (required field, 2-100 characters).
   static String? validateFullName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
+      return 'Please enter your full name.';
     }
     final trimmed = value.trim();
     if (trimmed.length < 2) {
       return 'Full name must be at least 2 characters long.';
+    }
+    if (trimmed.length > 100) {
+      return 'Full name must be under 100 characters.';
     }
     return null;
   }
