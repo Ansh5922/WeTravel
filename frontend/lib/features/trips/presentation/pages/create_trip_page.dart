@@ -322,7 +322,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
       coverImageUrl: _resolveCoverImageUrl(destination, tripStyle),
     );
 
-    context.push(RouteNames.inviteMembers, extra: draft);
+    context.push(RouteNames.reviewTrip, extra: draft);
   }
 
   @override
@@ -362,7 +362,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Next: Add Buddies',
+                    'Next: Review Trip',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

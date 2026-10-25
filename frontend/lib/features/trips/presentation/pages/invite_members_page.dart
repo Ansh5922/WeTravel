@@ -80,7 +80,17 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
   @override
   void initState() {
     super.initState();
-    _draft = widget.draft ?? TripReviewDraft.initial();
+    if (widget.trip != null) {
+      final trip = widget.trip!;
+      _draft = TripReviewDraft(
+        destination: trip.name,
+        startDate: trip.tripStartDate ?? DateTime.now().add(const Duration(days: 7)),
+        endDate: trip.tripEndDate ?? DateTime.now().add(const Duration(days: 10)),
+        createdTripId: trip.id,
+      );
+    } else {
+      _draft = widget.draft ?? TripReviewDraft.initial();
+    }
 
     // Initialize previously selected members if draft has any
     for (final member in _draft.selectedMembers) {
@@ -556,7 +566,13 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                     children: [
                       // Back Button
                       IconButton(
-                        onPressed: () => context.pop(),
+                        onPressed: () {
+                          if (!_isWizardMode) {
+                            _onDone();
+                          } else {
+                            context.pop();
+                          }
+                        },
                         icon: const Icon(
                           Icons.arrow_back,
                           color: Colors.white,
@@ -594,7 +610,7 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                         ),
                       ),
 
-                      // Top Header Action: only Done in standalone mode (no Next in wizard mode)
+                      // Top Header Action: Skip / Done in trip mode
                       if (!_isWizardMode)
                         TextButton(
                           onPressed: _onDone,
@@ -603,7 +619,9 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           ),
                           child: Text(
-                            'Done',
+                            _selectedMemberIds.isEmpty && _invitedEmails.isEmpty && _invitedPhones.isEmpty
+                                ? 'Skip'
+                                : 'Done',
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,

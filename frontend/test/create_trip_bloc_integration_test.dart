@@ -7,8 +7,6 @@ import 'package:frontend/core/router/auth_guard.dart';
 import 'package:frontend/core/router/route_names.dart';
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
-import 'package:frontend/features/friends/presentation/bloc/friend_bloc.dart';
-import 'package:frontend/features/friends/presentation/bloc/friend_state.dart';
 import 'package:frontend/features/trips/domain/entities/trip_entity.dart';
 import 'package:frontend/features/trips/domain/entities/trip_member.dart';
 import 'package:frontend/features/trips/domain/entities/trip_review_draft.dart';
@@ -27,7 +25,7 @@ void main() {
     authNotifierListenable.value = const AuthAuthenticatedState(user: testUser);
   });
 
-  testWidgets('CreateTripPage renders Next: Add Buddies button for Step 1 of wizard', (tester) async {
+  testWidgets('CreateTripPage renders Next: Review Trip button for Step 1 of wizard', (tester) async {
     await tester.pumpWidget(const WeTravelApp(autoInitialize: false));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -38,11 +36,11 @@ void main() {
 
     expect(find.byType(CreateTripPage), findsOneWidget);
 
-    // Verify wizard Step 1 CTA is 'Next: Add Buddies'
-    expect(find.widgetWithText(ElevatedButton, 'Next: Add Buddies'), findsOneWidget);
+    // Verify wizard Step 1 CTA is 'Next: Review Trip'
+    expect(find.widgetWithText(ElevatedButton, 'Next: Review Trip'), findsOneWidget);
   });
 
-  testWidgets('CreateTripPage validates empty destination when Next: Add Buddies is tapped', (tester) async {
+  testWidgets('CreateTripPage validates empty destination when Next: Review Trip is tapped', (tester) async {
     await tester.pumpWidget(const WeTravelApp(autoInitialize: false));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -51,8 +49,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Tap Next: Add Buddies with empty destination
-    final continueBtn = find.widgetWithText(ElevatedButton, 'Next: Add Buddies');
+    // Tap Next: Review Trip with empty destination
+    final continueBtn = find.widgetWithText(ElevatedButton, 'Next: Review Trip');
     await tester.tap(continueBtn);
     await tester.pump();
 
@@ -60,14 +58,10 @@ void main() {
     expect(find.text('Please enter a valid destination.'), findsOneWidget);
   });
 
-  testWidgets('CreateTripPage navigates to InviteMembersPage upon Next: Add Buddies with destination filled', (tester) async {
+  testWidgets('CreateTripPage navigates to ReviewTripPage upon Next: Review Trip with destination filled', (tester) async {
     await tester.pumpWidget(const WeTravelApp(autoInitialize: false));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-
-    // Pre-seed friend bloc state so no network requests are attempted
-    final friendBloc = rootNavigatorKey.currentContext!.read<FriendBloc>();
-    friendBloc.emit(const FriendsLoadedState(friends: []));
 
     appRouter.push(RouteNames.createTrip);
     await tester.pump();
@@ -78,51 +72,15 @@ void main() {
     await tester.enterText(destinationField, 'Goa, India');
     await tester.pump();
 
-    // Tap Next: Add Buddies
-    final continueBtn = find.widgetWithText(ElevatedButton, 'Next: Add Buddies');
+    // Tap Next: Review Trip
+    final continueBtn = find.widgetWithText(ElevatedButton, 'Next: Review Trip');
     await tester.tap(continueBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    // Verify Step 2: InviteMembersPage is displayed
-    expect(find.byType(InviteMembersPage), findsOneWidget);
-    expect(find.text('Invite Members'), findsWidgets);
-    expect(find.text('Add buddies for your Trip'), findsOneWidget);
-  });
-
-  testWidgets('InviteMembersPage in wizard mode navigates to ReviewTripPage upon Next', (tester) async {
-    await tester.pumpWidget(const WeTravelApp(autoInitialize: false));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Pre-seed friend bloc state so no network requests are attempted
-    final friendBloc = rootNavigatorKey.currentContext!.read<FriendBloc>();
-    friendBloc.emit(const FriendsLoadedState(friends: []));
-
-    final draft = TripReviewDraft(
-      destination: 'Goa, India',
-      startDate: DateTime(2026, 11, 10),
-      endDate: DateTime(2026, 11, 15),
-      budget: '₹20k–₹30k',
-      tripStyle: 'Beach + Food',
-    );
-
-    appRouter.push(RouteNames.inviteMembers, extra: draft);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(find.byType(InviteMembersPage), findsOneWidget);
-
-    // Tap Next: Review Trip
-    final nextBtn = find.widgetWithText(ElevatedButton, 'Next: Review Trip');
-    await tester.ensureVisible(nextBtn);
-    await tester.pump();
-    await tester.tap(nextBtn);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    // Verify Step 3: ReviewTripPage is displayed
+    // Verify Step 2: ReviewTripPage is displayed
     expect(find.byType(ReviewTripPage), findsOneWidget);
+    expect(find.text('Review Trip'), findsWidgets);
     expect(find.text('Goa, India'), findsWidgets);
     expect(find.widgetWithText(OutlinedButton, 'Edit'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Create Trip'), findsOneWidget);
@@ -196,7 +154,19 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Navigates cleanly to TripDetailsPage for the created trip
+    // Navigates to InviteMembersPage with the created trip
+    expect(find.byType(InviteMembersPage), findsOneWidget);
+    expect(find.text('Invite Members'), findsWidgets);
+    expect(find.widgetWithText(ElevatedButton, 'Done & Open Trip'), findsOneWidget);
+
+    // Tap Done & Open Trip
+    final doneBtn = find.widgetWithText(ElevatedButton, 'Done & Open Trip');
+    await tester.tap(doneBtn);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(find.byType(TripDetailsPage), findsOneWidget);
   });
 }
