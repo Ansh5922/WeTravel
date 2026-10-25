@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/router/app_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../bloc/trip_bloc.dart';
 import '../bloc/trip_event.dart';
@@ -120,49 +119,15 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
     // Refresh trips list so Trips tab has the latest data
     context.read<TripBloc>().add(const TripsFetchRequested());
 
-    // Schedule navigation and confirmation safely post-frame
+    // Schedule navigation post-frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
 
-      final totalInvited = _draft.selectedMembers.length +
-          _draft.invitedEmails.length +
-          _draft.invitedPhones.length;
-
-      final message = totalInvited > 0
-          ? 'Trip "${createdTrip.name}" created! $totalInvited buddies invited.'
-          : 'Trip "${createdTrip.name}" created successfully!';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  message,
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF004E64),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 3),
-        ),
+      // Navigate to Invite Members with the newly created real TripEntity
+      context.pushReplacement(
+        RouteNames.inviteMembers,
+        extra: createdTrip,
       );
-
-      // Pop wizard modals back to the main app, switch to Trips tab, and open the new trip
-      context.go(RouteNames.trips);
-      if (tripId.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final navContext = rootNavigatorKey.currentContext;
-          if (navContext != null && navContext.mounted) {
-            GoRouter.of(navContext).push(RouteNames.tripDetailsPath(tripId));
-          }
-        });
-      }
     });
   }
 
@@ -690,13 +655,25 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                   ],
                 ),
               ] else if (emails.isEmpty && phones.isEmpty) ...[
-                Text(
-                  'Solo Trip (No pending invites)',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF64748B),
-                  ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_add_alt_1_outlined,
+                      size: 15,
+                      color: Color(0xFF005F73),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Invite buddies & share link right after creation',
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF005F73),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
 
