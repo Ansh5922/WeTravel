@@ -55,7 +55,23 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'WeTravel Backend', timestamp: new Date().toISOString() });
 });
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// ── Public Legal & Policy Web Pages (Google Play Requirements) ──────────────
+const publicDir = path.join(__dirname, '../public');
+app.use(express.static(publicDir));
+
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(publicDir, 'privacy.html'));
+});
+
+app.get('/delete-account', (req, res) => {
+  res.sendFile(path.join(publicDir, 'delete-account.html'));
+});
+
+app.get('/data-deletion', (req, res) => {
+  res.redirect('/delete-account');
+});
+
+// ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
