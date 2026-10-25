@@ -24,6 +24,7 @@ const updateProfile = async (req, res, next) => {
     const {
       fullName,
       phone,
+      avatarUrl,
       dietaryPreference,
       travelStyle,
       budget,
@@ -42,7 +43,7 @@ const updateProfile = async (req, res, next) => {
 
     // Ensure at least one field is being updated
     const hasPayload = [
-      fullName, phone, dietaryPreference, travelStyle,
+      fullName, phone, avatarUrl, dietaryPreference, travelStyle,
       parsedBudget, budgetTier, pacePreference, healthConstraints,
       climateSensitivities, rawPreferenceNotes,
     ].some((v) => v !== undefined && !Number.isNaN(v));
@@ -57,6 +58,7 @@ const updateProfile = async (req, res, next) => {
     const { user, profile } = await userService.updateProfile(userId, {
       fullName,
       phone,
+      avatarUrl: avatarUrl !== undefined ? (avatarUrl ? avatarUrl.trim() : null) : undefined,
       dietaryPreference,
       travelStyle,
       budget: parsedBudget,
@@ -91,7 +93,54 @@ const getProfile = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      data: { profile: profile || {} },
+      data: {
+        user: req.user,
+        profile: profile || {},
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/users/avatar
+ * Update or remove authenticated user's profile photo.
+ */
+const updateAvatar = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { avatarUrl } = req.body;
+
+    if (avatarUrl !== undefined && avatarUrl !== null && typeof avatarUrl !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'avatarUrl must be a valid URL string or null.',
+      });
+    }
+
+    const user = await userService.updateAvatar(userId, avatarUrl ? avatarUrl.trim() : null);
+
+    res.status(200).json({
+      status: 'success',
+      message: user.avatarUrl ? 'Profile photo updated successfully.' : 'Profile photo removed.',
+      data: { user },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/users/avatar/auth
+ * Get ImageKit CDN client-upload authentication parameters for direct photo upload.
+ */
+const getAvatarUploadAuth = (req, res, next) => {
+  try {
+    const authParams = userService.getAvatarUploadAuth();
+    res.status(200).json({
+      status: 'success',
+      data: authParams,
     });
   } catch (err) {
     next(err);
@@ -117,4 +166,10 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
-module.exports = { updateProfile, getProfile, deleteAccount };
+module.exports = {
+  updateProfile,
+  getProfile,
+  updateAvatar,
+  getAvatarUploadAuth,
+  deleteAccount,
+};

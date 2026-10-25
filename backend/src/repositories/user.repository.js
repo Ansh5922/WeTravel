@@ -45,9 +45,9 @@ const upsertProfile = async (userId, data) => {
 };
 
 /**
- * Update the User table (fullName, phone).
+ * Update the User table (fullName, phone, avatarUrl).
  * @param {string} userId
- * @param {{ fullName?: string, phone?: string }} data
+ * @param {{ fullName?: string, phone?: string, avatarUrl?: string|null }} data
  * @returns {Promise<User>}
  */
 const updateUser = async (userId, data) => {
@@ -57,7 +57,9 @@ const updateUser = async (userId, data) => {
     select: {
       id: true,
       email: true,
+      username: true,
       fullName: true,
+      avatarUrl: true,
       phone: true,
       isPremium: true,
       updatedAt: true,

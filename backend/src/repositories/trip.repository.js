@@ -12,6 +12,7 @@ const SAFE_USER_SELECT = {
   email: true,
   username: true,
   fullName: true,
+  avatarUrl: true,
 };
 
 /** Create a trip and add the creator as admin in a single transaction. */

@@ -11,6 +11,7 @@ const SAFE_USER_SELECT = {
   email: true,
   username: true,
   fullName: true,
+  avatarUrl: true,
 };
 
 /**

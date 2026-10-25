@@ -1,4 +1,5 @@
 const userRepository = require('../repositories/user.repository');
+const imagekitService = require('./imagekit.service');
 
 /**
  * User Service
@@ -113,7 +114,7 @@ const updateProfile = async (userId, data) => {
   const userFields = {};
   const profileFields = {};
 
-  const userKeys = ['fullName', 'phone'];
+  const userKeys = ['fullName', 'phone', 'avatarUrl'];
   const profileKeys = [
     'age',
     'dietaryPreference',
@@ -174,4 +175,27 @@ const deleteAccount = async (userId) => {
   return userRepository.anonymizeAndDeleteUser(userId);
 };
 
-module.exports = { updateProfile, getProfile, deleteAccount };
+/**
+ * Update authenticated user's avatar URL directly.
+ * Pass null or empty string to remove avatar.
+ * @param {string} userId
+ * @param {string|null} avatarUrl
+ */
+const updateAvatar = async (userId, avatarUrl) => {
+  return userRepository.updateUser(userId, { avatarUrl: avatarUrl || null });
+};
+
+/**
+ * Get ImageKit CDN client-upload authentication parameters.
+ */
+const getAvatarUploadAuth = () => {
+  return imagekitService.getAuthParams();
+};
+
+module.exports = {
+  updateProfile,
+  getProfile,
+  deleteAccount,
+  updateAvatar,
+  getAvatarUploadAuth,
+};

@@ -31,6 +31,7 @@ const findUserById = async (id) => {
       email: true,
       username: true,
       fullName: true,
+      avatarUrl: true,
       phone: true,
       isPremium: true,
       createdAt: true,
