@@ -193,7 +193,7 @@ class _SignupPageState extends State<SignupPage> {
                             const SizedBox(height: 18),
                           ],
 
-                          // ── 4. Full Name Field (Optional) ─────────────────
+                          // ── 4. Full Name Field (Required) ─────────────────
                           TextFormField(
                             controller: _fullNameController,
                             keyboardType: TextInputType.name,
@@ -207,7 +207,7 @@ class _SignupPageState extends State<SignupPage> {
                               fontWeight: FontWeight.w500,
                             ),
                             decoration: _buildInputDecoration(
-                              hintText: 'Full name',
+                              hintText: 'Full name *',
                               prefixIcon: Icons.person_outline_rounded,
                             ),
                           ),
