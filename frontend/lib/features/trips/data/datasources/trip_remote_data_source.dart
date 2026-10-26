@@ -20,6 +20,7 @@ abstract class TripRemoteDataSource {
     required String tripId,
     required String type,
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   });
@@ -27,6 +28,8 @@ abstract class TripRemoteDataSource {
   Future<TripModel> joinViaToken(String token);
 
   Future<GroupConsensusModel> getGroupConsensus(String tripId);
+
+  Future<List<Map<String, dynamic>>> searchPlaces(String query);
 }
 
 class TripRemoteDataSourceImpl implements TripRemoteDataSource {
@@ -130,6 +133,7 @@ class TripRemoteDataSourceImpl implements TripRemoteDataSource {
     required String tripId,
     required String type,
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   }) async {
@@ -137,6 +141,7 @@ class TripRemoteDataSourceImpl implements TripRemoteDataSource {
     final payload = <String, dynamic>{
       'type': type,
       if (friendId != null) 'friendId': friendId,
+      if (username != null) 'username': username,
       if (email != null) 'email': email,
       if (phone != null) 'phone': phone,
     };
@@ -214,6 +219,27 @@ class TripRemoteDataSourceImpl implements TripRemoteDataSource {
     } catch (e) {
       debugPrint('[TRIP_REMOTE_DS] 💥 Unexpected Error on getGroupConsensus: $e');
       throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
+    final clean = query.trim();
+    if (clean.length < 2) return [];
+
+    try {
+      final response = await dio.get(
+        ApiConstants.placesAutocomplete,
+        queryParameters: {'query': clean},
+      );
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final list = response.data['data'] as List<dynamic>? ?? [];
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[TRIP_REMOTE_DS] ⚠️ Autocomplete error: $e');
+      return [];
     }
   }
 }

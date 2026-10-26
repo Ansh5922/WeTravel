@@ -16,6 +16,7 @@ abstract class TripRepository {
     required String tripId,
     required String type, // 'friend', 'email', 'whatsapp', 'link'
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   });
@@ -23,4 +24,6 @@ abstract class TripRepository {
   Future<TripEntity> joinViaToken(String token);
 
   Future<GroupConsensusEntity> getGroupConsensus(String tripId);
+
+  Future<List<Map<String, dynamic>>> searchPlaces(String query);
 }

@@ -13,6 +13,7 @@ class InboxInviteEntity extends Equatable {
   final String invitedById;
   final String inviterUsername;
   final String inviterFullName;
+  final String? inviterAvatarUrl;
   final String inviteType; // 'friend', 'email', 'whatsapp', 'link'
   final String inviteToken;
   final String? coverImageUrl;
@@ -29,6 +30,7 @@ class InboxInviteEntity extends Equatable {
     required this.invitedById,
     required this.inviterUsername,
     required this.inviterFullName,
+    this.inviterAvatarUrl,
     required this.inviteType,
     required this.inviteToken,
     this.coverImageUrl,
@@ -46,6 +48,7 @@ class InboxInviteEntity extends Equatable {
     String? invitedById,
     String? inviterUsername,
     String? inviterFullName,
+    String? inviterAvatarUrl,
     String? inviteType,
     String? inviteToken,
     String? coverImageUrl,
@@ -62,6 +65,7 @@ class InboxInviteEntity extends Equatable {
       invitedById: invitedById ?? this.invitedById,
       inviterUsername: inviterUsername ?? this.inviterUsername,
       inviterFullName: inviterFullName ?? this.inviterFullName,
+      inviterAvatarUrl: inviterAvatarUrl ?? this.inviterAvatarUrl,
       inviteType: inviteType ?? this.inviteType,
       inviteToken: inviteToken ?? this.inviteToken,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
@@ -81,6 +85,7 @@ class InboxInviteEntity extends Equatable {
         invitedById,
         inviterUsername,
         inviterFullName,
+        inviterAvatarUrl,
         inviteType,
         inviteToken,
         coverImageUrl,

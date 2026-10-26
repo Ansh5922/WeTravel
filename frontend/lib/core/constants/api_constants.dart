@@ -113,11 +113,17 @@ class ApiConstants {
   static const String signup = '/api/auth/signup';
   static const String googleSignIn = '/api/auth/google';
   static const String forgotPassword = '/api/auth/forgot-password';
+  static const String resetPassword = '/api/auth/reset-password';
   static const String me = '/api/auth/me';
 
   // User endpoints
   static const String userProfile = '/api/users/profile';
+  static const String userAvatar = '/api/users/avatar';
+  static const String userAvatarAuth = '/api/users/avatar/auth';
   static const String deleteAccount = '/api/users/account';
+
+  // Places & Autocomplete
+  static const String placesAutocomplete = '/api/places/autocomplete';
 
   // Friends endpoints
   static const String friendRequest = '/api/friends/request';
@@ -127,6 +133,9 @@ class ApiConstants {
   // Trips endpoints
   static const String trips = '/api/trips';
   static const String myInvites = '/api/trips/invites/me';
+  static String tripInvite(String tripId) => '/api/trips/$tripId/invite';
+  static String tripJoin(String token) => '/api/trips/join/$token';
+  static String respondInvite(String inviteId) => '/api/trips/invites/$inviteId/respond';
 
   // Itinerary endpoints
   static String tripItineraries(String tripId) => '/api/trips/$tripId/itineraries';

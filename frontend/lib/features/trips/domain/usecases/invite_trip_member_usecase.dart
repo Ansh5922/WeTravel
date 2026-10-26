@@ -9,6 +9,7 @@ class InviteTripMemberUseCase {
     required String tripId,
     required String type,
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   }) {
@@ -16,6 +17,7 @@ class InviteTripMemberUseCase {
       tripId: tripId,
       type: type,
       friendId: friendId,
+      username: username,
       email: email,
       phone: phone,
     );

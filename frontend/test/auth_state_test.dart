@@ -206,6 +206,15 @@ class FakeAuthRepository implements AuthRepository {
           token: 'google_jwt',
         );
   }
+
+  @override
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    return 'Password successfully reset.';
+  }
 }
 
 void main() {

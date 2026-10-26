@@ -40,11 +40,21 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  static const List<String> _avatarPresets = [
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200',
+    'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200',
+    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200',
+  ];
+
   /// Opens the industry-standard Edit Profile modal bottom sheet.
   void _openEditProfileSheet({
     required String initialFullName,
     required String initialUsername,
     required String initialPhone,
+    String? initialAvatarUrl,
   }) {
     final formKey = GlobalKey<FormState>();
     final fullNameController = TextEditingController(text: initialFullName);
@@ -52,6 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
       text: initialUsername.startsWith('@') ? initialUsername.substring(1) : initialUsername,
     );
     final phoneController = TextEditingController(text: initialPhone);
+    String? currentAvatarUrl = initialAvatarUrl;
 
     showModalBottomSheet(
       context: context,
@@ -114,6 +125,80 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontSize: 13,
                         color: const Color(0xFF64748B),
                         height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 0. Profile Photo / Avatar Picker
+                    Text(
+                      'Choose Avatar Photo',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 52,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _avatarPresets.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (ctx, i) {
+                          final preset = _avatarPresets[i];
+                          final isSelected = currentAvatarUrl == preset;
+
+                          return GestureDetector(
+                            onTap: () {
+                              setSheetState(() {
+                                currentAvatarUrl = isSelected ? null : preset;
+                              });
+                            },
+                            child: Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? AppColors.accentWarmYellow : const Color(0xFFE2E8F0),
+                                  width: isSelected ? 3 : 1.5,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.accentWarmYellow.withValues(alpha: 0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: ClipOval(
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(
+                                      preset,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    if (isSelected)
+                                      Container(
+                                        color: Colors.black.withValues(alpha: 0.25),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.check_rounded,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -327,6 +412,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                           fullName: fullNameController.text.trim(),
                                           username: usernameController.text.trim(),
                                           phone: phoneController.text.trim(),
+                                          avatarUrl: currentAvatarUrl,
                                         ),
                                       );
                                     }
@@ -484,6 +570,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               initialFullName: displayName,
                               initialUsername: displayUsername,
                               initialPhone: displayPhone == 'Not provided' ? '' : displayPhone,
+                              initialAvatarUrl: user?.avatarUrl,
                             ),
                             child: Stack(
                               children: [
@@ -509,16 +596,35 @@ class _ProfilePageState extends State<ProfilePage> {
                                       ),
                                     ],
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      initials.isNotEmpty ? initials : 'WT',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
+                                  child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
+                                      ? ClipOval(
+                                          child: Image.network(
+                                            user.avatarUrl!,
+                                            width: 88,
+                                            height: 88,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => Center(
+                                              child: Text(
+                                                initials.isNotEmpty ? initials : 'WT',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 30,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            initials.isNotEmpty ? initials : 'WT',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                                 Positioned(
                                   bottom: 0,

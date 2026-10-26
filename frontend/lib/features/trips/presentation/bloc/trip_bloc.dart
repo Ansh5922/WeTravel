@@ -124,6 +124,7 @@ class TripBloc extends Bloc<TripEvent, TripState> {
         tripId: event.tripId,
         type: event.type,
         friendId: event.friendId,
+        username: event.username,
         email: event.email,
         phone: event.phone,
       );

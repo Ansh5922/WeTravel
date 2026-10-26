@@ -78,6 +78,15 @@ class MockAuthRepository implements AuthRepository {
   Future<String> forgotPassword({required String email}) async {
     return 'Password reset link sent successfully.';
   }
+
+  @override
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    return 'Password reset successfully.';
+  }
 }
 
 class MockAuthLocalDataSource implements AuthLocalDataSource {

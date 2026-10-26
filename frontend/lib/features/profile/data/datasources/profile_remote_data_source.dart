@@ -14,6 +14,7 @@ abstract class ProfileRemoteDataSource {
     String? fullName,
     String? username,
     String? phone,
+    String? avatarUrl,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
@@ -22,6 +23,11 @@ abstract class ProfileRemoteDataSource {
     Map<String, dynamic>? healthConstraints,
     Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
+  });
+
+  Future<String> updateAvatar({
+    required String token,
+    required String avatarUrl,
   });
 
   Future<void> deleteAccount(String token);
@@ -92,6 +98,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     String? fullName,
     String? username,
     String? phone,
+    String? avatarUrl,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
@@ -105,6 +112,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (fullName != null && fullName.trim().isNotEmpty) 'fullName': fullName.trim(),
       if (username != null && username.trim().isNotEmpty) 'username': username.trim(),
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) 'avatarUrl': avatarUrl.trim(),
       if (travelStyle != null && travelStyle.trim().isNotEmpty) 'travelStyle': travelStyle.trim(),
       if (dietaryPreference != null && dietaryPreference.trim().isNotEmpty) 'dietaryPreference': dietaryPreference.trim(),
       if (budget != null) ...{'budget': budget},
@@ -166,6 +174,36 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<String> updateAvatar({
+    required String token,
+    required String avatarUrl,
+  }) async {
+    debugPrint('[PROFILE_REMOTE_DS] 🚀 PATCH ${ApiConstants.userAvatar} -> AvatarUrl: $avatarUrl');
+    try {
+      final response = await dio.patch(
+        ApiConstants.userAvatar,
+        data: {'avatarUrl': avatarUrl.trim()},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['message'] != null) {
+        return data['message'].toString();
+      }
+      return 'Avatar updated successfully.';
+    } on DioException catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] ❌ DioError on updateAvatar: [${e.response?.statusCode}] ${e.message}');
+      throw _handleDioError(e);
+    } catch (e) {
+      debugPrint('[PROFILE_REMOTE_DS] 💥 Error on updateAvatar: $e');
       throw ServerException(e.toString());
     }
   }

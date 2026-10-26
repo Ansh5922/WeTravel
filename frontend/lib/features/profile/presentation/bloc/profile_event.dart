@@ -24,6 +24,7 @@ class ProfileUpdateRequested extends ProfileEvent {
   final String? fullName;
   final String? username;
   final String? phone;
+  final String? avatarUrl;
   final String? travelStyle;
   final String? dietaryPreference;
   final double? budget;
@@ -38,6 +39,7 @@ class ProfileUpdateRequested extends ProfileEvent {
     this.fullName,
     this.username,
     this.phone,
+    this.avatarUrl,
     this.travelStyle,
     this.dietaryPreference,
     this.budget,
@@ -54,6 +56,7 @@ class ProfileUpdateRequested extends ProfileEvent {
         fullName,
         username,
         phone,
+        avatarUrl,
         travelStyle,
         dietaryPreference,
         budget,

@@ -782,20 +782,22 @@ class _TripDetailsPageState extends State<TripDetailsPage>
         SizedBox(
           width: double.infinity,
           height: topPadding + 110,
-          child: Image.asset(
-            'assets/images/workspace_header.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (context, error, stackTrace) => Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF005F73), Color(0xFF0A9396)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          child: (coverUrl != null && coverUrl.isNotEmpty && coverUrl.startsWith('http'))
+              ? Image.network(
+                  coverUrl,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/images/workspace_header.jpg',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
+                )
+              : Image.asset(
+                  'assets/images/workspace_header.jpg',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
                 ),
-              ),
-            ),
-          ),
         ),
 
         // 2. Subtle Dark Gradient Overlay for Contrast

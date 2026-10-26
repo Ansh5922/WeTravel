@@ -12,6 +12,7 @@ import '../../features/auth/domain/usecases/signup_usecase.dart';
 import '../../features/auth/domain/usecases/google_signin_usecase.dart';
 import '../../features/auth/domain/usecases/get_current_user_usecase.dart';
 import '../../features/auth/domain/usecases/forgot_password_usecase.dart';
+import '../../features/auth/domain/usecases/reset_password_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
@@ -178,6 +179,8 @@ class ServiceLocator {
       GetCurrentUserUseCase(authRepository);
   static final ForgotPasswordUseCase forgotPasswordUseCase =
       ForgotPasswordUseCase(authRepository);
+  static final ResetPasswordUseCase resetPasswordUseCase =
+      ResetPasswordUseCase(authRepository);
 
   // ── Profile Singletons ──────────────────────────────────────────────────────
   static final ProfileRemoteDataSource profileRemoteDataSource =
@@ -382,6 +385,7 @@ class ServiceLocator {
         googleSignInUseCase: googleSignInUseCase,
         getCurrentUserUseCase: getCurrentUserUseCase,
         forgotPasswordUseCase: forgotPasswordUseCase,
+        resetPasswordUseCase: resetPasswordUseCase,
         localDataSource: authLocalDataSource,
       );
 
