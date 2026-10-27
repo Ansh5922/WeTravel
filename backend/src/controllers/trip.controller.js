@@ -55,7 +55,7 @@ const inviteMember = async (req, res, next) => {
     });
 
     // Build the shareable join URL (frontend deep link)
-    const joinUrl = `${process.env.APP_BASE_URL || 'https://wetravel.app'}/trips/join/${invite.inviteToken}`;
+    const joinUrl = `${process.env.APP_BASE_URL || 'https://wetravel-server.duckdns.org'}/trips/join/${invite.inviteToken}`;
 
     res.status(201).json({
       status: 'success',
