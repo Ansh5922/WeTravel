@@ -416,6 +416,7 @@ router.get('/.well-known/assetlinks.json', (req, res) => {
         namespace: 'android_app',
         package_name: 'com.example.frontend',
         sha256_cert_fingerprints: [
+          'A9:5A:A4:53:BA:06:F9:50:52:CB:BE:1E:B9:44:A2:37:67:BC:E4:3A:BD:2A:E6:AB:66:11:E3:B4:3C:B9:27:7C',
           'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C'
         ]
       }
