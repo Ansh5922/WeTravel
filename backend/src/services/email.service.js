@@ -9,8 +9,8 @@ const axios = require('axios');
  */
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const DEFAULT_FROM = process.env.EMAIL_FROM || 'WeTravel <no-reply@wetravel.app>';
-const APP_BASE_URL = process.env.APP_BASE_URL || 'https://wetravel.app';
+const DEFAULT_FROM = process.env.EMAIL_FROM || 'WeTravel <onboarding@resend.dev>';
+const APP_BASE_URL = process.env.APP_BASE_URL || 'https://wetravel-server.duckdns.org';
 
 /**
  * Generate responsive HTML email for password reset.
