@@ -69,7 +69,9 @@ class AppTheme {
         titleTextStyle: AppTypography.displaySmall(color: AppColors.primaryDeepTeal),
         systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
           statusBarColor: Colors.transparent,
-          systemNavigationBarColor: AppColors.backgroundWarm,
+          systemNavigationBarColor: Colors.black,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.black,
         ),
       ),
 
@@ -257,7 +259,9 @@ class AppTheme {
         titleTextStyle: AppTypography.displaySmall(color: AppColors.darkTextPrimary),
         systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
           statusBarColor: Colors.transparent,
-          systemNavigationBarColor: AppColors.darkBackground,
+          systemNavigationBarColor: Colors.black,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.black,
         ),
       ),
 

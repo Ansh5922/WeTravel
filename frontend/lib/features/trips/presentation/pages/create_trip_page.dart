@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/services/destination_photo_service.dart';
 import '../../domain/entities/trip_review_draft.dart';
 import '../widgets/budget_range_pill.dart';
 import '../widgets/trip_category_icons.dart';
@@ -230,82 +231,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
   }
 
   String _resolveCoverImageUrl(String destination, String style) {
-    final lower = destination.toLowerCase();
-
-    // ── Coastal & Beaches ──────────────────────────────────────────────────
-    if (lower.contains('beach') ||
-        lower.contains('goa') ||
-        lower.contains('bali') ||
-        lower.contains('phuket') ||
-        lower.contains('pondicherry') ||
-        lower.contains('andaman') ||
-        lower.contains('maldives')) {
-      return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1200';
-    }
-
-    // ── Mountains, Hills & Valleys ─────────────────────────────────────────
-    if (lower.contains('manali') ||
-        lower.contains('ladakh') ||
-        lower.contains('mountain') ||
-        lower.contains('himalaya') ||
-        lower.contains('shimla') ||
-        lower.contains('kashmir') ||
-        lower.contains('rishikesh') ||
-        lower.contains('spiti') ||
-        lower.contains('leh') ||
-        lower.contains('kasol') ||
-        lower.contains('ooty')) {
-      return 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1200';
-    }
-
-    // ── Heritage, Palaces & Forts ──────────────────────────────────────────
-    if (lower.contains('jaipur') ||
-        lower.contains('rajasthan') ||
-        lower.contains('palace') ||
-        lower.contains('agra') ||
-        lower.contains('udaipur') ||
-        lower.contains('jodhpur') ||
-        lower.contains('varanasi') ||
-        lower.contains('hampi') ||
-        lower.contains('delhi')) {
-      return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1200';
-    }
-
-    // ── Nature & Backwaters ────────────────────────────────────────────────
-    if (lower.contains('kerala') ||
-        lower.contains('backwater') ||
-        lower.contains('alleppey') ||
-        lower.contains('munnar') ||
-        lower.contains('wayanad') ||
-        lower.contains('coorg') ||
-        lower.contains('forest')) {
-      return 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1200';
-    }
-
-    // ── Metros & Urban Skylines ────────────────────────────────────────────
-    if (lower.contains('mumbai') ||
-        lower.contains('bangalore') ||
-        lower.contains('singapore') ||
-        lower.contains('dubai') ||
-        lower.contains('london') ||
-        lower.contains('paris') ||
-        lower.contains('tokyo') ||
-        lower.contains('new york')) {
-      return 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=1200';
-    }
-
-    // ── Fallback by Selected Trip Style (Copyright-Free Unsplash) ──────────
-    switch (style.toLowerCase()) {
-      case 'adventure':
-        return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200';
-      case 'food':
-        return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200';
-      case 'cultural':
-        return 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200';
-      default:
-        // Scenic travel wanderlust
-        return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200';
-    }
+    return DestinationPhotoService.resolveCoverImageUrl(destination, style);
   }
 
   bool _isValidDestination(String input) {
@@ -937,15 +863,20 @@ class _CreateTripPageState extends State<CreateTripPage> {
     'Manali',
     'Ladakh',
     'Jaipur',
-    'Bali',
+    'Udaipur',
     'Rishikesh',
     'Kerala',
-    'Udaipur',
+    'Varanasi',
+    'Ooty',
     'Shimla',
+    'Coorg',
     'Kasol',
-    'Paris',
-    'Tokyo',
-    'Dubai',
+    'Andaman',
+    'Darjeeling',
+    'Agra',
+    'Amritsar',
+    'Hampi',
+    'Munnar',
   ];
 
   Widget _buildDestinationSuggestions() {

@@ -72,6 +72,7 @@ import '../../features/trips/domain/usecases/get_trip_details_usecase.dart';
 import '../../features/trips/domain/usecases/invite_trip_member_usecase.dart';
 import '../../features/trips/domain/usecases/join_trip_via_token_usecase.dart';
 import '../../features/trips/presentation/bloc/trip_bloc.dart';
+import '../services/photo_upload_service.dart';
 
 import '../../features/friends/data/datasources/friend_remote_data_source.dart';
 import '../../features/friends/data/repositories/friend_repository_impl.dart';
@@ -376,6 +377,9 @@ class ServiceLocator {
 
   static final ClosePollUseCase closePollUseCase =
       ClosePollUseCase(pollRepository);
+
+  static final PhotoUploadService photoUploadService =
+      PhotoUploadService(dio: _dio);
 
   // ── BLoC Factories ──────────────────────────────────────────────────────────
 

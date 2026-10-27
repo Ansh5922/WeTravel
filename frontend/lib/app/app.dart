@@ -1,5 +1,6 @@
 // Main Root Application widget providing AuthBloc, ProfileBloc, HomeBloc, InboxBloc, PreferencesBloc, ItineraryBloc, ExpenseBloc & GoRouter.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/constants/app_constants.dart';
 import '../core/di/service_locator.dart';
@@ -107,13 +108,20 @@ class _WeTravelAppState extends State<WeTravelApp> {
         listener: (context, state) {
           authNotifierListenable.value = state;
         },
-        child: MaterialApp.router(
-          title: AppConstants.appName,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.light,
-          routerConfig: appRouter,
-          debugShowCheckedModeBanner: false,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: const SystemUiOverlayStyle(
+            systemNavigationBarColor: Colors.black,
+            systemNavigationBarIconBrightness: Brightness.light,
+            systemNavigationBarDividerColor: Colors.black,
+          ),
+          child: MaterialApp.router(
+            title: AppConstants.appName,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.light,
+            routerConfig: appRouter,
+            debugShowCheckedModeBanner: false,
+          ),
         ),
       ),
     );

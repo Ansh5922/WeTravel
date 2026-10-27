@@ -80,18 +80,28 @@ class _LoginPageState extends State<LoginPage> {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.dark,
             statusBarBrightness: Brightness.light,
+            systemNavigationBarColor: Colors.black,
+            systemNavigationBarIconBrightness: Brightness.light,
+            systemNavigationBarDividerColor: Colors.black,
           ),
           child: Scaffold(
-          backgroundColor: AppColors.backgroundWarm,
-          body: SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 440),
+            backgroundColor: AppColors.backgroundWarm,
+            body: SafeArea(
+              bottom: false,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                            Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 440),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                                 child: Form(
@@ -534,17 +544,20 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
 
-                          const SizedBox(height: 24),
-
-                          // ── 11. Full-Width Bottom Scenic Decoration ─────────
-                          const AuthScenicBottomDecoration(height: 110),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 24.0),
+                            child: AuthScenicBottomDecoration(height: 110),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              );
-            },
+                  );
+                },
+              ),
+            ),
+        ),
+      );
+    },
           );
         }
 

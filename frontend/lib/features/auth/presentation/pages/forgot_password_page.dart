@@ -84,97 +84,110 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.dark,
             statusBarBrightness: Brightness.light,
+            systemNavigationBarColor: Colors.black,
+            systemNavigationBarIconBrightness: Brightness.light,
+            systemNavigationBarDividerColor: Colors.black,
           ),
           child: Scaffold(
             backgroundColor: AppColors.backgroundWarm,
             body: SafeArea(
               bottom: false,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 16),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                            Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 440),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      const SizedBox(height: 16),
 
-                              // ── 1. Top Brand Bar with Navigation Back Button ──
-                              AuthTopBar(
-                                showBackButton: true,
-                                onBack: () => context.go(RouteNames.login),
-                              ),
+                                      // ── 1. Top Brand Bar with Navigation Back Button ──
+                                      AuthTopBar(
+                                        showBackButton: true,
+                                        onBack: () => context.go(RouteNames.login),
+                                      ),
 
-                              const SizedBox(height: 20),
+                                      const SizedBox(height: 20),
 
-                              // ── 2. Editorial Headline & Subtitle ──────────────
-                              Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    isSuccess
-                                        ? 'Password Reset!'
-                                        : isSent
-                                            ? 'Enter Reset Code'
-                                            : 'Forgot Password?',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primaryDeepTeal,
-                                      letterSpacing: -0.5,
-                                    ),
+                                      // ── 2. Editorial Headline & Subtitle ──────────────
+                                      Wrap(
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          Text(
+                                            isSuccess
+                                                ? 'Password Reset!'
+                                                : isSent
+                                                    ? 'Enter Reset Code'
+                                                    : 'Forgot Password?',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 26,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primaryDeepTeal,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const SunIcon(size: 24),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 8),
+
+                                      Text(
+                                        isSuccess
+                                            ? 'Your password has been changed. You can now log into your account.'
+                                            : isSent
+                                                ? 'Enter the 6-digit verification code sent to your email and set your new password.'
+                                                : 'No worries! Enter your email address and we’ll send you a 6-digit verification code.',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14.5,
+                                          color: AppColors.textSecondary,
+                                          height: 1.4,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 18),
+
+                                      // ── 3. Central Illustration ────────────────────────
+                                      const ForgotPasswordIllustration(),
+
+                                      const SizedBox(height: 18),
+
+                                      // ── 4. Form or Confirmation ───────────────────
+                                      if (isSuccess)
+                                        _buildSuccessView(context, state)
+                                      else if (isSent)
+                                        _buildResetPasswordForm(context, state, isLoading)
+                                      else
+                                        _buildEmailFormView(context, state, isLoading),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  const SunIcon(size: 24),
-                                ],
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              Text(
-                                isSuccess
-                                    ? 'Your password has been changed. You can now log into your account.'
-                                    : isSent
-                                        ? 'Enter the 6-digit verification code sent to your email and set your new password.'
-                                        : 'No worries! Enter your email address and we’ll send you a 6-digit verification code.',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14.5,
-                                  color: AppColors.textSecondary,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
+                            ),
 
-                              const SizedBox(height: 18),
-
-                              // ── 3. Central Illustration ────────────────────────
-                              const ForgotPasswordIllustration(),
-
-                              const SizedBox(height: 18),
-
-                              // ── 4. Form or Confirmation ───────────────────
-                              if (isSuccess)
-                                _buildSuccessView(context, state)
-                              else if (isSent)
-                                _buildResetPasswordForm(context, state, isLoading)
-                              else
-                                _buildEmailFormView(context, state, isLoading),
-                            ],
-                          ),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 24.0),
+                              child: AuthScenicBottomDecoration(height: 110),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── 5. Full-Width Bottom Scenic Decoration ─────────
-                    const AuthScenicBottomDecoration(height: 110),
-                  ],
-                ),
+                    );
+                },
               ),
             ),
           ),

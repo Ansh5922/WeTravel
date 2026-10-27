@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/we_travel_avatar.dart';
 import '../../../../core/widgets/we_travel_screen_header.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/profile_bloc.dart';
@@ -40,15 +42,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  static const List<String> _avatarPresets = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200',
-    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200',
-  ];
-
   /// Opens the industry-standard Edit Profile modal bottom sheet.
   void _openEditProfileSheet({
     required String initialFullName,
@@ -61,7 +54,10 @@ class _ProfilePageState extends State<ProfilePage> {
     final usernameController = TextEditingController(
       text: initialUsername.startsWith('@') ? initialUsername.substring(1) : initialUsername,
     );
-    final phoneController = TextEditingController(text: initialPhone);
+    // Pre-populate with clean 10-digit phone number if available
+    final rawPhone = initialPhone.replaceAll(RegExp(r'\D'), '');
+    final cleanPhone = rawPhone.length > 10 ? rawPhone.substring(rawPhone.length - 10) : rawPhone;
+    final phoneController = TextEditingController(text: cleanPhone);
     String? currentAvatarUrl = initialAvatarUrl;
 
     showModalBottomSheet(
@@ -73,407 +69,479 @@ class _ProfilePageState extends State<ProfilePage> {
 
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+            final mediaQuery = MediaQuery.of(context);
+            final bottomInset = mediaQuery.viewInsets.bottom;
+            final maxHeight = mediaQuery.size.height * 0.90;
 
             return Container(
-              padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 24),
+              constraints: BoxConstraints(maxHeight: maxHeight),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sheet Handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Sheet Title & Close Icon
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Fixed Sheet Handle & Header ───────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Edit Profile',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryDeepTeal,
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFCBD5E1),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
-                          onPressed: () => Navigator.of(sheetCtx).pop(),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Edit Profile',
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDeepTeal,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                              onPressed: () => Navigator.of(sheetCtx).pop(),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Update your personal information visible to your travel groups.',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: const Color(0xFF64748B),
+                            height: 1.35,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Update your personal information visible to your travel groups.',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: const Color(0xFF64748B),
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
-                    // 0. Profile Photo / Avatar Picker
-                    Text(
-                      'Choose Avatar Photo',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDeepTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 52,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _avatarPresets.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 12),
-                        itemBuilder: (ctx, i) {
-                          final preset = _avatarPresets[i];
-                          final isSelected = currentAvatarUrl == preset;
-
-                          return GestureDetector(
-                            onTap: () {
-                              setSheetState(() {
-                                currentAvatarUrl = isSelected ? null : preset;
-                              });
-                            },
-                            child: Container(
-                              width: 52,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected ? AppColors.accentWarmYellow : const Color(0xFFE2E8F0),
-                                  width: isSelected ? 3 : 1.5,
-                                ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.accentWarmYellow.withValues(alpha: 0.35),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: ClipOval(
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.network(
-                                      preset,
-                                      fit: BoxFit.cover,
-                                    ),
-                                    if (isSelected)
-                                      Container(
-                                        color: Colors.black.withValues(alpha: 0.25),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.check_rounded,
-                                            color: Colors.white,
-                                            size: 20,
+                  // ── Scrollable Form Body (Prevents Any Overflow) ─────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(24, 18, 24, bottomInset + 24),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 0. Profile Photo (Direct Device Gallery Upload)
+                            Center(
+                              child: Column(
+                                children: [
+                                  WeTravelAvatar(
+                                    avatarUrl: currentAvatarUrl,
+                                    initials: fullNameController.text.isNotEmpty
+                                        ? fullNameController.text.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase()
+                                        : 'WT',
+                                    size: 86,
+                                    showEditBadge: true,
+                                    onTap: () async {
+                                      final token = await ServiceLocator.authLocalDataSource.getToken();
+                                      if (token != null && sheetCtx.mounted) {
+                                        final newUrl = await ServiceLocator.photoUploadService.pickAndUpload(
+                                          source: ImageSource.gallery,
+                                          token: token,
+                                        );
+                                        if (newUrl != null && newUrl.isNotEmpty) {
+                                          setSheetState(() {
+                                            currentAvatarUrl = newUrl;
+                                          });
+                                        }
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 6,
+                                    alignment: WrapAlignment.center,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final token = await ServiceLocator.authLocalDataSource.getToken();
+                                          if (token != null && sheetCtx.mounted) {
+                                            final newUrl = await ServiceLocator.photoUploadService.pickAndUpload(
+                                              source: ImageSource.gallery,
+                                              token: token,
+                                            );
+                                            if (newUrl != null && newUrl.isNotEmpty) {
+                                              setSheetState(() {
+                                                currentAvatarUrl = newUrl;
+                                              });
+                                            }
+                                          }
+                                        },
+                                        icon: const Icon(Icons.photo_library_rounded, size: 16),
+                                        label: Text(
+                                          currentAvatarUrl != null && currentAvatarUrl!.isNotEmpty ? 'Change from Gallery' : 'Upload from Gallery',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
                                           ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primaryDeepTeal,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 1. Full Name Field
-                    Text(
-                      'Full Name',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDeepTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: fullNameController,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. Suyash Pandey',
-                        prefixIcon: const Icon(Icons.person_outline_rounded,
-                            color: AppColors.primaryDeepTeal, size: 20),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
-                        ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      validator: (value) {
-                        final trimmed = value?.trim() ?? '';
-                        if (trimmed.isEmpty) {
-                          return 'Full name cannot be empty.';
-                        }
-                        if (trimmed.length < 2) {
-                          return 'Full name must be at least 2 characters.';
-                        }
-                        if (trimmed.length > 50) {
-                          return 'Full name cannot exceed 50 characters.';
-                        }
-                        if (!RegExp(r"^[a-zA-Z\s\-'.]+$").hasMatch(trimmed)) {
-                          return 'Full name can only contain letters, spaces, hyphens, and dots.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 2. Username Field
-                    Text(
-                      'Username',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDeepTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: usernameController,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. suyash_p',
-                        prefixText: '@',
-                        prefixStyle: GoogleFonts.inter(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryDeepTeal,
-                        ),
-                        prefixIcon: const Icon(Icons.alternate_email_rounded,
-                            color: AppColors.primaryDeepTeal, size: 19),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
-                        ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      validator: (value) {
-                        final trimmed = value?.trim() ?? '';
-                        if (trimmed.isEmpty) {
-                          return 'Username cannot be empty.';
-                        }
-                        if (trimmed.length < 3) {
-                          return 'Username must be at least 3 characters.';
-                        }
-                        if (trimmed.length > 30) {
-                          return 'Username cannot exceed 30 characters.';
-                        }
-                        if (trimmed.contains(' ')) {
-                          return 'Username cannot contain spaces.';
-                        }
-                        if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(trimmed)) {
-                          return 'Only letters, numbers, underscores, and dots are allowed.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 3. Phone Field
-                    Text(
-                      'Phone Number',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDeepTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: phoneController,
-                      keyboardType: TextInputType.phone,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. +91 98765 43210',
-                        prefixIcon: const Icon(Icons.phone_outlined,
-                            color: AppColors.primaryDeepTeal, size: 20),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
-                        ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      validator: (value) {
-                        final trimmed = value?.trim() ?? '';
-                        if (trimmed.isEmpty) return null;
-                        final digitsOnly = trimmed.replaceAll(RegExp(r'\D'), '');
-                        if (digitsOnly.length < 7 ||
-                            digitsOnly.length > 15 ||
-                            !RegExp(r'^\+?[0-9\s\-()]{7,20}$').hasMatch(trimmed)) {
-                          return 'Enter a valid phone number (e.g. +91 98765 43210).';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Actions: Cancel & Save Changes
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: isSubmitting ? null : () => Navigator.of(sheetCtx).pop(),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: Text(
-                              'Cancel',
-                              style: GoogleFonts.inter(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isSubmitting
-                                ? null
-                                : () async {
-                                    if (!formKey.currentState!.validate()) return;
-                                    setSheetState(() => isSubmitting = true);
-
-                                    final profileBloc = this.context.read<ProfileBloc>();
-                                    final messenger = ScaffoldMessenger.of(this.context);
-                                    final token = await ServiceLocator.authLocalDataSource
-                                        .getToken();
-                                    if (token != null && token.isNotEmpty && mounted) {
-                                      profileBloc.add(
-                                        ProfileUpdateRequested(
-                                          token: token,
-                                          fullName: fullNameController.text.trim(),
-                                          username: usernameController.text.trim(),
-                                          phone: phoneController.text.trim(),
-                                          avatarUrl: currentAvatarUrl,
-                                        ),
-                                      );
-                                    }
-
-                                    if (mounted && sheetCtx.mounted) {
-                                      Navigator.of(sheetCtx).pop();
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content: Row(
-                                            children: [
-                                              const Icon(Icons.check_circle_rounded,
-                                                  color: Colors.white, size: 20),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                'Profile updated successfully!',
-                                                style: GoogleFonts.inter(
-                                                    fontWeight: FontWeight.w600),
-                                              ),
-                                            ],
+                                      OutlinedButton.icon(
+                                        onPressed: () async {
+                                          final token = await ServiceLocator.authLocalDataSource.getToken();
+                                          if (token != null && sheetCtx.mounted) {
+                                            final newUrl = await ServiceLocator.photoUploadService.pickAndUpload(
+                                              source: ImageSource.camera,
+                                              token: token,
+                                            );
+                                            if (newUrl != null && newUrl.isNotEmpty) {
+                                              setSheetState(() {
+                                                currentAvatarUrl = newUrl;
+                                              });
+                                            }
+                                          }
+                                        },
+                                        icon: const Icon(Icons.camera_alt_outlined, size: 15, color: AppColors.primaryDeepTeal),
+                                        label: Text(
+                                          'Camera',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primaryDeepTeal,
                                           ),
-                                          backgroundColor: AppColors.primaryDeepTeal,
-                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(color: Color(0xFFCBD5E1)),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        ),
+                                      ),
+                                      if (currentAvatarUrl != null && currentAvatarUrl!.isNotEmpty)
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            setSheetState(() {
+                                              currentAvatarUrl = null;
+                                            });
+                                          },
+                                          icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Colors.red),
+                                          label: Text(
+                                            'Remove',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           ),
                                         ),
-                                      );
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accentWarmYellow,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: isSubmitting
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                            const SizedBox(height: 16),
+
+                            // 1. Full Name Field
+                            Text(
+                              'Full Name',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryDeepTeal,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: fullNameController,
+                              decoration: InputDecoration(
+                                hintText: 'e.g. Suyash Pandey',
+                                prefixIcon: const Icon(Icons.person_outline_rounded,
+                                    color: AppColors.primaryDeepTeal, size: 20),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                                ),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                              autovalidateMode: AutovalidateMode.onUserInteraction,
+                              validator: (value) {
+                                final trimmed = value?.trim() ?? '';
+                                if (trimmed.isEmpty) {
+                                  return 'Full name cannot be empty.';
+                                }
+                                if (trimmed.length < 2) {
+                                  return 'Full name must be at least 2 characters.';
+                                }
+                                if (trimmed.length > 50) {
+                                  return 'Full name cannot exceed 50 characters.';
+                                }
+                                if (!RegExp(r"^[a-zA-Z\s\-'.]+$").hasMatch(trimmed)) {
+                                  return 'Full name can only contain letters, spaces, hyphens, and dots.';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 2. Username Field
+                            Text(
+                              'Username',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryDeepTeal,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: usernameController,
+                              autovalidateMode: AutovalidateMode.onUserInteraction,
+                              decoration: InputDecoration(
+                                hintText: 'e.g. suyash_p',
+                                prefixText: '@',
+                                prefixStyle: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDeepTeal,
+                                ),
+                                prefixIcon: const Icon(Icons.alternate_email_rounded,
+                                    color: AppColors.primaryDeepTeal, size: 19),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                                ),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                              validator: (value) {
+                                final trimmed = value?.trim() ?? '';
+                                if (trimmed.isEmpty) {
+                                  return 'Username cannot be empty.';
+                                }
+                                if (trimmed.length < 3) {
+                                  return 'Username must be at least 3 characters.';
+                                }
+                                if (trimmed.length > 30) {
+                                  return 'Username cannot exceed 30 characters.';
+                                }
+                                if (trimmed.contains(' ')) {
+                                  return 'Username cannot contain spaces.';
+                                }
+                                if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(trimmed)) {
+                                  return 'Only letters, numbers, underscores, and dots are allowed.';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 3. Phone Field (Strict 10-Digit Mobile Number)
+                            Text(
+                              'Phone Number (10 digits)',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryDeepTeal,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: phoneController,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              autovalidateMode: AutovalidateMode.onUserInteraction,
+                              decoration: InputDecoration(
+                                hintText: '10-digit mobile number',
+                                prefixIcon: const Icon(Icons.phone_outlined,
+                                    color: AppColors.primaryDeepTeal, size: 20),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.primaryDeepTeal, width: 1.8),
+                                ),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                              validator: (value) {
+                                final trimmed = value?.trim() ?? '';
+                                if (trimmed.isEmpty) return null;
+                                if (trimmed.length != 10) {
+                                  return 'Phone number must be exactly 10 digits.';
+                                }
+                                if (!RegExp(r'^[0-9]{10}$').hasMatch(trimmed)) {
+                                  return 'Enter a valid 10-digit phone number.';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Actions: Cancel & Save Changes
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: isSubmitting ? null : () => Navigator.of(sheetCtx).pop(),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
                                     ),
-                                  )
-                                : Text(
-                                    'Save Changes',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                    child: Text(
+                                      'Cancel',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF64748B),
+                                      ),
                                     ),
                                   ),
-                          ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: isSubmitting
+                                        ? null
+                                        : () async {
+                                            if (!formKey.currentState!.validate()) return;
+                                            setSheetState(() => isSubmitting = true);
+
+                                            final profileBloc = this.context.read<ProfileBloc>();
+                                            final messenger = ScaffoldMessenger.of(this.context);
+                                            final token = await ServiceLocator.authLocalDataSource
+                                                .getToken();
+                                            if (token != null && token.isNotEmpty && mounted) {
+                                              profileBloc.add(
+                                                ProfileUpdateRequested(
+                                                  token: token,
+                                                  fullName: fullNameController.text.trim(),
+                                                  username: usernameController.text.trim(),
+                                                  phone: phoneController.text.trim(),
+                                                  avatarUrl: currentAvatarUrl,
+                                                ),
+                                              );
+                                            }
+
+                                            if (mounted && sheetCtx.mounted) {
+                                              Navigator.of(sheetCtx).pop();
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.check_circle_rounded,
+                                                          color: Colors.white, size: 20),
+                                                      const SizedBox(width: 10),
+                                                      Text(
+                                                        'Profile updated successfully!',
+                                                        style: GoogleFonts.inter(
+                                                            fontWeight: FontWeight.w600),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: AppColors.primaryDeepTeal,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.accentWarmYellow,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                    ),
+                                    child: isSubmitting
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Save Changes',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -565,86 +633,29 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         children: [
                           // Circular Avatar with Edit Badge
-                          GestureDetector(
-                            onTap: () => _openEditProfileSheet(
-                              initialFullName: displayName,
-                              initialUsername: displayUsername,
-                              initialPhone: displayPhone == 'Not provided' ? '' : displayPhone,
-                              initialAvatarUrl: user?.avatarUrl,
-                            ),
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF004E64), Color(0xFF007791)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
+                          WeTravelAvatar(
+                            avatarUrl: user?.avatarUrl,
+                            initials: initials,
+                            size: 88,
+                            showEditBadge: true,
+                            onTap: () async {
+                              final token = await ServiceLocator.authLocalDataSource.getToken();
+                              if (token != null && context.mounted) {
+                                final newUrl = await ServiceLocator.photoUploadService.promptAndUploadAvatar(
+                                  context: context,
+                                  token: token,
+                                  hasExistingPhoto: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty,
+                                );
+                                if (newUrl != null && context.mounted) {
+                                  context.read<ProfileBloc>().add(
+                                    ProfileUpdateRequested(
+                                      token: token,
+                                      avatarUrl: newUrl.isEmpty ? null : newUrl,
                                     ),
-                                    border: Border.all(
-                                      color: AppColors.accentWarmYellow,
-                                      width: 2.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primaryDeepTeal.withValues(alpha: 0.22),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            user.avatarUrl!,
-                                            width: 88,
-                                            height: 88,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) => Center(
-                                              child: Text(
-                                                initials.isNotEmpty ? initials : 'WT',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 30,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      : Center(
-                                          child: Text(
-                                            initials.isNotEmpty ? initials : 'WT',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 30,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.accentWarmYellow,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit_rounded,
-                                      color: Colors.white,
-                                      size: 15,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                  );
+                                }
+                              }
+                            },
                           ),
                           const SizedBox(height: 14),
 
