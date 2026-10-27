@@ -102,7 +102,18 @@ const findInviteByToken = async (token) => {
       expiresAt:   { gt: new Date() },
     },
     include: {
-      group:   { select: { id: true, name: true } },
+      group: {
+        select: {
+          id: true,
+          name: true,
+          coverImageUrl: true,
+          tripStartDate: true,
+          tripEndDate: true,
+          members: {
+            include: { user: { select: SAFE_USER_SELECT } },
+          },
+        },
+      },
       inviter: { select: SAFE_USER_SELECT },
     },
   });

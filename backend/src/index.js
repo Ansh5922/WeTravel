@@ -14,6 +14,7 @@ const itineraryRoutes = require('./routes/itinerary.routes');
 const expenseRoutes = require('./routes/expense.routes');
 const memoryRoutes = require('./routes/memory.routes');
 const placeRoutes = require('./routes/place.routes');
+const webRoutes = require('./routes/web.routes');
 const { errorHandler } = require('./middleware/error.middleware');
 const { attachWsServer } = require('./websocket/ws.server');
 const { startChatRetentionCron } = require('./cron/chat.retention.cron');
@@ -66,6 +67,8 @@ app.use('/api/trips/:tripId/memories', memoryRoutes);
 app.use('/api/trips', itineraryRoutes);
 app.use('/api/places', placeRoutes);
 
+// ── Web Landing Pages & Deep Links ────────────────────────────────────────────
+app.use('/', webRoutes);
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

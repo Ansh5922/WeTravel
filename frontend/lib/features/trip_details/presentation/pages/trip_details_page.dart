@@ -116,9 +116,9 @@ class _TripDetailsPageState extends State<TripDetailsPage>
   }
 
   void _showInviteModal(BuildContext context, TripEntity trip) {
-    final inviteLink = 'https://wetravel.app/join/${trip.id}';
+    final inviteLink = 'https://wetravel-server.duckdns.org/trips/join/${trip.id}';
     final inviteMessage =
-        'Hey! Join our trip "${trip.name}" on WeTravel! Plan together, vote on activities, and split expenses effortlessly.\n\nTap here to join: $inviteLink';
+        'Hey! Join our trip "${trip.name}" on WeTravel! Plan together, vote on activities, and split expenses effortlessly.\n\n$inviteLink\n\n🔑 Trip Code: ${trip.id}\n(Or open WeTravel app → Tap "Join Trip" → Enter code)';
 
     showModalBottomSheet(
       context: context,

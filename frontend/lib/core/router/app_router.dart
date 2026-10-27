@@ -207,6 +207,14 @@ final GoRouter appRouter = GoRouter(
         return JoinTripLandingPage(token: token);
       },
     ),
+    GoRoute(
+      path: '/join/:token',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final token = state.pathParameters['token'] ?? '';
+        return JoinTripLandingPage(token: token);
+      },
+    ),
 
     // ── Invitation Details Route ──────────────────────────────────────────────
     GoRoute(

@@ -60,7 +60,12 @@ const signup = async (req, res, next) => {
     res.status(201).json({
       status: 'success',
       message: 'Account created successfully.',
-      data: { user, token },
+      data: {
+        user,
+        token,
+        isNewUser: true,
+        isFirstTimeUser: true,
+      },
     });
   } catch (err) {
     next(err); // Forward to global error handler
@@ -86,7 +91,12 @@ const login = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       message: 'Logged in successfully.',
-      data: { user, token },
+      data: {
+        user,
+        token,
+        isNewUser: false,
+        isFirstTimeUser: false,
+      },
     });
   } catch (err) {
     next(err);
@@ -107,12 +117,17 @@ const googleLogin = async (req, res, next) => {
       });
     }
 
-    const { user, token } = await authService.googleLogin(idToken);
+    const { user, token, isNewUser, isFirstTimeUser } = await authService.googleLogin(idToken);
 
     res.status(200).json({
       status: 'success',
       message: 'Logged in with Google successfully.',
-      data: { user, token },
+      data: {
+        user,
+        token,
+        isNewUser: Boolean(isNewUser),
+        isFirstTimeUser: Boolean(isFirstTimeUser),
+      },
     });
   } catch (err) {
     next(err);
