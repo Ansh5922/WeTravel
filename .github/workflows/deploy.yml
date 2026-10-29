@@ -40,10 +40,21 @@ jobs:
             git checkout ${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
 
-            # 3. Build & restart containers
-            echo "🐳 Rebuilding and starting Docker services..."
+            # 3. Build & restart containers with BuildKit cache resilience
+            echo "🐳 Cleaning stale cache & rebuilding Docker services..."
+            # Prevent disk exhaustion and corrupt BuildKit snapshots
+            docker image prune -f || true
+
             docker compose down
-            docker compose up -d --build
+
+            # Attempt build; if corrupted snapshot error occurs, auto-prune builder and build with --no-cache
+            if ! docker compose build; then
+              echo "⚠️ Standard build failed. Clearing corrupted BuildKit cache and retrying with --no-cache..."
+              docker builder prune -a -f
+              docker compose build --no-cache
+            fi
+
+            docker compose up -d
 
             # 4. Run database migrations automatically
             echo "🗄️ Running Prisma database migrations..."

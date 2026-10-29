@@ -10,7 +10,12 @@ const { protect } = require('../middleware/auth.middleware');
  */
 const router = express.Router();
 
-// Apply `protect` middleware to ALL routes in this router
+// ── Public routes (no JWT required) ──────────────────────────────────────────
+// POST /api/users/request-deletion — Public web deletion request (Play Store compliant)
+router.post('/request-deletion', userController.requestDeletion);
+
+// ── Protected routes (require valid JWT) ─────────────────────────────────────
+// Apply `protect` middleware to subsequent routes in this router
 router.use(protect);
 
 // GET  /api/users/profile  — fetch current user's profile

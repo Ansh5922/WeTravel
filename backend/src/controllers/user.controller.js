@@ -166,10 +166,37 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/users/request-deletion
+ * Public web form endpoint for requesting account and data deletion (Play Store web requirement).
+ */
+const requestDeletion = async (req, res, next) => {
+  try {
+    const { email, reason } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'A valid email address is required.',
+      });
+    }
+
+    console.log(`📋 [Data Deletion Request] Email: ${email.trim().toLowerCase()} | Reason: ${reason || 'Not specified'}`);
+
+    // Always return safe success message to prevent email enumeration
+    res.status(200).json({
+      status: 'success',
+      message: 'Deletion request received. If an account is associated with this email, our data team will verify and process the erasure within 14–30 business days.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   updateProfile,
   getProfile,
   updateAvatar,
   getAvatarUploadAuth,
   deleteAccount,
+  requestDeletion,
 };

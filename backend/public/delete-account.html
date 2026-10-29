@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account & Data Deletion - WeTravel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #004E64;
+      --primary-dark: #003647;
+      --primary-light: #007791;
+      --danger: #DC2626;
+      --danger-dark: #B91C1C;
+      --danger-bg: #FEF2F2;
+      --accent: #F59E0B;
+      --bg: #FAF9F6;
+      --card-bg: #FFFFFF;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 0;
+    }
+    header {
+      background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+      color: white;
+      padding: 48px 20px 40px;
+      text-align: center;
+      border-bottom: 4px solid var(--danger);
+    }
+    .header-content {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(220, 38, 38, 0.2);
+      color: #FCA5A5;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(252, 165, 165, 0.3);
+    }
+    h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.85);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    main {
+      max-width: 860px;
+      margin: -24px auto 60px;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 28px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2:first-of-type {
+      margin-top: 0;
+    }
+    h2::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 20px;
+      background: var(--danger);
+      border-radius: 2px;
+    }
+    p, ul {
+      font-size: 15px;
+      color: #334155;
+      margin-bottom: 16px;
+    }
+    ul {
+      padding-left: 24px;
+      margin-bottom: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .grid-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 24px 0 32px;
+    }
+    @media (max-width: 680px) {
+      .grid-options {
+        grid-template-columns: 1fr;
+      }
+    }
+    .option-box {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 20px;
+      background: #FFFFFF;
+      transition: all 0.2s;
+    }
+    .option-box.featured {
+      border-color: #93C5FD;
+      background: #F8FAFC;
+    }
+    .option-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-list {
+      list-style-type: decimal;
+      padding-left: 20px;
+      font-size: 14px;
+      color: #475569;
+    }
+    .step-list li {
+      margin-bottom: 6px;
+    }
+    /* Web Form Styling */
+    .form-card {
+      background: #FFF;
+      border: 2px solid #E2E8F0;
+      border-radius: 14px;
+      padding: 28px 24px;
+      margin-top: 20px;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    input[type="email"], select, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="email"]:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0, 78, 100, 0.15);
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .checkbox-group input {
+      margin-top: 4px;
+      accent-color: var(--danger);
+      width: 16px;
+      height: 16px;
+    }
+    .checkbox-group label {
+      font-size: 13.5px;
+      font-weight: 400;
+      color: #475569;
+      line-height: 1.4;
+    }
+    .submit-btn {
+      width: 100%;
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover {
+      background: var(--danger-dark);
+    }
+    .submit-btn:disabled {
+      background: #94A3B8;
+      cursor: not-allowed;
+    }
+    .status-alert {
+      display: none;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .status-alert.success {
+      display: block;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #BBF7D0;
+    }
+    .status-alert.error {
+      display: block;
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 18px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: #F8FAFC;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    td.deleted {
+      color: #B91C1C;
+      font-weight: 600;
+    }
+    td.retained {
+      color: #B45309;
+      font-weight: 600;
+    }
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      .card {
+        padding: 24px 18px;
+      }
+      h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="badge">Google Play Data Policy</div>
+      <h1>Account & Data Deletion</h1>
+      <div class="subtitle">Request permanent erasure of your WeTravel account, personal identity, and associated data.</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>How to Delete Your Account</h2>
+      <p>Under Google Play's User Data policy and global privacy standards (GDPR/CCPA), you have full control over your data. We provide two easy methods to permanently delete your account and personal information:</p>
+
+      <div class="grid-options">
+        <div class="option-box featured">
+          <div class="option-title">
+            <span>📱</span> Method 1: In-App (Instant)
+          </div>
+          <p style="font-size: 13.5px; margin-bottom: 10px;">If you currently have the WeTravel app installed on your device:</p>
+          <ol class="step-list">
+            <li>Open the <strong>WeTravel</strong> app and log in.</li>
+            <li>Go to the <strong>Profile</strong> tab (bottom right).</li>
+            <li>Tap <strong>Account Settings</strong> (gear icon).</li>
+            <li>Scroll down and tap <strong>Delete Account</strong> in red.</li>
+            <li>Confirm by tapping <strong>Yes, Delete My Account</strong>.</li>
+          </ol>
+          <p style="font-size: 12.5px; color: #059669; font-weight: 600; margin-top: 10px;">&bull; Processed immediately in real-time.</p>
+        </div>
+
+        <div class="option-box">
+          <div class="option-title">
+            <span>🌐</span> Method 2: Web Request (No App Needed)
+          </div>
+          <p style="font-size: 13.5px; margin-bottom: 10px;">If you have uninstalled the app or lost access to your device:</p>
+          <p style="font-size: 13.5px; color: #475569;">
+            Fill out the official deletion request form below using the email registered with your WeTravel account. Our automated system will log your request and verify your deletion.
+          </p>
+          <p style="font-size: 12.5px; color: #D97706; font-weight: 600; margin-top: 10px;">&bull; Processed within 14–30 business days.</p>
+        </div>
+      </div>
+
+      <h2>Web Deletion Request Form</h2>
+      <div class="form-card">
+        <form id="deletionForm">
+          <div class="form-group">
+            <label for="email">Registered Email Address *</label>
+            <input type="email" id="email" name="email" placeholder="e.g. name@example.com" required autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label for="reason">Reason for Leaving (Optional)</label>
+            <select id="reason" name="reason">
+              <option value="">Select a reason...</option>
+              <option value="no_longer_needed">No longer traveling / planning trips</option>
+              <option value="privacy_concerns">Privacy or data concerns</option>
+              <option value="created_second_account">Created a different account</option>
+              <option value="other">Other reason</option>
+            </select>
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="consent" required>
+            <label for="consent">
+              I understand that submitting this request will permanently remove my personal credentials, profile, and travel preferences. This action cannot be undone once processed.
+            </label>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn">Submit Account Deletion Request</button>
+
+          <div id="statusAlert" class="status-alert"></div>
+        </form>
+      </div>
+
+      <h2>Data Scope: What Gets Deleted vs Retained</h2>
+      <p>In adherence to transparency guidelines, here is exactly how your data is handled upon deletion:</p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Data Category</th>
+              <th>Action Taken</th>
+              <th>Retention & Technical Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Account & Identity</strong><br>(Name, Username, Email, Password Hash, Avatar)</td>
+              <td class="deleted">Permanently Deleted</td>
+              <td>Immediately purged or anonymized. You will no longer be able to log in or recover credentials.</td>
+            </tr>
+            <tr>
+              <td><strong>AI Travel Preferences</strong><br>(Consensus vectors, style, budget tier)</td>
+              <td class="deleted">Permanently Deleted</td>
+              <td>Your personal survey vectors are wiped from our database and AI embeddings.</td>
+            </tr>
+            <tr>
+              <td><strong>Direct Invitations & Friendship Links</strong></td>
+              <td class="deleted">Permanently Deleted</td>
+              <td>Pending friend requests and private invites are cancelled.</td>
+            </tr>
+            <tr>
+              <td><strong>Shared Group Trip Expenses</strong></td>
+              <td class="retained">Anonymized</td>
+              <td>To preserve the financial integrity and split balances of remaining group travel companions, past group expenses attribute your historic entries to <em>"Former Member"</em> with all personal identifiers removed.</td>
+            </tr>
+            <tr>
+              <td><strong>Server Security & Audit Logs</strong></td>
+              <td class="retained">Retained (Max 30 Days)</td>
+              <td>Standard technical HTTP/security logs are retained for fraud prevention up to 30 days, after which they are permanently overwritten.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Questions or Need Immediate Assistance?</h2>
+      <p>If you face any issues or prefer to request deletion via email or phone, you can contact our Data Protection Officer directly:</p>
+      <p>
+        <strong>Developer / Legal Entity:</strong> WeTravel (India)<br>
+        <strong>Email:</strong> <a href="mailto:rashimeenameher97@gmail.com" style="color: var(--primary); text-decoration: underline;">rashimeenameher97@gmail.com</a> (Subject: <em>"Account Deletion Request"</em>)<br>
+        <strong>Phone:</strong> <a href="tel:+916203491856" style="color: var(--primary); text-decoration: underline;">+91 6203491856</a><br>
+        <strong>Privacy Policy:</strong> <a href="/privacy" style="color: var(--primary); text-decoration: underline;">View Full Privacy Policy</a>
+      </p>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 WeTravel App &bull; <a href="/privacy">Privacy Policy</a> &bull; <a href="https://wetravel-server.duckdns.org">Home</a></p>
+  </footer>
+
+  <script>
+    const form = document.getElementById('deletionForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const alertBox = document.getElementById('statusAlert');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const reason = document.getElementById('reason').value;
+
+      if (!email) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Submitting Request...';
+      alertBox.className = 'status-alert';
+      alertBox.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/users/request-deletion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, reason })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alertBox.className = 'status-alert success';
+          alertBox.innerHTML = '<strong>Request Received!</strong> If an active account matches <em>' + escapeHtml(email) + '</em>, our data team has registered your deletion ticket. It will be verified and permanently deleted within 14–30 business days.';
+          form.reset();
+        } else {
+          alertBox.className = 'status-alert error';
+          alertBox.innerHTML = '<strong>Error:</strong> ' + escapeHtml(data.message || 'Unable to submit deletion request. Please try again or email rashimeenameher97@gmail.com.');
+        }
+      } catch (err) {
+        alertBox.className = 'status-alert error';
+        alertBox.innerHTML = '<strong>Connection Error:</strong> Could not reach the server. Please try again later or email <a href="mailto:rashimeenameher97@gmail.com">rashimeenameher97@gmail.com</a>.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit Account Deletion Request';
+      }
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
