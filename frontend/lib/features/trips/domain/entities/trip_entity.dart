@@ -7,6 +7,13 @@ class TripGroupMemberEntity extends Equatable {
   final String email;
   final String username;
   final String fullName;
+  final String? avatarUrl;
+  final String? dietaryPreference;
+  final String? travelStyle;
+  final String? pacePreference;
+  final String? budgetTier;
+  final dynamic healthConstraints;
+  final dynamic climateSensitivities;
 
   const TripGroupMemberEntity({
     required this.id,
@@ -15,10 +22,31 @@ class TripGroupMemberEntity extends Equatable {
     required this.email,
     required this.username,
     required this.fullName,
+    this.avatarUrl,
+    this.dietaryPreference,
+    this.travelStyle,
+    this.pacePreference,
+    this.budgetTier,
+    this.healthConstraints,
+    this.climateSensitivities,
   });
 
   @override
-  List<Object?> get props => [id, userId, role, email, username, fullName];
+  List<Object?> get props => [
+        id,
+        userId,
+        role,
+        email,
+        username,
+        fullName,
+        avatarUrl,
+        dietaryPreference,
+        travelStyle,
+        pacePreference,
+        budgetTier,
+        healthConstraints,
+        climateSensitivities,
+      ];
 }
 
 class TripEntity extends Equatable {

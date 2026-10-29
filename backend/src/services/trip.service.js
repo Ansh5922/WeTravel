@@ -314,7 +314,20 @@ const assignRole = async (requestingUserId, tripId, targetUserId, role) => {
     throw err;
   }
 
-  // 2. Target must be a member
+  // 2. Fetch trip to protect creator from demotion
+  const trip = await tripRepository.findTripById(tripId);
+  if (!trip) {
+    const err = new Error('Trip not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (trip.createdBy === targetUserId && role !== 'admin' && role !== 'creator') {
+    const err = new Error('The trip creator role cannot be demoted.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 3. Target must be a member
   const targetMembership = await tripRepository.findMembership(targetUserId, tripId);
   if (!targetMembership) {
     const err = new Error('Target user is not a member of this trip.');
@@ -324,6 +337,45 @@ const assignRole = async (requestingUserId, tripId, targetUserId, role) => {
 
   await tripRepository.updateMemberRole(tripId, targetUserId, role);
   return { message: `User's role updated to ${role}.` };
+};
+
+/**
+ * Admin removes a member from a trip.
+ * Trip creator cannot be removed.
+ */
+const removeMember = async (requestingUserId, tripId, targetUserId) => {
+  // 1. Requesting user must be admin or creator
+  const requesterMembership = await tripRepository.findMembership(requestingUserId, tripId);
+  if (!requesterMembership || !['admin', 'creator'].includes(requesterMembership.role)) {
+    const err = new Error('Only trip admins can remove members from the trip.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // 2. Fetch trip to verify target is not creator
+  const trip = await tripRepository.findTripById(tripId);
+  if (!trip) {
+    const err = new Error('Trip not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (trip.createdBy === targetUserId) {
+    const err = new Error('The trip creator cannot be removed from the trip.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 3. Target must be a member
+  const targetMembership = await tripRepository.findMembership(targetUserId, tripId);
+  if (!targetMembership) {
+    const err = new Error('Target user is not a member of this trip.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // 4. Remove member
+  await tripRepository.removeGroupMember(tripId, targetUserId);
+  return { message: 'Member removed from trip successfully.' };
 };
 
 module.exports = {
@@ -338,4 +390,5 @@ module.exports = {
   getConsensus,
   updateConsensus,
   assignRole,
+  removeMember,
 };

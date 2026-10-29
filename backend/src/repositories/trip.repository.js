@@ -13,6 +13,17 @@ const SAFE_USER_SELECT = {
   username: true,
   fullName: true,
   avatarUrl: true,
+  profile: {
+    select: {
+      dietaryPreference: true,
+      travelStyle: true,
+      budgetTier: true,
+      pacePreference: true,
+      healthConstraints: true,
+      climateSensitivities: true,
+      rawPreferenceNotes: true,
+    },
+  },
 };
 
 /** Create a trip and add the creator as admin in a single transaction. */
@@ -195,6 +206,13 @@ const updateMemberRole = async (groupId, targetUserId, role) => {
   });
 };
 
+/** Remove a group member from a trip. */
+const removeGroupMember = async (groupId, targetUserId) => {
+  return prisma.groupMember.deleteMany({
+    where: { groupId, userId: targetUserId },
+  });
+};
+
 module.exports = {
   createTrip,
   findTripById,
@@ -210,4 +228,5 @@ module.exports = {
   findConsensus,
   upsertConsensus,
   updateMemberRole,
+  removeGroupMember,
 };

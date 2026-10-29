@@ -8,11 +8,21 @@ class TripGroupMemberModel extends TripGroupMemberEntity {
     required super.email,
     required super.username,
     required super.fullName,
+    super.avatarUrl,
+    super.dietaryPreference,
+    super.travelStyle,
+    super.pacePreference,
+    super.budgetTier,
+    super.healthConstraints,
+    super.climateSensitivities,
   });
 
   factory TripGroupMemberModel.fromJson(Map<String, dynamic> json) {
     final userData = (json['user'] is Map<String, dynamic>)
         ? json['user'] as Map<String, dynamic>
+        : {};
+    final profileData = (userData['profile'] is Map<String, dynamic>)
+        ? userData['profile'] as Map<String, dynamic>
         : {};
 
     return TripGroupMemberModel(
@@ -22,6 +32,13 @@ class TripGroupMemberModel extends TripGroupMemberEntity {
       email: userData['email']?.toString() ?? '',
       username: userData['username']?.toString() ?? '',
       fullName: userData['fullName']?.toString() ?? userData['username']?.toString() ?? 'Traveler',
+      avatarUrl: userData['avatarUrl']?.toString(),
+      dietaryPreference: profileData['dietaryPreference']?.toString(),
+      travelStyle: profileData['travelStyle']?.toString(),
+      pacePreference: profileData['pacePreference']?.toString(),
+      budgetTier: profileData['budgetTier']?.toString(),
+      healthConstraints: profileData['healthConstraints'],
+      climateSensitivities: profileData['climateSensitivities'],
     );
   }
 }

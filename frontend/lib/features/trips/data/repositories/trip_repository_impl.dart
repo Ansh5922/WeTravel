@@ -62,6 +62,16 @@ class TripRepositoryImpl implements TripRepository {
   }
 
   @override
+  Future<void> removeMember({required String tripId, required String userId}) {
+    return remoteDataSource.removeMember(tripId: tripId, userId: userId);
+  }
+
+  @override
+  Future<void> assignRole({required String tripId, required String userId, required String role}) {
+    return remoteDataSource.assignRole(tripId: tripId, userId: userId, role: role);
+  }
+
+  @override
   Future<List<Map<String, dynamic>>> searchPlaces(String query) {
     return remoteDataSource.searchPlaces(query);
   }

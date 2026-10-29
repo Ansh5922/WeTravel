@@ -29,6 +29,17 @@ abstract class TripRemoteDataSource {
 
   Future<GroupConsensusModel> getGroupConsensus(String tripId);
 
+  Future<void> removeMember({
+    required String tripId,
+    required String userId,
+  });
+
+  Future<void> assignRole({
+    required String tripId,
+    required String userId,
+    required String role,
+  });
+
   Future<List<Map<String, dynamic>>> searchPlaces(String query);
 }
 
@@ -218,6 +229,51 @@ class TripRemoteDataSourceImpl implements TripRemoteDataSource {
       throw ServerException(msg, e.response?.statusCode);
     } catch (e) {
       debugPrint('[TRIP_REMOTE_DS] 💥 Unexpected Error on getGroupConsensus: $e');
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> removeMember({
+    required String tripId,
+    required String userId,
+  }) async {
+    final endpoint = '${ApiConstants.trips}/$tripId/members/$userId';
+    debugPrint('[TRIP_REMOTE_DS] 🗑️ DELETE $endpoint');
+    try {
+      final response = await dio.delete(endpoint);
+      if (response.statusCode != 200) {
+        throw ServerException(
+          response.data?['message']?.toString() ?? 'Failed to remove member.',
+        );
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message']?.toString() ?? e.message ?? 'Failed to remove member.';
+      throw ServerException(msg);
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> assignRole({
+    required String tripId,
+    required String userId,
+    required String role,
+  }) async {
+    final endpoint = '${ApiConstants.trips}/$tripId/members/$userId/role';
+    debugPrint('[TRIP_REMOTE_DS] 🛡️ PATCH $endpoint -> role: $role');
+    try {
+      final response = await dio.patch(endpoint, data: {'role': role});
+      if (response.statusCode != 200) {
+        throw ServerException(
+          response.data?['message']?.toString() ?? 'Failed to update member role.',
+        );
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message']?.toString() ?? e.message ?? 'Failed to update member role.';
+      throw ServerException(msg);
+    } catch (e) {
       throw ServerException(e.toString());
     }
   }

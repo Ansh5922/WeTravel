@@ -8,6 +8,8 @@ import '../../domain/usecases/get_my_trips_usecase.dart';
 import '../../domain/usecases/get_trip_details_usecase.dart';
 import '../../domain/usecases/invite_trip_member_usecase.dart';
 import '../../domain/usecases/join_trip_via_token_usecase.dart';
+import '../../domain/usecases/remove_trip_member_usecase.dart';
+import '../../domain/usecases/assign_trip_role_usecase.dart';
 import 'trip_event.dart';
 import 'trip_state.dart';
 
@@ -18,6 +20,8 @@ class TripBloc extends Bloc<TripEvent, TripState> {
   final InviteTripMemberUseCase inviteTripMemberUseCase;
   final JoinTripViaTokenUseCase joinTripViaTokenUseCase;
   final GetGroupConsensusUseCase getGroupConsensusUseCase;
+  final RemoveTripMemberUseCase? removeTripMemberUseCase;
+  final AssignTripRoleUseCase? assignTripRoleUseCase;
 
   TripBloc({
     required this.createTripUseCase,
@@ -26,6 +30,8 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     required this.inviteTripMemberUseCase,
     required this.joinTripViaTokenUseCase,
     required this.getGroupConsensusUseCase,
+    this.removeTripMemberUseCase,
+    this.assignTripRoleUseCase,
   }) : super(TripInitialState()) {
     on<TripsFetchRequested>(_onTripsFetchRequested);
     on<TripDetailsRequested>(_onTripDetailsRequested);
@@ -33,6 +39,8 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     on<TripInviteMemberRequested>(_onTripInviteMemberRequested);
     on<TripJoinViaTokenRequested>(_onTripJoinViaTokenRequested);
     on<GroupConsensusRequested>(_onGroupConsensusRequested);
+    on<TripRemoveMemberRequested>(_onTripRemoveMemberRequested);
+    on<TripAssignRoleRequested>(_onTripAssignRoleRequested);
   }
 
   Future<void> _onTripsFetchRequested(
@@ -183,6 +191,56 @@ class TripBloc extends Bloc<TripEvent, TripState> {
       // Non-fatal exception for detail screen
     } catch (e) {
       debugPrint('[TRIP_BLOC] 💥 Unexpected Consensus Error: $e');
+    }
+  }
+
+  Future<void> _onTripRemoveMemberRequested(
+    TripRemoveMemberRequested event,
+    Emitter<TripState> emit,
+  ) async {
+    debugPrint('[TRIP_BLOC] 🗑️ Event: TripRemoveMemberRequested (tripId: ${event.tripId}, userId: ${event.userId})');
+
+    try {
+      if (removeTripMemberUseCase != null) {
+        await removeTripMemberUseCase!(tripId: event.tripId, userId: event.userId);
+      }
+      debugPrint('[TRIP_BLOC] ✅ Member removed! Re-fetching trip details...');
+      final updatedTrip = await getTripDetailsUseCase(event.tripId);
+      final consensus = (state is TripDetailLoadedState) ? (state as TripDetailLoadedState).consensus : null;
+      emit(TripDetailLoadedState(trip: updatedTrip, consensus: consensus));
+    } on ServerException catch (e) {
+      debugPrint('[TRIP_BLOC] ❌ Remove Member Error: ${e.message}');
+      emit(TripErrorState(message: e.message));
+    } catch (e) {
+      debugPrint('[TRIP_BLOC] 💥 Unexpected Remove Member Error: $e');
+      emit(TripErrorState(message: 'Failed to remove member: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onTripAssignRoleRequested(
+    TripAssignRoleRequested event,
+    Emitter<TripState> emit,
+  ) async {
+    debugPrint('[TRIP_BLOC] 🛡️ Event: TripAssignRoleRequested (tripId: ${event.tripId}, userId: ${event.userId}, role: ${event.role})');
+
+    try {
+      if (assignTripRoleUseCase != null) {
+        await assignTripRoleUseCase!(
+          tripId: event.tripId,
+          userId: event.userId,
+          role: event.role,
+        );
+      }
+      debugPrint('[TRIP_BLOC] ✅ Role updated! Re-fetching trip details...');
+      final updatedTrip = await getTripDetailsUseCase(event.tripId);
+      final consensus = (state is TripDetailLoadedState) ? (state as TripDetailLoadedState).consensus : null;
+      emit(TripDetailLoadedState(trip: updatedTrip, consensus: consensus));
+    } on ServerException catch (e) {
+      debugPrint('[TRIP_BLOC] ❌ Assign Role Error: ${e.message}');
+      emit(TripErrorState(message: e.message));
+    } catch (e) {
+      debugPrint('[TRIP_BLOC] 💥 Unexpected Assign Role Error: $e');
+      emit(TripErrorState(message: 'Failed to update member role: ${e.toString()}'));
     }
   }
 }

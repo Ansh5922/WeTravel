@@ -158,6 +158,16 @@ class FakeTripRepository implements TripRepository {
       {'name': 'Goa', 'country': 'India', 'displayName': 'Goa, India'}
     ];
   }
+
+  @override
+  Future<void> removeMember({required String tripId, required String userId}) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+  }
+
+  @override
+  Future<void> assignRole({required String tripId, required String userId, required String role}) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+  }
 }
 
 void main() {

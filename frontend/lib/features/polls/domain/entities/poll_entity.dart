@@ -1,11 +1,29 @@
 import 'package:equatable/equatable.dart';
 
+class PollOptionVoterEntity extends Equatable {
+  final String id;
+  final String fullName;
+  final String username;
+  final String? avatarUrl;
+
+  const PollOptionVoterEntity({
+    required this.id,
+    required this.fullName,
+    required this.username,
+    this.avatarUrl,
+  });
+
+  @override
+  List<Object?> get props => [id, fullName, username, avatarUrl];
+}
+
 class PollOptionEntity extends Equatable {
   final String id;
   final String pollId;
   final String optionText;
   final int voteCount;
   final List<String> voterUserIds;
+  final List<PollOptionVoterEntity> voters;
 
   const PollOptionEntity({
     required this.id,
@@ -13,10 +31,11 @@ class PollOptionEntity extends Equatable {
     required this.optionText,
     required this.voteCount,
     this.voterUserIds = const [],
+    this.voters = const [],
   });
 
   @override
-  List<Object?> get props => [id, pollId, optionText, voteCount, voterUserIds];
+  List<Object?> get props => [id, pollId, optionText, voteCount, voterUserIds, voters];
 }
 
 class PollEntity extends Equatable {
@@ -25,6 +44,7 @@ class PollEntity extends Equatable {
   final String creatorId;
   final String question;
   final bool isClosed;
+  final bool isAnonymous;
   final List<PollOptionEntity> options;
   final String? userVotedOptionId;
   final DateTime createdAt;
@@ -35,6 +55,7 @@ class PollEntity extends Equatable {
     required this.creatorId,
     required this.question,
     required this.isClosed,
+    this.isAnonymous = false,
     required this.options,
     this.userVotedOptionId,
     required this.createdAt,
@@ -67,6 +88,7 @@ class PollEntity extends Equatable {
         creatorId,
         question,
         isClosed,
+        isAnonymous,
         options,
         userVotedOptionId,
         createdAt,

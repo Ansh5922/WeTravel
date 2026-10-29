@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import '../../../../core/error/exceptions.dart';
 import '../../domain/entities/poll_entity.dart';
 import '../../domain/repositories/poll_repository.dart';
 import '../datasources/poll_remote_data_source.dart';
@@ -10,16 +8,8 @@ class PollRepositoryImpl implements PollRepository {
   PollRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<List<PollEntity>> getPolls(String tripId) async {
-    try {
-      return await remoteDataSource.getPolls(tripId);
-    } on ServerException catch (e) {
-      debugPrint('[POLL_REPO] ❌ ServerException: ${e.message}');
-      rethrow;
-    } catch (e) {
-      debugPrint('[POLL_REPO] 💥 Unexpected Exception: $e');
-      throw ServerException('Failed to fetch polls: ${e.toString()}');
-    }
+  Future<List<PollEntity>> getPolls(String tripId) {
+    return remoteDataSource.getPolls(tripId);
   }
 
   @override
@@ -27,20 +17,40 @@ class PollRepositoryImpl implements PollRepository {
     required String tripId,
     required String question,
     required List<String> options,
-  }) async {
-    try {
-      return await remoteDataSource.createPoll(
-        tripId: tripId,
-        question: question,
-        options: options,
-      );
-    } on ServerException catch (e) {
-      debugPrint('[POLL_REPO] ❌ ServerException: ${e.message}');
-      rethrow;
-    } catch (e) {
-      debugPrint('[POLL_REPO] 💥 Unexpected Exception: $e');
-      throw ServerException('Failed to create poll: ${e.toString()}');
-    }
+    bool isAnonymous = false,
+  }) {
+    return remoteDataSource.createPoll(
+      tripId: tripId,
+      question: question,
+      options: options,
+      isAnonymous: isAnonymous,
+    );
+  }
+
+  @override
+  Future<PollEntity> updatePoll({
+    required String tripId,
+    required String pollId,
+    String? question,
+    List<String>? options,
+  }) {
+    return remoteDataSource.updatePoll(
+      tripId: tripId,
+      pollId: pollId,
+      question: question,
+      options: options,
+    );
+  }
+
+  @override
+  Future<void> deletePoll({
+    required String tripId,
+    required String pollId,
+  }) {
+    return remoteDataSource.deletePoll(
+      tripId: tripId,
+      pollId: pollId,
+    );
   }
 
   @override
@@ -48,35 +58,22 @@ class PollRepositoryImpl implements PollRepository {
     required String tripId,
     required String pollId,
     required String optionId,
-  }) async {
-    try {
-      return await remoteDataSource.castVote(
-        tripId: tripId,
-        pollId: pollId,
-        optionId: optionId,
-      );
-    } on ServerException catch (e) {
-      debugPrint('[POLL_REPO] ❌ ServerException: ${e.message}');
-      rethrow;
-    } catch (e) {
-      debugPrint('[POLL_REPO] 💥 Unexpected Exception: $e');
-      throw ServerException('Failed to vote on poll: ${e.toString()}');
-    }
+  }) {
+    return remoteDataSource.castVote(
+      tripId: tripId,
+      pollId: pollId,
+      optionId: optionId,
+    );
   }
 
   @override
   Future<PollEntity> closePoll({
     required String tripId,
     required String pollId,
-  }) async {
-    try {
-      return await remoteDataSource.closePoll(tripId: tripId, pollId: pollId);
-    } on ServerException catch (e) {
-      debugPrint('[POLL_REPO] ❌ ServerException: ${e.message}');
-      rethrow;
-    } catch (e) {
-      debugPrint('[POLL_REPO] 💥 Unexpected Exception: $e');
-      throw ServerException('Failed to close poll: ${e.toString()}');
-    }
+  }) {
+    return remoteDataSource.closePoll(
+      tripId: tripId,
+      pollId: pollId,
+    );
   }
 }

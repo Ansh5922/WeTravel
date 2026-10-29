@@ -19,15 +19,47 @@ class PollCreateRequested extends PollEvent {
   final String tripId;
   final String question;
   final List<String> options;
+  final bool isAnonymous;
 
   const PollCreateRequested({
     required this.tripId,
     required this.question,
     required this.options,
+    this.isAnonymous = false,
   });
 
   @override
-  List<Object?> get props => [tripId, question, options];
+  List<Object?> get props => [tripId, question, options, isAnonymous];
+}
+
+class PollUpdateRequested extends PollEvent {
+  final String tripId;
+  final String pollId;
+  final String? question;
+  final List<String>? options;
+
+  const PollUpdateRequested({
+    required this.tripId,
+    required this.pollId,
+    this.question,
+    this.options,
+  });
+
+  @override
+  List<Object?> get props => [tripId, pollId, question, options];
+}
+
+class PollDeleteRequested extends PollEvent {
+  final String tripId;
+  final String pollId;
+
+  const PollDeleteRequested({
+    required this.tripId,
+    required this.pollId,
+  });
+
+  @override
+  List<Object?> get props => [tripId, pollId];
 }
 
 class PollVoteRequested extends PollEvent {

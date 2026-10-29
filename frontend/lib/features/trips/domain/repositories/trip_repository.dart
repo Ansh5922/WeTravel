@@ -25,5 +25,16 @@ abstract class TripRepository {
 
   Future<GroupConsensusEntity> getGroupConsensus(String tripId);
 
+  Future<void> removeMember({
+    required String tripId,
+    required String userId,
+  });
+
+  Future<void> assignRole({
+    required String tripId,
+    required String userId,
+    required String role,
+  });
+
   Future<List<Map<String, dynamic>>> searchPlaces(String query);
 }

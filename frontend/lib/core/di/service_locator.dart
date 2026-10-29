@@ -71,6 +71,8 @@ import '../../features/trips/domain/usecases/get_my_trips_usecase.dart';
 import '../../features/trips/domain/usecases/get_trip_details_usecase.dart';
 import '../../features/trips/domain/usecases/invite_trip_member_usecase.dart';
 import '../../features/trips/domain/usecases/join_trip_via_token_usecase.dart';
+import '../../features/trips/domain/usecases/remove_trip_member_usecase.dart';
+import '../../features/trips/domain/usecases/assign_trip_role_usecase.dart';
 import '../../features/trips/presentation/bloc/trip_bloc.dart';
 import '../services/photo_upload_service.dart';
 
@@ -302,6 +304,12 @@ class ServiceLocator {
   static final GetGroupConsensusUseCase getGroupConsensusUseCase =
       GetGroupConsensusUseCase(tripRepository);
 
+  static final RemoveTripMemberUseCase removeTripMemberUseCase =
+      RemoveTripMemberUseCase(tripRepository);
+
+  static final AssignTripRoleUseCase assignTripRoleUseCase =
+      AssignTripRoleUseCase(tripRepository);
+
   // ── Friends Singletons ──────────────────────────────────────────────────────
   static final FriendRemoteDataSource friendRemoteDataSource =
       FriendRemoteDataSourceImpl(dio: _dio);
@@ -378,6 +386,12 @@ class ServiceLocator {
   static final ClosePollUseCase closePollUseCase =
       ClosePollUseCase(pollRepository);
 
+  static final UpdatePollUseCase updatePollUseCase =
+      UpdatePollUseCase(pollRepository);
+
+  static final DeletePollUseCase deletePollUseCase =
+      DeletePollUseCase(pollRepository);
+
   static final PhotoUploadService photoUploadService =
       PhotoUploadService(dio: _dio);
 
@@ -436,6 +450,8 @@ class ServiceLocator {
         inviteTripMemberUseCase: inviteTripMemberUseCase,
         joinTripViaTokenUseCase: joinTripViaTokenUseCase,
         getGroupConsensusUseCase: getGroupConsensusUseCase,
+        removeTripMemberUseCase: removeTripMemberUseCase,
+        assignTripRoleUseCase: assignTripRoleUseCase,
       );
 
   static FriendBloc createFriendBloc() => FriendBloc(
@@ -465,5 +481,7 @@ class ServiceLocator {
         createPollUseCase: createPollUseCase,
         castVoteUseCase: castVoteUseCase,
         closePollUseCase: closePollUseCase,
+        updatePollUseCase: updatePollUseCase,
+        deletePollUseCase: deletePollUseCase,
       );
 }

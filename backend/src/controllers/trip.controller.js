@@ -143,4 +143,29 @@ const assignRole = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { createTrip, getMyTrips, getTripDetails, inviteMember, joinViaToken, respondToInvite, getTripInvites, getMyInvites, getConsensus, updateConsensus, assignRole };
+/** DELETE /api/trips/:tripId/members/:targetUserId — admin only */
+const removeMember = async (req, res, next) => {
+  try {
+    const result = await tripService.removeMember(
+      req.user.id,
+      req.params.tripId,
+      req.params.targetUserId,
+    );
+    res.status(200).json({ status: 'success', ...result });
+  } catch (err) { next(err); }
+};
+
+module.exports = {
+  createTrip,
+  getMyTrips,
+  getTripDetails,
+  inviteMember,
+  joinViaToken,
+  respondToInvite,
+  getTripInvites,
+  getMyInvites,
+  getConsensus,
+  updateConsensus,
+  assignRole,
+  removeMember,
+};

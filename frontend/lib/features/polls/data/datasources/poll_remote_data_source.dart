@@ -9,6 +9,17 @@ abstract class PollRemoteDataSource {
     required String tripId,
     required String question,
     required List<String> options,
+    bool isAnonymous = false,
+  });
+  Future<PollModel> updatePoll({
+    required String tripId,
+    required String pollId,
+    String? question,
+    List<String>? options,
+  });
+  Future<void> deletePoll({
+    required String tripId,
+    required String pollId,
   });
   Future<PollModel> castVote({
     required String tripId,
@@ -58,9 +69,10 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
     required String tripId,
     required String question,
     required List<String> options,
+    bool isAnonymous = false,
   }) async {
     final path = '/api/trips/$tripId/chat/polls';
-    debugPrint('[POLL_REMOTE_DS] ➕ POST $path -> question: "$question" (${options.length} options)');
+    debugPrint('[POLL_REMOTE_DS] ➕ POST $path -> question: "$question" (anon: $isAnonymous)');
 
     try {
       final response = await dio.post(
@@ -68,6 +80,7 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
         data: {
           'question': question,
           'options': options,
+          'isAnonymous': isAnonymous,
         },
       );
       debugPrint('[POLL_REMOTE_DS] 📥 Res: ${response.statusCode} -> ${response.data}');
@@ -84,6 +97,72 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
       debugPrint('[POLL_REMOTE_DS] ❌ DioError POST poll: ${e.message}');
       throw ServerException(
         e.response?.data?['message'] ?? 'Network error creating poll',
+        e.response?.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<PollModel> updatePoll({
+    required String tripId,
+    required String pollId,
+    String? question,
+    List<String>? options,
+  }) async {
+    final path = '/api/trips/$tripId/chat/polls/$pollId';
+    debugPrint('[POLL_REMOTE_DS] ✏️ PATCH $path');
+
+    final payload = <String, dynamic>{};
+    if (question != null && question.trim().isNotEmpty) {
+      payload['question'] = question.trim();
+    }
+    if (options != null && options.isNotEmpty) {
+      payload['options'] = options;
+    }
+
+    try {
+      final response = await dio.patch(path, data: payload);
+      debugPrint('[POLL_REMOTE_DS] 📥 Res: ${response.statusCode} -> ${response.data}');
+
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        return PollModel.fromJson(response.data['data']['poll']);
+      } else {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to update poll',
+          response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint('[POLL_REMOTE_DS] ❌ DioError PATCH poll: ${e.message}');
+      throw ServerException(
+        e.response?.data?['message'] ?? 'Network error updating poll',
+        e.response?.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<void> deletePoll({
+    required String tripId,
+    required String pollId,
+  }) async {
+    final path = '/api/trips/$tripId/chat/polls/$pollId';
+    debugPrint('[POLL_REMOTE_DS] 🗑️ DELETE $path');
+
+    try {
+      final response = await dio.delete(path);
+      debugPrint('[POLL_REMOTE_DS] 📥 Res: ${response.statusCode} -> ${response.data}');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+          response.data?['message'] ?? 'Failed to delete poll',
+          response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint('[POLL_REMOTE_DS] ❌ DioError DELETE poll: ${e.message}');
+      throw ServerException(
+        e.response?.data?['message'] ?? 'Network error deleting poll',
         e.response?.statusCode,
       );
     }

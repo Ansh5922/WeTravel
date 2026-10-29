@@ -6,6 +6,17 @@ abstract class PollRepository {
     required String tripId,
     required String question,
     required List<String> options,
+    bool isAnonymous = false,
+  });
+  Future<PollEntity> updatePoll({
+    required String tripId,
+    required String pollId,
+    String? question,
+    List<String>? options,
+  });
+  Future<void> deletePoll({
+    required String tripId,
+    required String pollId,
   });
   Future<PollEntity> castVote({
     required String tripId,

@@ -80,3 +80,31 @@ class GroupConsensusRequested extends TripEvent {
   @override
   List<Object?> get props => [tripId];
 }
+
+class TripRemoveMemberRequested extends TripEvent {
+  final String tripId;
+  final String userId;
+
+  const TripRemoveMemberRequested({
+    required this.tripId,
+    required this.userId,
+  });
+
+  @override
+  List<Object?> get props => [tripId, userId];
+}
+
+class TripAssignRoleRequested extends TripEvent {
+  final String tripId;
+  final String userId;
+  final String role;
+
+  const TripAssignRoleRequested({
+    required this.tripId,
+    required this.userId,
+    required this.role,
+  });
+
+  @override
+  List<Object?> get props => [tripId, userId, role];
+}

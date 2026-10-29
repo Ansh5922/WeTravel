@@ -196,6 +196,7 @@ model Poll {
   groupId    String                     @map("group_id") @db.Uuid
   createdBy  String                     @map("created_by") @db.Uuid
   question   String                     @db.Text
+  isAnonymous Boolean                    @default(false) @map("is_anonymous")
   status     PollStatus                 @default(open)
   pollVector Unsupported("vector(384)")? @map("poll_vector")
 
