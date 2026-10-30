@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/user_model.dart';
 import '../../../../core/constants/app_constants.dart';
 
 abstract class AuthLocalDataSource {
@@ -8,6 +10,8 @@ abstract class AuthLocalDataSource {
   Future<bool> hasToken();
   Future<void> setPreferencesCompleted({required String userId, required bool completed});
   Future<bool> hasCompletedPreferences(String userId);
+  Future<void> saveUser(UserModel user);
+  Future<UserModel?> getUser();
 }
 
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
@@ -31,11 +35,34 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     }
   }
 
+  static const String _userKey = 'cached_auth_user';
+
   @override
   Future<void> deleteToken() async {
     try {
       await storage.delete(key: AppConstants.tokenKey);
+      await storage.delete(key: _userKey);
     } catch (_) {}
+  }
+
+  @override
+  Future<void> saveUser(UserModel user) async {
+    try {
+      await storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+    } catch (_) {}
+  }
+
+  @override
+  Future<UserModel?> getUser() async {
+    try {
+      final data = await storage.read(key: _userKey);
+      if (data != null && data.isNotEmpty) {
+        return UserModel.fromJson(jsonDecode(data) as Map<String, dynamic>);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

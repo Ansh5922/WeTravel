@@ -9,8 +9,9 @@ import '../bloc/friend_state.dart';
 import 'add_friend_sheet.dart';
 import 'friend_card.dart';
 import 'friend_request_card.dart';
+import 'sent_friend_request_card.dart';
 
-enum FriendsFilterTab { all, buddies, requests }
+enum FriendsFilterTab { all, buddies, requests, sent }
 
 /// The interactive Friends View containing pending requests, search,
 /// buddy list, and the "+ Add Friend" action.
@@ -51,6 +52,15 @@ class _FriendsListViewState extends State<FriendsListView> {
     }).toList();
   }
 
+  List<SentFriendRequestEntity> _filterSentRequests(List<SentFriendRequestEntity> requests) {
+    if (_searchQuery.isEmpty) return requests;
+    final q = _searchQuery.toLowerCase();
+    return requests.where((r) {
+      return r.receiverFullName.toLowerCase().contains(q) ||
+          r.receiverUsername.toLowerCase().contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<FriendBloc, FriendState>(
@@ -81,7 +91,10 @@ class _FriendsListViewState extends State<FriendsListView> {
         final friends = state is FriendsLoadedState ? state.friends : <FriendEntity>[];
         final pendingRequests =
             state is FriendsLoadedState ? state.pendingRequests : <FriendRequestEntity>[];
+        final sentRequests =
+            state is FriendsLoadedState ? state.sentRequests : <SentFriendRequestEntity>[];
         final filteredFriends = _filterFriends(friends);
+        final filteredSentRequests = _filterSentRequests(sentRequests);
         final isLoading = state is FriendLoadingState && friends.isEmpty;
 
         return Column(
@@ -156,7 +169,7 @@ class _FriendsListViewState extends State<FriendsListView> {
                       FilterChipItem(
                         value: FriendsFilterTab.all,
                         label: 'All',
-                        count: friends.length + pendingRequests.length,
+                        count: friends.length + pendingRequests.length + sentRequests.length,
                       ),
                       FilterChipItem(
                         value: FriendsFilterTab.buddies,
@@ -167,6 +180,11 @@ class _FriendsListViewState extends State<FriendsListView> {
                         value: FriendsFilterTab.requests,
                         label: 'Requests',
                         count: pendingRequests.length,
+                      ),
+                      FilterChipItem(
+                        value: FriendsFilterTab.sent,
+                        label: 'Sent',
+                        count: sentRequests.length,
                       ),
                     ],
                   ),
@@ -197,7 +215,7 @@ class _FriendsListViewState extends State<FriendsListView> {
                       return _buildErrorState(state.message);
                     }
 
-                    final hasNoContent = friends.isEmpty && pendingRequests.isEmpty;
+                    final hasNoContent = friends.isEmpty && pendingRequests.isEmpty && sentRequests.isEmpty;
                     if (hasNoContent) {
                       return _buildEmptyNetworkState();
                     }
@@ -269,6 +287,49 @@ class _FriendsListViewState extends State<FriendsListView> {
                           const SizedBox(height: 16),
                         ],
 
+                        // ── Sent Friend Requests Section ─────────────────
+                        if ((_activeFilter == FriendsFilterTab.all ||
+                                _activeFilter == FriendsFilterTab.sent) &&
+                            filteredSentRequests.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              Text(
+                                'Sent Requests',
+                                style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF004E64),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDEF2F1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${filteredSentRequests.length}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF004E64),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ...filteredSentRequests.map(
+                            (req) => SentFriendRequestCard(request: req),
+                          ),
+                          const SizedBox(height: 16),
+                        ] else if (_activeFilter == FriendsFilterTab.sent &&
+                            filteredSentRequests.isEmpty) ...[
+                          _buildNoSentRequestsNotice(),
+                          const SizedBox(height: 16),
+                        ],
+
                         // ── Accepted Friends Section ───────────────────
                         if (_activeFilter == FriendsFilterTab.all ||
                             _activeFilter == FriendsFilterTab.buddies) ...[
@@ -315,6 +376,52 @@ class _FriendsListViewState extends State<FriendsListView> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildNoSentRequestsNotice() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF004E64).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.send_rounded,
+              size: 24,
+              color: Color(0xFF004E64),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No Sent Requests',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'When you send a friend request to a fellow traveler, its pending or accepted status will appear here.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12.5,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -11,6 +11,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/we_travel_avatar.dart';
 import '../../../../core/widgets/we_travel_screen_header.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
+import '../bloc/profile_state.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 
@@ -143,7 +145,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: Column(
                                 children: [
                                   WeTravelAvatar(
-                                    avatarUrl: currentAvatarUrl,
+                                    avatarUrl: currentAvatarUrl ?? '',
                                     initials: fullNameController.text.isNotEmpty
                                         ? fullNameController.text.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase()
                                         : 'WT',
@@ -591,7 +593,13 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFFAF9F6),
-        body: Stack(
+        body: BlocListener<ProfileBloc, ProfileState>(
+          listener: (context, state) {
+            if (state is ProfileLoadedState && state.updatedUser != null) {
+              context.read<AuthBloc>().add(AuthUserUpdated(state.updatedUser!));
+            }
+          },
+          child: Stack(
           children: [
             // ── Scrollable Body with Pull-to-Refresh ───────────────────────
             RefreshIndicator(
@@ -650,7 +658,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   context.read<ProfileBloc>().add(
                                     ProfileUpdateRequested(
                                       token: token,
-                                      avatarUrl: newUrl.isEmpty ? null : newUrl,
+                                      avatarUrl: newUrl.isEmpty ? '' : newUrl,
                                     ),
                                   );
                                 }
@@ -992,6 +1000,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

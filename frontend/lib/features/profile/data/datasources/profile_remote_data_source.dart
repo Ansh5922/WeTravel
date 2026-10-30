@@ -112,7 +112,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (fullName != null && fullName.trim().isNotEmpty) 'fullName': fullName.trim(),
       if (username != null && username.trim().isNotEmpty) 'username': username.trim(),
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) 'avatarUrl': avatarUrl.trim(),
+      if (avatarUrl != null) 'avatarUrl': avatarUrl.trim().isEmpty ? null : avatarUrl.trim(),
       if (travelStyle != null && travelStyle.trim().isNotEmpty) 'travelStyle': travelStyle.trim(),
       if (dietaryPreference != null && dietaryPreference.trim().isNotEmpty) 'dietaryPreference': dietaryPreference.trim(),
       if (budget != null) ...{'budget': budget},

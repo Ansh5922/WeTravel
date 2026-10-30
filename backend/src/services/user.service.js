@@ -115,6 +115,31 @@ const updateProfile = async (userId, data) => {
   const profileFields = {};
 
   const userKeys = ['fullName', 'phone', 'avatarUrl'];
+
+  // Username validation & uniqueness check
+  if (data.username !== undefined) {
+    const rawUsername = typeof data.username === 'string' ? data.username.trim() : '';
+    if (!rawUsername) {
+      const err = new Error('Username cannot be empty.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(rawUsername)) {
+      const err = new Error('Username must be 3-30 characters and contain only letters, numbers, and underscores.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const existing = await userRepository.findUserByUsername(rawUsername);
+    if (existing && existing.id !== userId) {
+      const err = new Error(`Username "@${rawUsername}" is already taken. Please choose another.`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    userFields.username = rawUsername;
+  }
   const profileKeys = [
     'age',
     'dietaryPreference',
@@ -153,7 +178,9 @@ const updateProfile = async (userId, data) => {
     triggerEmbeddingGeneration(userId, updatedProfile);
   }
 
-  return { user: updatedUser, profile: updatedProfile };
+  // Ensure updated user object is always returned
+  const finalUser = updatedUser || (await userRepository.findUserById(userId));
+  return { user: finalUser, profile: updatedProfile };
 };
 
 /**

@@ -56,6 +56,22 @@ class FakeFriendRepository implements FriendRepository {
   }
 
   @override
+  Future<List<SentFriendRequestEntity>> getSentRequests() async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+    return [
+      SentFriendRequestEntity(
+        id: 'sfr_1',
+        requesterId: 'usr_1',
+        receiverId: 'usr_9',
+        status: 'pending',
+        receiverUsername: 'maya',
+        receiverFullName: 'Maya Patel',
+        createdAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  @override
   Future<FriendRequestEntity> respondToFriendRequest(String friendshipId, String action) async {
     if (exceptionToThrow != null) throw exceptionToThrow!;
     return FriendRequestEntity(
@@ -127,6 +143,7 @@ void main() {
         getPendingFriendRequestsUseCase: GetPendingFriendRequestsUseCase(fakeRepository),
         sendFriendRequestUseCase: SendFriendRequestUseCase(fakeRepository),
         respondFriendRequestUseCase: RespondFriendRequestUseCase(fakeRepository),
+        getSentFriendRequestsUseCase: GetSentFriendRequestsUseCase(fakeRepository),
       );
     });
 

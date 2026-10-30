@@ -69,3 +69,46 @@ class FriendRequestModel extends FriendRequestEntity {
     };
   }
 }
+
+class SentFriendRequestModel extends SentFriendRequestEntity {
+  const SentFriendRequestModel({
+    required super.id,
+    required super.requesterId,
+    required super.receiverId,
+    required super.status,
+    required super.receiverUsername,
+    required super.receiverFullName,
+    super.receiverAvatarUrl,
+    super.createdAt,
+  });
+
+  factory SentFriendRequestModel.fromJson(Map<String, dynamic> json) {
+    final friendUser = json['friend'] ?? json['receiver'] ?? {};
+    return SentFriendRequestModel(
+      id: json['id']?.toString() ?? '',
+      requesterId: json['userId']?.toString() ?? json['requesterId']?.toString() ?? '',
+      receiverId: json['friendId']?.toString() ?? json['receiverId']?.toString() ?? friendUser['id']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'pending',
+      receiverUsername: friendUser['username']?.toString() ?? 'User',
+      receiverFullName: friendUser['fullName']?.toString() ?? friendUser['username']?.toString() ?? 'WeTravel User',
+      receiverAvatarUrl: friendUser['avatarUrl']?.toString(),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': requesterId,
+      'friendId': receiverId,
+      'status': status,
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      'friend': {
+        'id': receiverId,
+        'username': receiverUsername,
+        'fullName': receiverFullName,
+        if (receiverAvatarUrl != null) 'avatarUrl': receiverAvatarUrl,
+      },
+    };
+  }
+}

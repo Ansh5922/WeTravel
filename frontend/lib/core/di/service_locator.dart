@@ -333,6 +333,9 @@ class ServiceLocator {
   static final RespondFriendRequestUseCase respondFriendRequestUseCase =
       RespondFriendRequestUseCase(friendRepository);
 
+  static final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase =
+      GetSentFriendRequestsUseCase(friendRepository);
+
   // ── Chat Singletons ─────────────────────────────────────────────────────────
   static final ChatRemoteDataSource chatRemoteDataSource =
       ChatRemoteDataSourceImpl(dio: _dio);
@@ -463,6 +466,7 @@ class ServiceLocator {
         getPendingFriendRequestsUseCase: getPendingFriendRequestsUseCase,
         sendFriendRequestUseCase: sendFriendRequestUseCase,
         respondFriendRequestUseCase: respondFriendRequestUseCase,
+        getSentFriendRequestsUseCase: getSentFriendRequestsUseCase,
       );
 
   static ChatBloc createChatBloc() => ChatBloc(

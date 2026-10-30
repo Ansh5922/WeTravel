@@ -22,6 +22,7 @@ const updateProfile = async (req, res, next) => {
     const userId = req.user.id;
 
     const {
+      username,
       fullName,
       phone,
       avatarUrl,
@@ -43,7 +44,7 @@ const updateProfile = async (req, res, next) => {
 
     // Ensure at least one field is being updated
     const hasPayload = [
-      fullName, phone, avatarUrl, dietaryPreference, travelStyle,
+      username, fullName, phone, avatarUrl, dietaryPreference, travelStyle,
       parsedBudget, budgetTier, pacePreference, healthConstraints,
       climateSensitivities, rawPreferenceNotes,
     ].some((v) => v !== undefined && !Number.isNaN(v));
@@ -56,6 +57,7 @@ const updateProfile = async (req, res, next) => {
     }
 
     const { user, profile } = await userService.updateProfile(userId, {
+      username: username !== undefined ? (username ? username.trim() : '') : undefined,
       fullName,
       phone,
       avatarUrl: avatarUrl !== undefined ? (avatarUrl ? avatarUrl.trim() : null) : undefined,

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frontend/core/constants/app_constants.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_data_source.dart';
+import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'package:frontend/features/auth/domain/entities/auth_response_entity.dart';
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/auth/domain/repositories/auth_repository.dart';
@@ -94,6 +95,12 @@ class FakeAuthLocalDataSource implements AuthLocalDataSource {
   Future<bool> hasCompletedPreferences(String userId) async {
     return _completedUsers.contains(userId);
   }
+
+  UserModel? cachedUser;
+  @override
+  Future<void> saveUser(UserModel user) async => cachedUser = user;
+  @override
+  Future<UserModel?> getUser() async => cachedUser;
 
   @override
   Future<void> setPreferencesCompleted({

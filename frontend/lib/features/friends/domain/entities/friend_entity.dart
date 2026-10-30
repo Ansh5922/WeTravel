@@ -49,3 +49,37 @@ class FriendRequestEntity extends Equatable {
         requesterAvatarUrl,
       ];
 }
+
+class SentFriendRequestEntity extends Equatable {
+  final String id;
+  final String requesterId;
+  final String receiverId;
+  final String status; // 'pending' | 'accepted' | 'rejected'
+  final String receiverUsername;
+  final String receiverFullName;
+  final String? receiverAvatarUrl;
+  final DateTime? createdAt;
+
+  const SentFriendRequestEntity({
+    required this.id,
+    required this.requesterId,
+    required this.receiverId,
+    required this.status,
+    required this.receiverUsername,
+    required this.receiverFullName,
+    this.receiverAvatarUrl,
+    this.createdAt,
+  });
+
+  @override
+  List<Object?> get props => [
+        id,
+        requesterId,
+        receiverId,
+        status,
+        receiverUsername,
+        receiverFullName,
+        receiverAvatarUrl,
+        createdAt,
+      ];
+}

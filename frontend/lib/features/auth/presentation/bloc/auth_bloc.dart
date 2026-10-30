@@ -9,6 +9,7 @@ import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
 import '../../data/datasources/auth_local_data_source.dart';
+import '../../data/models/user_model.dart';
 import '../../../../core/error/failures.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -46,6 +47,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
     on<AuthForgotPasswordRequested>(_onAuthForgotPasswordRequested);
     on<AuthResetPasswordRequested>(_onAuthResetPasswordRequested);
+    on<AuthUserUpdated>(_onAuthUserUpdated);
+  }
+
+
+  /// Updates authenticated user details in state and local cache
+  Future<void> _onAuthUserUpdated(
+    AuthUserUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
+    debugPrint('[AUTH_BLOC] 👤 Event: AuthUserUpdated -> new username: @${event.user.username}');
+    final userModel = event.user is UserModel
+        ? event.user as UserModel
+        : UserModel(
+            id: event.user.id,
+            email: event.user.email,
+            username: event.user.username,
+            fullName: event.user.fullName,
+            phone: event.user.phone,
+            avatarUrl: event.user.avatarUrl,
+            isPremium: event.user.isPremium,
+            createdAt: event.user.createdAt,
+          );
+    await _localDataSource.saveUser(userModel);
+
+    if (state is AuthAuthenticatedState) {
+      final current = state as AuthAuthenticatedState;
+      emit(AuthAuthenticatedState(
+        user: event.user,
+        isFirstTimeUser: current.isFirstTimeUser,
+      ));
+    } else {
+      emit(AuthAuthenticatedState(user: event.user, isFirstTimeUser: false));
+    }
   }
 
   /// Handles initial application startup session check.
@@ -61,14 +95,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
+    // Fast-restore cached user immediately (eliminates any UI flicker/revert to default handle)
+    final cachedUser = await _localDataSource.getUser();
+    if (cachedUser != null) {
+      debugPrint('[AUTH_BLOC] ⚡ Fast session restore from local cache: @${cachedUser.username}');
+      emit(AuthAuthenticatedState(user: cachedUser, isFirstTimeUser: false));
+    }
+
     try {
       debugPrint('[AUTH_BLOC] 📡 Token found. Fetching current user profile from GET /api/auth/me...');
       final user = await _getCurrentUserUseCase.execute(token);
-      debugPrint('[AUTH_BLOC] ✅ Session restored! User: ${user.email} (${user.id})');
+      final userModel = user is UserModel
+          ? user
+          : UserModel(
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              fullName: user.fullName,
+              phone: user.phone,
+              avatarUrl: user.avatarUrl,
+              isPremium: user.isPremium,
+              createdAt: user.createdAt,
+            );
+      await _localDataSource.saveUser(userModel);
+      debugPrint('[AUTH_BLOC] ✅ Session restored! User: ${user.email} (${user.id}), username: @${user.username}');
       emit(AuthAuthenticatedState(user: user, isFirstTimeUser: false));
     } catch (e) {
-      debugPrint('[AUTH_BLOC] ⚠️ Session restoration failed: $e. Preserving local state.');
-      emit(AuthErrorState(e.toString()));
+      if (cachedUser == null) {
+        debugPrint('[AUTH_BLOC] ⚠️ Session restoration failed: $e. Preserving local state.');
+        emit(AuthErrorState(e.toString()));
+      }
     }
   }
 

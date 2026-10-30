@@ -23,6 +23,19 @@ class FriendRepositoryImpl implements FriendRepository {
   }
 
   @override
+  Future<List<SentFriendRequestEntity>> getSentRequests() async {
+    try {
+      return await remoteDataSource.getSentRequests();
+    } on ServerException catch (e) {
+      debugPrint('[FRIEND_REPO] ❌ ServerException: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('[FRIEND_REPO] 💥 Unexpected Exception: $e');
+      throw ServerException('Failed to fetch sent friend requests: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<List<FriendRequestEntity>> getPendingRequests() async {
     try {
       return await remoteDataSource.getPendingRequests();

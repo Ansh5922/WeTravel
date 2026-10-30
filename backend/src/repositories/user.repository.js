@@ -123,7 +123,54 @@ const anonymizeAndDeleteUser = async (userId) => {
   });
 };
 
+
+/**
+ * Find a user by ID.
+ * @param {string} userId
+ * @returns {Promise<User|null>}
+ */
+const findUserById = async (userId) => {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      fullName: true,
+      avatarUrl: true,
+      phone: true,
+      isPremium: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+};
+
+/**
+ * Find a user by username (case-insensitive search).
+ * @param {string} username
+ * @returns {Promise<User|null>}
+ */
+const findUserByUsername = async (username) => {
+  return prisma.user.findFirst({
+    where: {
+      username: {
+        equals: username,
+        mode: 'insensitive',
+      },
+    },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      fullName: true,
+    },
+  });
+};
+
 module.exports = {
+  findUserById,
+  findUserByUsername,
   findProfileByUserId,
   upsertProfile,
   updateUser,

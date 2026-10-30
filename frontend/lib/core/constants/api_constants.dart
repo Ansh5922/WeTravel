@@ -128,6 +128,7 @@ class ApiConstants {
   // Friends endpoints
   static const String friendRequest = '/api/friends/request';
   static const String friendRequests = '/api/friends/requests';
+  static const String friendRequestsSent = '/api/friends/requests/sent';
   static const String friends = '/api/friends';
 
   // Trips endpoints

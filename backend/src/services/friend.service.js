@@ -80,4 +80,11 @@ const getPendingRequests = async (userId) => {
   return friendRepository.getIncomingRequests(userId);
 };
 
-module.exports = { sendFriendRequest, respondToRequest, getFriends, getPendingRequests };
+
+/** Get friend requests sent by a user. */
+const getSentRequests = async (userId) => {
+  return friendRepository.getSentRequests(userId);
+};
+
+module.exports = {
+  getSentRequests, sendFriendRequest, respondToRequest, getFriends, getPendingRequests };
