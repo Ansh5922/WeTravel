@@ -35,6 +35,9 @@ router.use(protect); // ALL expense routes require authentication
 // ImageKit direct-upload auth token for receipt photos
 router.get('/imagekit-auth',                             expenseController.getImageKitAuth);
 
+// Pre-save receipt scan for instant form auto-fill (title, category, amount)
+router.post('/scan-receipt',                            expenseController.scanReceipt);
+
 // Personal ledger: "my payments" vs "my expenses"
 router.get('/summary/me',                                expenseController.getMyExpenseSummary);
 

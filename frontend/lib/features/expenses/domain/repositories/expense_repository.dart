@@ -13,5 +13,6 @@ abstract class ExpenseRepository {
   Future<ExpenseLedgerEntity> getGroupLedger(String tripId);
   Future<List<ExpenseSettlementEntity>> getSettlements(String tripId);
   Future<ExpenseSettlementEntity> completeSettlement(String tripId, String settlementId);
+  Future<ReceiptScanEntity> scanReceipt(String tripId, String receiptImageUrl);
 }
 

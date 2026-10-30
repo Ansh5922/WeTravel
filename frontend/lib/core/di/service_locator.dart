@@ -60,6 +60,7 @@ import '../../features/expenses/domain/usecases/create_expense_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_expenses_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_ledger_usecase.dart';
 import '../../features/expenses/domain/usecases/get_settlements_usecase.dart';
+import '../../features/expenses/domain/usecases/scan_receipt_usecase.dart';
 import '../../features/expenses/presentation/bloc/expense_bloc.dart';
 
 import '../../features/trips/data/datasources/trip_remote_data_source.dart';
@@ -277,6 +278,9 @@ class ServiceLocator {
 
   static final CompleteSettlementUseCase completeSettlementUseCase =
       CompleteSettlementUseCase(expenseRepository);
+
+  static final ScanReceiptUseCase scanReceiptUseCase =
+      ScanReceiptUseCase(repository: expenseRepository);
 
 
   // ── Trip Singletons ─────────────────────────────────────────────────────────

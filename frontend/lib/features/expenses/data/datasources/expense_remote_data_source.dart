@@ -17,6 +17,7 @@ abstract class ExpenseRemoteDataSource {
   Future<ExpenseLedgerModel> getGroupLedger(String tripId);
   Future<List<ExpenseSettlementModel>> getSettlements(String tripId);
   Future<ExpenseSettlementModel> completeSettlement(String tripId, String settlementId);
+  Future<ReceiptScanModel> scanReceipt(String tripId, String receiptImageUrl);
 }
 
 class ExpenseRemoteDataSourceImpl implements ExpenseRemoteDataSource {
@@ -165,5 +166,31 @@ class ExpenseRemoteDataSourceImpl implements ExpenseRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
-}
 
+
+  @override
+  Future<ReceiptScanModel> scanReceipt(String tripId, String receiptImageUrl) async {
+    final endpoint = '${ApiConstants.trips}/$tripId/expenses/scan-receipt';
+    final payload = {'receiptImageUrl': receiptImageUrl};
+
+    debugPrint('[EXPENSE_REMOTE_DS] 🚀 POST $endpoint Payload: $payload');
+
+    try {
+      final response = await dio.post(endpoint, data: payload);
+      debugPrint('[EXPENSE_REMOTE_DS] ✅ Response Status: ${response.statusCode}');
+      debugPrint('[EXPENSE_REMOTE_DS] 📦 Data: ${response.data}');
+
+      final data = response.data as Map<String, dynamic>;
+      final scanData = data['data'] as Map<String, dynamic>? ?? data;
+
+      return ReceiptScanModel.fromJson(scanData);
+    } on DioException catch (e) {
+      debugPrint('[EXPENSE_REMOTE_DS] ❌ DioError on scanReceipt: [${e.response?.statusCode}] ${e.message}');
+      final msg = e.response?.data?['message']?.toString() ?? 'Failed to scan receipt.';
+      throw ServerException(msg, e.response?.statusCode);
+    } catch (e) {
+      debugPrint('[EXPENSE_REMOTE_DS] 💥 Unexpected Error on scanReceipt: $e');
+      throw ServerException(e.toString());
+    }
+  }
+}

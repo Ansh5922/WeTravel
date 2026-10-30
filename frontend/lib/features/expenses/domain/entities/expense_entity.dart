@@ -93,3 +93,38 @@ class ExpenseSettlementEntity extends Equatable {
         isCompleted,
       ];
 }
+
+
+class ReceiptScanEntity extends Equatable {
+  final String title;
+  final String? merchant;
+  final double? amount;
+  final String category;
+  final String currency;
+  final String receiptImageUrl;
+  final String? rawText;
+  final bool isOcrExtracted;
+
+  const ReceiptScanEntity({
+    required this.title,
+    this.merchant,
+    this.amount,
+    required this.category,
+    this.currency = 'INR',
+    required this.receiptImageUrl,
+    this.rawText,
+    this.isOcrExtracted = false,
+  });
+
+  @override
+  List<Object?> get props => [
+        title,
+        merchant,
+        amount,
+        category,
+        currency,
+        receiptImageUrl,
+        rawText,
+        isOcrExtracted,
+      ];
+}

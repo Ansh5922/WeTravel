@@ -45,5 +45,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   Future<ExpenseSettlementEntity> completeSettlement(String tripId, String settlementId) {
     return remoteDataSource.completeSettlement(tripId, settlementId);
   }
+
+  @override
+  Future<ReceiptScanEntity> scanReceipt(String tripId, String receiptImageUrl) {
+    return remoteDataSource.scanReceipt(tripId, receiptImageUrl);
+  }
 }
 

@@ -244,4 +244,77 @@ class PhotoUploadService {
       debugPrint('[PHOTO_UPLOAD] ⚠️ Backend avatar sync error: $e');
     }
   }
+
+  /// Picks a receipt image from camera or gallery and uploads to ImageKit (or falls back to Data URI).
+  Future<String?> pickAndUploadReceipt({
+    required ImageSource source,
+    required String tripId,
+    required String token,
+  }) async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 88,
+      );
+
+      if (file == null) return null;
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return null;
+
+      // 1. Try ImageKit direct upload
+      try {
+        final authEndpoint = '${ApiConstants.backendBaseUrl}${ApiConstants.tripExpenseImageKitAuth(tripId)}';
+        final authRes = await _dio.get(
+          authEndpoint,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+
+        if (authRes.statusCode == 200 && authRes.data is Map<String, dynamic>) {
+          final data = authRes.data['data'] as Map<String, dynamic>?;
+          final publicKey = data?['publicKey']?.toString() ?? '';
+          final signature = data?['signature']?.toString() ?? '';
+          final expire = data?['expire']?.toString() ?? '';
+          final tokenParam = data?['token']?.toString() ?? '';
+
+          if (publicKey.isNotEmpty && signature.isNotEmpty && tokenParam.isNotEmpty) {
+            final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            final formData = FormData.fromMap({
+              'file': MultipartFile.fromBytes(bytes, filename: fileName),
+              'fileName': fileName,
+              'publicKey': publicKey,
+              'signature': signature,
+              'expire': expire,
+              'token': tokenParam,
+              'folder': '/receipts',
+            });
+
+            final uploadRes = await Dio().post(
+              'https://upload.imagekit.io/api/v1/files/upload',
+              data: formData,
+            );
+
+            if (uploadRes.statusCode == 200 && uploadRes.data is Map<String, dynamic>) {
+              final cdnUrl = uploadRes.data['url']?.toString();
+              if (cdnUrl != null && cdnUrl.isNotEmpty) {
+                return cdnUrl;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[PHOTO_UPLOAD] Receipt ImageKit upload failed/skipped ($e). Falling back to base64 Data URI.');
+      }
+
+      // 2. Fallback: Base64 Data URI
+      final base64String = base64Encode(bytes);
+      return 'data:image/jpeg;base64,$base64String';
+    } catch (e) {
+      debugPrint('[PHOTO_UPLOAD] ❌ Receipt pick/upload error: $e');
+      return null;
+    }
+  }
+
 }

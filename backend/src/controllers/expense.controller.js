@@ -15,6 +15,36 @@ const expenseService = require('../services/expense.service');
 // ── ImageKit Auth ─────────────────────────────────────────────────────────────
 
 /** GET /api/trips/:tripId/expenses/imagekit-auth */
+
+/**
+ * POST /api/trips/:tripId/expenses/scan-receipt
+ * Pre-scans receipt photo and returns extracted title, category, and amount for instant form auto-fill.
+ */
+const scanReceipt = async (req, res, next) => {
+  try {
+    const { receiptImageUrl } = req.body;
+    if (!receiptImageUrl) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'receiptImageUrl is required for scanning.',
+      });
+    }
+
+    const scanResult = await expenseService.scanReceipt(
+      req.user.id,
+      req.params.tripId,
+      receiptImageUrl
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: scanResult,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getImageKitAuth = async (req, res, next) => {
   try {
     const params = await expenseService.getImageKitAuth(req.user.id, req.params.tripId);
@@ -215,6 +245,7 @@ const completeSettlement = async (req, res, next) => {
 
 module.exports = {
   getImageKitAuth,
+  scanReceipt,
   createExpense,
   getGroupExpenses,
   getExpenseById,

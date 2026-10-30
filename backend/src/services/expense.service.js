@@ -54,6 +54,59 @@ const requireAdmin = async (userId, groupId) => {
 
 // ── ImageKit Auth (re-used for receipt photo uploads) ─────────────────────────
 
+
+/**
+ * Scans a receipt photo before saving the expense.
+ * Calls FastAPI OCR service to extract title/merchant, amount, and category.
+ * If AI is unavailable or produces partial output, gracefully falls back
+ * so the client always gets an actionable response.
+ */
+const scanReceipt = async (userId, groupId, receiptImageUrl) => {
+  await requireMembership(userId, groupId);
+
+  const token = makeInternalToken();
+  let aiData = null;
+
+  try {
+    const res = await fetch(`${AI_URL()}/api/ai/ocr/receipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        image_url: receiptImageUrl,
+        group_id: groupId,
+      }),
+    });
+
+    if (res.ok) {
+      aiData = await res.json();
+    } else {
+      const errText = await res.text();
+      console.warn(`[OCR Scan] AI service returned ${res.status}: ${errText}`);
+    }
+  } catch (err) {
+    console.warn(`[OCR Scan] AI service connection error: ${err.message}`);
+  }
+
+  const rawText = aiData?.raw_text || '';
+  const amount = aiData?.amount != null ? Number(aiData.amount) : null;
+  const category = aiData?.category || 'Other';
+  const title = aiData?.title || aiData?.merchant || (category !== 'Other' ? `${category} Expense` : 'Trip Expense');
+
+  return {
+    title,
+    merchant: aiData?.merchant || null,
+    amount,
+    currency: aiData?.currency || 'INR',
+    category,
+    receiptImageUrl,
+    rawText,
+    isOcrExtracted: !!(amount || aiData?.merchant),
+  };
+};
+
 const getImageKitAuth = async (userId, groupId) => {
   await requireMembership(userId, groupId);
   return imagekitService.getAuthParams();
@@ -502,6 +555,7 @@ const shareExpenseToChat = async (userId, groupId, expenseId, { message }) => {
 
 module.exports = {
   getImageKitAuth,
+  scanReceipt,
   createExpense,
   getGroupExpenses,
   getExpenseById,

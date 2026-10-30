@@ -145,6 +145,8 @@ class ApiConstants {
   static String tripExpenses(String tripId) => '/api/trips/$tripId/expenses';
   static String tripLedger(String tripId) => '/api/trips/$tripId/expenses/ledger';
   static String tripSettlements(String tripId) => '/api/trips/$tripId/expenses/settlements';
+  static String tripExpenseImageKitAuth(String tripId) => '/api/trips/$tripId/expenses/imagekit-auth';
+  static String tripExpenseScanReceipt(String tripId) => '/api/trips/$tripId/expenses/scan-receipt';
 
   // Chat & Poll endpoints
   static String tripChatMessages(String tripId) => '/api/trips/$tripId/chat/messages';
