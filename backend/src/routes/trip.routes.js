@@ -28,5 +28,6 @@ router.get('/:tripId/invites',        tripController.getTripInvites);  // Pendin
 router.get('/:tripId/consensus',      tripController.getConsensus);    // View group preference (all members)
 router.patch('/:tripId/consensus',    tripController.updateConsensus); // Admin override group preference
 router.patch('/:tripId/members/:targetUserId/role', tripController.assignRole); // Admin assign role
+router.delete('/:tripId/members/:targetUserId',      tripController.removeMember); // Admin remove member from trip
 
 module.exports = router;

@@ -74,3 +74,13 @@ class AuthPasswordResetSentState extends AuthState {
   List<Object?> get props => [email, message];
 }
 
+/// State indicating password was successfully reset.
+class AuthPasswordResetSuccessState extends AuthState {
+  final String message;
+
+  const AuthPasswordResetSuccessState(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+

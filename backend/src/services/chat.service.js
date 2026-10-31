@@ -45,14 +45,54 @@ const getImageKitAuth = async (userId, groupId) => {
 
 // ── Polls ────────────────────────────────────────────────────────────────────
 
-const createPoll = async (userId, groupId, { question, options }) => {
+const createPoll = async (userId, groupId, { question, options, isAnonymous = false }) => {
   if (!question || !question.trim()) throw Object.assign(new Error('Poll question is required.'), { statusCode: 400 });
   if (!options || options.length < 2) throw Object.assign(new Error('At least 2 options are required.'), { statusCode: 400 });
 
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
 
-  return chatRepo.createPoll({ groupId, createdBy: userId, question: question.trim(), options });
+  return chatRepo.createPoll({
+    groupId,
+    createdBy: userId,
+    question: question.trim(),
+    options,
+    isAnonymous: Boolean(isAnonymous),
+  });
+};
+
+const updatePoll = async (userId, groupId, pollId, { question, options }) => {
+  const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
+  if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
+
+  const poll = await chatRepo.getPollById(pollId);
+  if (!poll) throw Object.assign(new Error('Poll not found.'), { statusCode: 404 });
+  if (poll.groupId !== groupId) throw Object.assign(new Error('Poll does not belong to this trip.'), { statusCode: 403 });
+  if (poll.status === 'closed') throw Object.assign(new Error('Closed polls cannot be edited.'), { statusCode: 400 });
+
+  const isAdmin = member.role === 'admin' || member.role === 'creator';
+  if (poll.createdBy !== userId && !isAdmin) {
+    throw Object.assign(new Error('Only the poll creator or a group admin can edit this poll.'), { statusCode: 403 });
+  }
+
+  return chatRepo.updatePoll(pollId, { question, options });
+};
+
+const deletePoll = async (userId, groupId, pollId) => {
+  const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
+  if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
+
+  const poll = await chatRepo.getPollById(pollId);
+  if (!poll) throw Object.assign(new Error('Poll not found.'), { statusCode: 404 });
+  if (poll.groupId !== groupId) throw Object.assign(new Error('Poll does not belong to this trip.'), { statusCode: 403 });
+
+  const isAdmin = member.role === 'admin' || member.role === 'creator';
+  if (poll.createdBy !== userId && !isAdmin) {
+    throw Object.assign(new Error('Only the poll creator or a group admin can delete this poll.'), { statusCode: 403 });
+  }
+
+  await chatRepo.deletePoll(pollId);
+  return { message: 'Poll deleted successfully.' };
 };
 
 const voteOnPoll = async (userId, groupId, pollId, optionId) => {
@@ -95,7 +135,27 @@ const closePoll = async (userId, groupId, pollId) => {
 const getPolls = async (userId, groupId) => {
   const member = await prisma.groupMember.findFirst({ where: { groupId, userId } });
   if (!member) throw Object.assign(new Error('You are not a member of this trip.'), { statusCode: 403 });
-  return chatRepo.getPollsByGroup(groupId);
+  const rawPolls = await chatRepo.getPollsByGroup(groupId);
+
+  return rawPolls.map((poll) => {
+    const isAnon = Boolean(poll.isAnonymous);
+    const sanitizedOptions = (poll.options || []).map((opt) => {
+      const votes = opt.votes || [];
+      const voters = isAnon ? [] : votes.map((v) => v.user).filter(Boolean);
+      return {
+        ...opt,
+        voteCount: votes.length,
+        voters,
+        votes: isAnon ? votes.map((v) => ({ id: v.id, optionId: v.optionId })) : votes,
+      };
+    });
+
+    return {
+      ...poll,
+      isAnonymous: isAnon,
+      options: sanitizedOptions,
+    };
+  });
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +193,6 @@ const fireInteractionEmbedding = async (groupId, pollId, summaryText) => {
 
 module.exports = {
   getMessages, saveTextMessage, saveImageMessage, getImageKitAuth,
-  createPoll, voteOnPoll, closePoll, getPolls,
+  createPoll, updatePoll, deletePoll, voteOnPoll, closePoll, getPolls,
   buildPollResultSummary, fireInteractionEmbedding,
 };

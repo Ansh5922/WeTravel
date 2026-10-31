@@ -43,7 +43,8 @@ const setInCache = (key, places) => {
  * Free, high-performance, open-source global geocoder.
  */
 const fetchFromPhoton = async (query, limit = 6) => {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}`;
+  // Biased with center coordinates of India (lat 20.5937, lon 78.9629) for accurate Indian destination discovery
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}&lat=20.5937&lon=78.9629`;
   const response = await axios.get(url, {
     headers: { 'User-Agent': 'WeTravel-App/1.0' },
     timeout: 5000,

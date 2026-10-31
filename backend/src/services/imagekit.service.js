@@ -14,9 +14,19 @@ const crypto = require('crypto');
  *   signature: HMAC-SHA1(privateKey, token + expire) in hex
  */
 const getAuthParams = () => {
-  const publicKey  = process.env.IMAGEKIT_PUBLIC_KEY;
-  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
-  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+  const publicKey  = process.env.IMAGEKIT_PUBLIC_KEY || '';
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY || '';
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || '';
+
+  if (!privateKey || !publicKey) {
+    return {
+      token: '',
+      expire: 0,
+      signature: '',
+      publicKey: '',
+      urlEndpoint: '',
+    };
+  }
 
   const token  = crypto.randomUUID();
   const expire = Math.floor(Date.now() / 1000) + 1800; // 30 minutes validity

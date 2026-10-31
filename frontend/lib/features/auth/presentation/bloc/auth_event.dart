@@ -1,5 +1,6 @@
 // BLoC Event definitions for Auth Feature.
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/user_entity.dart';
 
 /// Sealed base event hierarchy for all Auth BLoC events.
 sealed class AuthEvent extends Equatable {
@@ -73,3 +74,26 @@ class AuthForgotPasswordRequested extends AuthEvent {
   List<Object?> get props => [email];
 }
 
+/// Event triggered when a user submits OTP and new password.
+class AuthResetPasswordRequested extends AuthEvent {
+  final String email;
+  final String otp;
+  final String newPassword;
+
+  const AuthResetPasswordRequested({
+    required this.email,
+    required this.otp,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [email, otp, newPassword];
+}
+/// Event dispatched when user profile information (e.g. username/name) is updated.
+class AuthUserUpdated extends AuthEvent {
+  final UserEntity user;
+  const AuthUserUpdated(this.user);
+
+  @override
+  List<Object?> get props => [user];
+}

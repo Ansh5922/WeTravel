@@ -1,4 +1,5 @@
 const userRepository = require('../repositories/user.repository');
+const imagekitService = require('./imagekit.service');
 
 /**
  * User Service
@@ -113,7 +114,32 @@ const updateProfile = async (userId, data) => {
   const userFields = {};
   const profileFields = {};
 
-  const userKeys = ['fullName', 'phone'];
+  const userKeys = ['fullName', 'phone', 'avatarUrl'];
+
+  // Username validation & uniqueness check
+  if (data.username !== undefined) {
+    const rawUsername = typeof data.username === 'string' ? data.username.trim() : '';
+    if (!rawUsername) {
+      const err = new Error('Username cannot be empty.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(rawUsername)) {
+      const err = new Error('Username must be 3-30 characters and contain only letters, numbers, and underscores.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const existing = await userRepository.findUserByUsername(rawUsername);
+    if (existing && existing.id !== userId) {
+      const err = new Error(`Username "@${rawUsername}" is already taken. Please choose another.`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    userFields.username = rawUsername;
+  }
   const profileKeys = [
     'age',
     'dietaryPreference',
@@ -152,7 +178,9 @@ const updateProfile = async (userId, data) => {
     triggerEmbeddingGeneration(userId, updatedProfile);
   }
 
-  return { user: updatedUser, profile: updatedProfile };
+  // Ensure updated user object is always returned
+  const finalUser = updatedUser || (await userRepository.findUserById(userId));
+  return { user: finalUser, profile: updatedProfile };
 };
 
 /**
@@ -174,4 +202,27 @@ const deleteAccount = async (userId) => {
   return userRepository.anonymizeAndDeleteUser(userId);
 };
 
-module.exports = { updateProfile, getProfile, deleteAccount };
+/**
+ * Update authenticated user's avatar URL directly.
+ * Pass null or empty string to remove avatar.
+ * @param {string} userId
+ * @param {string|null} avatarUrl
+ */
+const updateAvatar = async (userId, avatarUrl) => {
+  return userRepository.updateUser(userId, { avatarUrl: avatarUrl || null });
+};
+
+/**
+ * Get ImageKit CDN client-upload authentication parameters.
+ */
+const getAvatarUploadAuth = () => {
+  return imagekitService.getAuthParams();
+};
+
+module.exports = {
+  updateProfile,
+  getProfile,
+  deleteAccount,
+  updateAvatar,
+  getAvatarUploadAuth,
+};

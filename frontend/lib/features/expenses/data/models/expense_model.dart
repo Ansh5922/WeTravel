@@ -130,3 +130,30 @@ class ExpenseSettlementModel extends ExpenseSettlementEntity {
     );
   }
 }
+
+
+class ReceiptScanModel extends ReceiptScanEntity {
+  const ReceiptScanModel({
+    required super.title,
+    super.merchant,
+    super.amount,
+    required super.category,
+    super.currency,
+    required super.receiptImageUrl,
+    super.rawText,
+    super.isOcrExtracted,
+  });
+
+  factory ReceiptScanModel.fromJson(Map<String, dynamic> json) {
+    return ReceiptScanModel(
+      title: json['title']?.toString() ?? 'Trip Expense',
+      merchant: json['merchant']?.toString(),
+      amount: json['amount'] != null ? double.tryParse(json['amount'].toString()) : null,
+      category: json['category']?.toString() ?? 'Other',
+      currency: json['currency']?.toString() ?? 'INR',
+      receiptImageUrl: json['receiptImageUrl']?.toString() ?? '',
+      rawText: json['rawText']?.toString(),
+      isOcrExtracted: json['isOcrExtracted'] == true,
+    );
+  }
+}

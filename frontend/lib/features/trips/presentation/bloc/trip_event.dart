@@ -44,8 +44,9 @@ class TripCreateRequested extends TripEvent {
 
 class TripInviteMemberRequested extends TripEvent {
   final String tripId;
-  final String type; // 'friend', 'email', 'whatsapp', 'link'
+  final String type; // 'friend', 'username', 'email', 'whatsapp', 'link'
   final String? friendId;
+  final String? username;
   final String? email;
   final String? phone;
 
@@ -53,12 +54,13 @@ class TripInviteMemberRequested extends TripEvent {
     required this.tripId,
     required this.type,
     this.friendId,
+    this.username,
     this.email,
     this.phone,
   });
 
   @override
-  List<Object?> get props => [tripId, type, friendId, email, phone];
+  List<Object?> get props => [tripId, type, friendId, username, email, phone];
 }
 
 class TripJoinViaTokenRequested extends TripEvent {
@@ -77,4 +79,32 @@ class GroupConsensusRequested extends TripEvent {
 
   @override
   List<Object?> get props => [tripId];
+}
+
+class TripRemoveMemberRequested extends TripEvent {
+  final String tripId;
+  final String userId;
+
+  const TripRemoveMemberRequested({
+    required this.tripId,
+    required this.userId,
+  });
+
+  @override
+  List<Object?> get props => [tripId, userId];
+}
+
+class TripAssignRoleRequested extends TripEvent {
+  final String tripId;
+  final String userId;
+  final String role;
+
+  const TripAssignRoleRequested({
+    required this.tripId,
+    required this.userId,
+    required this.role,
+  });
+
+  @override
+  List<Object?> get props => [tripId, userId, role];
 }

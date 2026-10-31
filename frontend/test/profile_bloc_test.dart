@@ -46,6 +46,7 @@ class FakeProfileRepository implements ProfileRepository {
     String? fullName,
     String? username,
     String? phone,
+    String? avatarUrl,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
@@ -71,6 +72,14 @@ class FakeProfileRepository implements ProfileRepository {
       user: userToReturn ?? const UserEntity(id: 'usr_fake', email: 'test@wetravel.test'),
       message: updateMessage ?? 'Profile updated successfully.',
     );
+  }
+
+  @override
+  Future<String> updateAvatar({
+    required String token,
+    required String avatarUrl,
+  }) async {
+    return 'Avatar updated successfully.';
   }
 
   @override

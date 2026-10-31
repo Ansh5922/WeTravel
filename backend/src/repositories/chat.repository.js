@@ -30,17 +30,36 @@ const saveMessage = async ({ groupId, senderId, messageType, content, imageUrl =
 
 // ── Polls ───────────────────────────────────────────────────────────────────
 
-const createPoll = async ({ groupId, createdBy, question, options }) => {
+const VOTER_USER_SELECT = {
+  id: true,
+  fullName: true,
+  username: true,
+  avatarUrl: true,
+};
+
+const createPoll = async ({ groupId, createdBy, question, options, isAnonymous = false }) => {
   return prisma.poll.create({
     data: {
       groupId,
       createdBy,
       question,
+      isAnonymous: Boolean(isAnonymous),
       options: {
         create: options.map((text) => ({ optionText: text })),
       },
     },
-    include: { options: true, creator: { select: { id: true, fullName: true, username: true } } },
+    include: {
+      options: {
+        include: {
+          votes: {
+            include: {
+              user: { select: VOTER_USER_SELECT },
+            },
+          },
+        },
+      },
+      creator: { select: { id: true, fullName: true, username: true, avatarUrl: true } },
+    },
   });
 };
 
@@ -48,9 +67,17 @@ const getPollById = async (pollId) => {
   return prisma.poll.findUnique({
     where: { id: pollId },
     include: {
-      options: { include: { votes: true } },
+      options: {
+        include: {
+          votes: {
+            include: {
+              user: { select: VOTER_USER_SELECT },
+            },
+          },
+        },
+      },
       votes: true,
-      creator: { select: { id: true, fullName: true, username: true } },
+      creator: { select: { id: true, fullName: true, username: true, avatarUrl: true } },
     },
   });
 };
@@ -60,9 +87,52 @@ const getPollsByGroup = async (groupId) => {
     where: { groupId },
     orderBy: { id: 'desc' },
     include: {
-      options: { include: { votes: true } },
-      creator: { select: { id: true, fullName: true, username: true } },
+      options: {
+        include: {
+          votes: {
+            include: {
+              user: { select: VOTER_USER_SELECT },
+            },
+          },
+        },
+      },
+      creator: { select: { id: true, fullName: true, username: true, avatarUrl: true } },
     },
+  });
+};
+
+const updatePoll = async (pollId, { question, options }) => {
+  const updateData = {};
+  if (question && question.trim()) {
+    updateData.question = question.trim();
+  }
+  if (Array.isArray(options) && options.length > 0) {
+    updateData.options = {
+      create: options.map((text) => ({ optionText: text })),
+    };
+  }
+
+  return prisma.poll.update({
+    where: { id: pollId },
+    data: updateData,
+    include: {
+      options: {
+        include: {
+          votes: {
+            include: {
+              user: { select: VOTER_USER_SELECT },
+            },
+          },
+        },
+      },
+      creator: { select: { id: true, fullName: true, username: true, avatarUrl: true } },
+    },
+  });
+};
+
+const deletePoll = async (pollId) => {
+  return prisma.poll.delete({
+    where: { id: pollId },
   });
 };
 
@@ -83,8 +153,16 @@ const closePoll = async (pollId) => {
     where: { id: pollId },
     data: { status: 'closed' },
     include: {
-      options: { include: { votes: true } },
-      creator: { select: { id: true, fullName: true, username: true } },
+      options: {
+        include: {
+          votes: {
+            include: {
+              user: { select: VOTER_USER_SELECT },
+            },
+          },
+        },
+      },
+      creator: { select: { id: true, fullName: true, username: true, avatarUrl: true } },
     },
   });
 };
@@ -112,6 +190,6 @@ const deleteExpiredMessages = async () => {
 
 module.exports = {
   getMessages, saveMessage,
-  createPoll, getPollById, getPollsByGroup, castVote, closePoll, deletePollUserVote,
+  createPoll, getPollById, getPollsByGroup, updatePoll, deletePoll, castVote, closePoll, deletePollUserVote,
   deleteExpiredMessages,
 };

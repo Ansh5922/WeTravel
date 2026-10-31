@@ -36,3 +36,12 @@ class RespondFriendRequestUseCase {
     return await repository.respondToFriendRequest(friendshipId, action);
   }
 }
+
+class GetSentFriendRequestsUseCase {
+  final FriendRepository repository;
+  GetSentFriendRequestsUseCase(this.repository);
+
+  Future<List<SentFriendRequestEntity>> call() async {
+    return await repository.getSentRequests();
+  }
+}

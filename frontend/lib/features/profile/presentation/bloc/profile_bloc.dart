@@ -65,14 +65,16 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             fullName: event.fullName ?? currentUser.fullName,
             username: event.username ?? currentUser.username,
             phone: event.phone ?? currentUser.phone,
+            avatarUrl: event.avatarUrl != null ? (event.avatarUrl!.trim().isEmpty ? null : event.avatarUrl!.trim()) : currentUser.avatarUrl,
           )
-        : (event.fullName != null || event.username != null || event.phone != null)
+        : (event.fullName != null || event.username != null || event.phone != null || event.avatarUrl != null)
             ? UserEntity(
                 id: '',
                 email: '',
                 fullName: event.fullName,
                 username: event.username,
                 phone: event.phone,
+                avatarUrl: event.avatarUrl != null && event.avatarUrl!.trim().isNotEmpty ? event.avatarUrl!.trim() : null,
               )
             : null;
 
@@ -99,6 +101,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         fullName: event.fullName,
         username: event.username,
         phone: event.phone,
+        avatarUrl: event.avatarUrl,
         travelStyle: event.travelStyle,
         dietaryPreference: event.dietaryPreference,
         budget: event.budget,

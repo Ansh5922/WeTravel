@@ -25,6 +25,9 @@ class OnboardingPage extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.black,
       ),
       child: Scaffold(
         backgroundColor: AppColors.backgroundWarm,

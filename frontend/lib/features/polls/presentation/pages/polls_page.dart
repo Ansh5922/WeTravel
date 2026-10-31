@@ -14,6 +14,7 @@ import '../../domain/entities/poll_entity.dart';
 import '../bloc/poll_bloc.dart';
 import '../bloc/poll_event.dart';
 import '../bloc/poll_state.dart';
+import '../widgets/create_poll_modal.dart';
 
 class PollsPage extends StatefulWidget {
   final String tripId;
@@ -38,11 +39,218 @@ class _PollsPageState extends State<PollsPage> {
   }
 
   void _showCreatePollModal(BuildContext context) {
+    CreatePollModal.show(context, widget.tripId);
+  }
+
+  void _showEditPollModal(BuildContext context, PollEntity poll) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _CreatePollModal(tripId: widget.tripId),
+      builder: (ctx) => _EditPollModal(tripId: widget.tripId, poll: poll),
+    );
+  }
+
+  void _showVotersSheet(BuildContext context, PollOptionEntity option, String question) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Voters (${option.voters.length})',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF004E64),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            option.optionText,
+                            style: GoogleFonts.inter(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF64748B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                      onPressed: () => Navigator.pop(modalCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (option.voters.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'No one has voted for this option yet.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.45,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: option.voters.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      itemBuilder: (ctx, idx) {
+                        final voter = option.voters[idx];
+                        final initial = voter.fullName.isNotEmpty
+                            ? voter.fullName[0].toUpperCase()
+                            : (voter.username.isNotEmpty ? voter.username[0].toUpperCase() : '?');
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          leading: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFFDEF2F1),
+                            ),
+                            child: ClipOval(
+                              child: (voter.avatarUrl != null && voter.avatarUrl!.isNotEmpty)
+                                  ? Image.network(
+                                      voter.avatarUrl!,
+                                      width: 38,
+                                      height: 38,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Center(
+                                        child: Text(
+                                          initial,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFF004E64),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        initial,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF004E64),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          title: Text(
+                            voter.fullName.isNotEmpty ? voter.fullName : 'Traveler',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                          subtitle: Text(
+                            '@${voter.username.isNotEmpty ? voter.username : 'traveler'}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeletePoll(BuildContext context, PollEntity poll) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Delete Poll?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: const Color(0xFF004E64)),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${poll.question}"? All recorded votes will be removed permanently.',
+          style: GoogleFonts.inter(fontSize: 13.5, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.read<PollBloc>().add(
+                    PollDeleteRequested(
+                      tripId: widget.tripId,
+                      pollId: poll.id,
+                    ),
+                  );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -53,8 +261,11 @@ class _PollsPageState extends State<PollsPage> {
 
     final tripState = context.watch<TripBloc>().state;
     String tripTitle = 'Trip Polls';
+    bool isTripAdmin = false;
     if (tripState is TripDetailLoadedState && tripState.trip.id == widget.tripId) {
       tripTitle = tripState.trip.name;
+      isTripAdmin = tripState.trip.createdBy == currentUserId ||
+          tripState.trip.members.any((m) => m.userId == currentUserId && m.role == 'admin');
     }
 
     return Scaffold(
@@ -161,8 +372,8 @@ class _PollsPageState extends State<PollsPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDEF2F1),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDEF2F1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -223,7 +434,8 @@ class _PollsPageState extends State<PollsPage> {
                 itemCount: polls.length,
                 itemBuilder: (context, index) {
                   final poll = polls[index];
-                  return _buildPollCard(poll, currentUserId);
+                  final canManagePoll = (currentUserId != null && currentUserId == poll.creatorId) || isTripAdmin;
+                  return _buildPollCard(poll, currentUserId, canManagePoll);
                 },
               ),
             );
@@ -252,7 +464,7 @@ class _PollsPageState extends State<PollsPage> {
     );
   }
 
-  Widget _buildPollCard(PollEntity poll, String? currentUserId) {
+  Widget _buildPollCard(PollEntity poll, String? currentUserId, bool canManagePoll) {
     final userVotedOptionId = poll.getUserVotedOptionId(currentUserId);
     final isClosed = poll.isClosed;
     final totalVotes = poll.totalVotes;
@@ -310,6 +522,31 @@ class _PollsPageState extends State<PollsPage> {
                     ],
                   ),
                 ),
+                if (poll.isAnonymous) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.visibility_off_outlined, size: 12, color: Color(0xFFB45309)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'ANONYMOUS',
+                          style: GoogleFonts.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -326,28 +563,54 @@ class _PollsPageState extends State<PollsPage> {
                     ),
                   ),
                 ),
-                if (!isClosed && (currentUserId == poll.creatorId)) ...[
+                if (canManagePoll) ...[
                   const SizedBox(width: 6),
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF64748B)),
                     onSelected: (val) {
-                      if (val == 'close') {
+                      if (val == 'edit') {
+                        _showEditPollModal(context, poll);
+                      } else if (val == 'close') {
                         context.read<PollBloc>().add(
                               PollCloseRequested(
                                 tripId: widget.tripId,
                                 pollId: poll.id,
                               ),
                             );
+                      } else if (val == 'delete') {
+                        _confirmDeletePoll(context, poll);
                       }
                     },
                     itemBuilder: (ctx) => [
+                      if (!isClosed)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 18, color: Color(0xFF004E64)),
+                              SizedBox(width: 8),
+                              Text('Edit Poll'),
+                            ],
+                          ),
+                        ),
+                      if (!isClosed)
+                        const PopupMenuItem(
+                          value: 'close',
+                          child: Row(
+                            children: [
+                              Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFFD97706)),
+                              SizedBox(width: 8),
+                              Text('Close Poll'),
+                            ],
+                          ),
+                        ),
                       const PopupMenuItem(
-                        value: 'close',
+                        value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.lock_outline_rounded, size: 18, color: Colors.redAccent),
+                            Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
                             SizedBox(width: 8),
-                            Text('Close Poll'),
+                            Text('Delete Poll', style: TextStyle(color: Colors.redAccent)),
                           ],
                         ),
                       ),
@@ -456,12 +719,49 @@ class _PollsPageState extends State<PollsPage> {
                                         : const Color(0xFF64748B),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '(${option.voteCount})',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: const Color(0xFF94A3B8),
+                                const SizedBox(width: 8),
+                                // Voter count button / chip (tap to view voter list)
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    if (poll.isAnonymous) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('This poll is anonymous. Voter identities are private.'),
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    } else {
+                                      _showVotersSheet(context, option, poll.question);
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          poll.isAnonymous ? Icons.visibility_off_outlined : Icons.people_outline_rounded,
+                                          size: 13,
+                                          color: const Color(0xFF475569),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${option.voteCount}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -500,75 +800,67 @@ class _PollsPageState extends State<PollsPage> {
   }
 }
 
-/// Create Poll Modal Bottom Sheet
-class _CreatePollModal extends StatefulWidget {
+/// Edit Poll Modal Bottom Sheet
+class _EditPollModal extends StatefulWidget {
   final String tripId;
+  final PollEntity poll;
 
-  const _CreatePollModal({required this.tripId});
+  const _EditPollModal({
+    required this.tripId,
+    required this.poll,
+  });
 
   @override
-  State<_CreatePollModal> createState() => _CreatePollModalState();
+  State<_EditPollModal> createState() => _EditPollModalState();
 }
 
-class _CreatePollModalState extends State<_CreatePollModal> {
-  final TextEditingController _questionController = TextEditingController();
-  final List<TextEditingController> _optionControllers = [
-    TextEditingController(),
-    TextEditingController(),
-  ];
+class _EditPollModalState extends State<_EditPollModal> {
+  late final TextEditingController _questionController;
+  final List<TextEditingController> _newOptionControllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _questionController = TextEditingController(text: widget.poll.question);
+  }
 
   @override
   void dispose() {
     _questionController.dispose();
-    for (final c in _optionControllers) {
+    for (final c in _newOptionControllers) {
       c.dispose();
     }
     super.dispose();
   }
 
-  void _addOption() {
-    if (_optionControllers.length < 6) {
+  void _addNewOptionField() {
+    if ((widget.poll.options.length + _newOptionControllers.length) < 8) {
       setState(() {
-        _optionControllers.add(TextEditingController());
-      });
-    }
-  }
-
-  void _removeOption(int index) {
-    if (_optionControllers.length > 2) {
-      setState(() {
-        final c = _optionControllers.removeAt(index);
-        c.dispose();
+        _newOptionControllers.add(TextEditingController());
       });
     }
   }
 
   void _submit() {
     final question = _questionController.text.trim();
-    final options = _optionControllers
-        .map((c) => c.text.trim())
-        .where((text) => text.isNotEmpty)
-        .toList();
-
     if (question.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a poll question.')),
+        const SnackBar(content: Text('Poll question cannot be empty.')),
       );
       return;
     }
 
-    if (options.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide at least 2 options.')),
-      );
-      return;
-    }
+    final newOptions = _newOptionControllers
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
 
     context.read<PollBloc>().add(
-          PollCreateRequested(
+          PollUpdateRequested(
             tripId: widget.tripId,
+            pollId: widget.poll.id,
             question: question,
-            options: options,
+            options: newOptions.isNotEmpty ? newOptions : null,
           ),
         );
 
@@ -605,78 +897,97 @@ class _CreatePollModalState extends State<_CreatePollModal> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Create a Group Poll',
+              'Edit Poll',
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF004E64),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Decide activities, locations, or dates together.',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(height: 18),
-            // Question Input
+            const SizedBox(height: 16),
             TextField(
               controller: _questionController,
               decoration: InputDecoration(
                 labelText: 'Poll Question',
-                hintText: 'e.g. Which beach should we visit?',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Options',
+              'Current Options',
               style: GoogleFonts.inter(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF475569),
               ),
             ),
             const SizedBox(height: 8),
-            ...List.generate(_optionControllers.length, (index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _optionControllers[index],
-                        decoration: InputDecoration(
-                          hintText: 'Option ${index + 1}',
-                          isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
+            ...widget.poll.options.map((opt) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    if (_optionControllers.length > 2)
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
-                        onPressed: () => _removeOption(index),
-                      ),
-                  ],
-                ),
-              );
-            }),
-            if (_optionControllers.length < 6)
-              TextButton.icon(
-                onPressed: _addOption,
-                icon: const Icon(Icons.add, size: 18, color: Color(0xFF004E64)),
-                label: Text(
-                  'Add another option',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF004E64),
+                    child: Text(
+                      opt.optionText,
+                      style: GoogleFonts.inter(fontSize: 13.5, color: const Color(0xFF334155)),
+                    ),
                   ),
+                )),
+            if (_newOptionControllers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Add More Options',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
                 ),
               ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              ...List.generate(_newOptionControllers.length, (idx) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _newOptionControllers[idx],
+                          decoration: InputDecoration(
+                            hintText: 'New Option ${idx + 1}',
+                            isDense: true,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            final c = _newOptionControllers.removeAt(idx);
+                            c.dispose();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            if ((widget.poll.options.length + _newOptionControllers.length) < 8)
+              TextButton.icon(
+                onPressed: _addNewOptionField,
+                icon: const Icon(Icons.add, size: 18, color: Color(0xFF004E64)),
+                label: Text(
+                  '+ Add another option',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF004E64)),
+                ),
+              ),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -687,12 +998,8 @@ class _CreatePollModalState extends State<_CreatePollModal> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: Text(
-                  'Publish Poll',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                  'Save Changes',
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ),
             ),

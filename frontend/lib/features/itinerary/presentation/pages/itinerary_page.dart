@@ -9,6 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/we_travel_drawer.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../trips/domain/entities/trip_entity.dart';
 import '../../../trips/presentation/bloc/trip_bloc.dart';
 import '../../../trips/presentation/bloc/trip_state.dart';
@@ -512,6 +514,11 @@ class _ItineraryPageState extends State<ItineraryPage> {
       trip = tripState.trip;
     }
 
+    final authState = context.watch<AuthBloc>().state;
+    final currentUserId = authState is AuthAuthenticatedState ? authState.user.id : '';
+    final currentMember = trip?.members.where((m) => m.userId == currentUserId).firstOrNull;
+    final bool isCurrentUserAdmin = trip != null && (trip.createdBy == currentUserId || currentMember?.role == 'admin');
+
     final destination = trip?.name.split(' ').first ?? 'Destination';
 
     final content = BlocBuilder<ItineraryBloc, ItineraryState>(
@@ -565,7 +572,12 @@ class _ItineraryPageState extends State<ItineraryPage> {
                 hasItinerary: activeItinerary != null,
                 planTitle: activeItinerary?.variantType ?? (allItineraries.isNotEmpty ? 'Optimal' : null),
                 planSummary: activeItinerary?.summary,
-                onRegenerate: () => _showRegenerateDialog(context, trip),
+                canRegenerate: isCurrentUserAdmin,
+                onRegenerate: () {
+                  if (isCurrentUserAdmin) {
+                    _showRegenerateDialog(context, trip);
+                  }
+                },
               ),
               const SizedBox(height: 14),
 
@@ -584,12 +596,18 @@ class _ItineraryPageState extends State<ItineraryPage> {
                   itineraries: allItineraries,
                   selectedItineraryId: activeItinerary?.id,
                   onSelectPlan: (planId) {
-                    context.read<ItineraryBloc>().add(
-                          ItinerarySelectRequested(
-                            tripId: widget.tripId,
-                            itineraryId: planId,
-                          ),
-                        );
+                    if (isCurrentUserAdmin) {
+                      context.read<ItineraryBloc>().add(
+                            ItinerarySelectRequested(
+                              tripId: widget.tripId,
+                              itineraryId: planId,
+                            ),
+                          );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Only the trip admin can select the active group itinerary.')),
+                      );
+                    }
                   },
                 ),
                 const SizedBox(height: 18),
@@ -622,7 +640,7 @@ class _ItineraryPageState extends State<ItineraryPage> {
                   },
                 ),
               ] else ...[
-                _buildEmptyDayState(context, trip, activeItinerary == null),
+                _buildEmptyDayState(context, trip, activeItinerary == null, isCurrentUserAdmin),
               ],
               const SizedBox(height: 16),
 
@@ -708,7 +726,16 @@ class _ItineraryPageState extends State<ItineraryPage> {
                       leading: const Icon(Icons.speed_rounded, color: AppColors.primaryDeepTeal),
                       onTap: () {
                         Navigator.pop(ctx);
-                        _showRegenerateDialog(context, trip);
+                        final auth = context.read<AuthBloc>().state;
+                        final uid = auth is AuthAuthenticatedState ? auth.user.id : '';
+                        final isAdm = trip != null && (trip.createdBy == uid || trip.members.any((m) => m.userId == uid && m.role == 'admin'));
+                        if (isAdm) {
+                          _showRegenerateDialog(context, trip);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Only the trip admin can customize trip pace and regenerate.')),
+                          );
+                        }
                       },
                     )),
               ],
@@ -771,7 +798,16 @@ class _ItineraryPageState extends State<ItineraryPage> {
                       leading: const Icon(Icons.track_changes_rounded, color: AppColors.primaryDeepTeal),
                       onTap: () {
                         Navigator.pop(ctx);
-                        _showRegenerateDialog(context, trip);
+                        final auth = context.read<AuthBloc>().state;
+                        final uid = auth is AuthAuthenticatedState ? auth.user.id : '';
+                        final isAdm = trip != null && (trip.createdBy == uid || trip.members.any((m) => m.userId == uid && m.role == 'admin'));
+                        if (isAdm) {
+                          _showRegenerateDialog(context, trip);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Only the trip admin can customize trip pace and regenerate.')),
+                          );
+                        }
                       },
                     )),
               ],
@@ -782,7 +818,24 @@ class _ItineraryPageState extends State<ItineraryPage> {
     );
   }
 
-  Widget _buildEmptyDayState(BuildContext context, TripEntity? trip, bool hasNoItinerary) {
+  Widget _buildEmptyDayState(
+    BuildContext context,
+    TripEntity? trip,
+    bool hasNoItinerary,
+    bool isCurrentUserAdmin,
+  ) {
+    final title = hasNoItinerary
+        ? (isCurrentUserAdmin ? 'No Itinerary Generated Yet' : 'No Itinerary Ready')
+        : 'No Activities for Day $_selectedDay';
+
+    final subtitle = hasNoItinerary
+        ? (isCurrentUserAdmin
+            ? 'Tap "Generate Itineraries" to synthesize tailored day plans from group preferences.'
+            : 'The itinerary has not been generated by the trip admin yet.')
+        : (isCurrentUserAdmin
+            ? 'Tap to customize or add activities for this day.'
+            : 'No scheduled activities for this day.');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -807,25 +860,24 @@ class _ItineraryPageState extends State<ItineraryPage> {
           ),
           const SizedBox(height: 12),
           Text(
-            hasNoItinerary ? 'No Itinerary Generated Yet' : 'No Activities for Day $_selectedDay',
+            title,
             style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF1E293B),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            hasNoItinerary
-                ? 'Tap "Regenerate / Customize Plan" to synthesize tailored day plans from group preferences.'
-                : 'Tap to customize or add activities for this day.',
+            subtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 12.5,
               color: const Color(0xFF64748B),
+              height: 1.4,
             ),
           ),
-          if (hasNoItinerary) ...[
+          if (hasNoItinerary && isCurrentUserAdmin) ...[
             const SizedBox(height: 14),
             ElevatedButton.icon(
               onPressed: () => _showRegenerateDialog(context, trip),

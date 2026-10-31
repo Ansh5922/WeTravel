@@ -24,6 +24,12 @@ router.get('/profile', userController.getProfile);
 // PATCH /api/users/profile — update profile + trigger background AI embedding
 router.patch('/profile', userController.updateProfile);
 
+// GET  /api/users/avatar/auth — get ImageKit auth params for direct client upload
+router.get('/avatar/auth', userController.getAvatarUploadAuth);
+
+// PATCH /api/users/avatar — update or remove profile photo (optional)
+router.patch('/avatar', userController.updateAvatar);
+
 // DELETE /api/users/account — permanently delete account & scrub PII (Play Store / GDPR compliant)
 router.delete('/account', userController.deleteAccount);
 

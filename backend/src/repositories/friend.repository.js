@@ -11,6 +11,7 @@ const SAFE_USER_SELECT = {
   email: true,
   username: true,
   fullName: true,
+  avatarUrl: true,
 };
 
 /**
@@ -97,7 +98,24 @@ const getIncomingRequests = async (userId) => {
   });
 };
 
+
+/**
+ * Get all friend requests sent by userId (pending, accepted, or rejected).
+ * @param {string} userId
+ * @returns {Promise<Friendship[]>}
+ */
+const getSentRequests = async (userId) => {
+  return prisma.friendship.findMany({
+    where: { userId },
+    include: {
+      friend: { select: SAFE_USER_SELECT },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
 module.exports = {
+  getSentRequests,
   findFriendship,
   findFriendshipById,
   createFriendRequest,

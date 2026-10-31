@@ -12,6 +12,7 @@ import '../../features/auth/domain/usecases/signup_usecase.dart';
 import '../../features/auth/domain/usecases/google_signin_usecase.dart';
 import '../../features/auth/domain/usecases/get_current_user_usecase.dart';
 import '../../features/auth/domain/usecases/forgot_password_usecase.dart';
+import '../../features/auth/domain/usecases/reset_password_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
@@ -59,6 +60,7 @@ import '../../features/expenses/domain/usecases/create_expense_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_expenses_usecase.dart';
 import '../../features/expenses/domain/usecases/get_group_ledger_usecase.dart';
 import '../../features/expenses/domain/usecases/get_settlements_usecase.dart';
+import '../../features/expenses/domain/usecases/scan_receipt_usecase.dart';
 import '../../features/expenses/presentation/bloc/expense_bloc.dart';
 
 import '../../features/trips/data/datasources/trip_remote_data_source.dart';
@@ -70,7 +72,10 @@ import '../../features/trips/domain/usecases/get_my_trips_usecase.dart';
 import '../../features/trips/domain/usecases/get_trip_details_usecase.dart';
 import '../../features/trips/domain/usecases/invite_trip_member_usecase.dart';
 import '../../features/trips/domain/usecases/join_trip_via_token_usecase.dart';
+import '../../features/trips/domain/usecases/remove_trip_member_usecase.dart';
+import '../../features/trips/domain/usecases/assign_trip_role_usecase.dart';
 import '../../features/trips/presentation/bloc/trip_bloc.dart';
+import '../services/photo_upload_service.dart';
 
 import '../../features/friends/data/datasources/friend_remote_data_source.dart';
 import '../../features/friends/data/repositories/friend_repository_impl.dart';
@@ -178,6 +183,8 @@ class ServiceLocator {
       GetCurrentUserUseCase(authRepository);
   static final ForgotPasswordUseCase forgotPasswordUseCase =
       ForgotPasswordUseCase(authRepository);
+  static final ResetPasswordUseCase resetPasswordUseCase =
+      ResetPasswordUseCase(authRepository);
 
   // ── Profile Singletons ──────────────────────────────────────────────────────
   static final ProfileRemoteDataSource profileRemoteDataSource =
@@ -272,6 +279,9 @@ class ServiceLocator {
   static final CompleteSettlementUseCase completeSettlementUseCase =
       CompleteSettlementUseCase(expenseRepository);
 
+  static final ScanReceiptUseCase scanReceiptUseCase =
+      ScanReceiptUseCase(repository: expenseRepository);
+
 
   // ── Trip Singletons ─────────────────────────────────────────────────────────
   static final TripRemoteDataSource tripRemoteDataSource =
@@ -298,6 +308,12 @@ class ServiceLocator {
   static final GetGroupConsensusUseCase getGroupConsensusUseCase =
       GetGroupConsensusUseCase(tripRepository);
 
+  static final RemoveTripMemberUseCase removeTripMemberUseCase =
+      RemoveTripMemberUseCase(tripRepository);
+
+  static final AssignTripRoleUseCase assignTripRoleUseCase =
+      AssignTripRoleUseCase(tripRepository);
+
   // ── Friends Singletons ──────────────────────────────────────────────────────
   static final FriendRemoteDataSource friendRemoteDataSource =
       FriendRemoteDataSourceImpl(dio: _dio);
@@ -316,6 +332,9 @@ class ServiceLocator {
 
   static final RespondFriendRequestUseCase respondFriendRequestUseCase =
       RespondFriendRequestUseCase(friendRepository);
+
+  static final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase =
+      GetSentFriendRequestsUseCase(friendRepository);
 
   // ── Chat Singletons ─────────────────────────────────────────────────────────
   static final ChatRemoteDataSource chatRemoteDataSource =
@@ -374,6 +393,15 @@ class ServiceLocator {
   static final ClosePollUseCase closePollUseCase =
       ClosePollUseCase(pollRepository);
 
+  static final UpdatePollUseCase updatePollUseCase =
+      UpdatePollUseCase(pollRepository);
+
+  static final DeletePollUseCase deletePollUseCase =
+      DeletePollUseCase(pollRepository);
+
+  static final PhotoUploadService photoUploadService =
+      PhotoUploadService(dio: _dio);
+
   // ── BLoC Factories ──────────────────────────────────────────────────────────
 
   static AuthBloc createAuthBloc() => AuthBloc(
@@ -382,6 +410,7 @@ class ServiceLocator {
         googleSignInUseCase: googleSignInUseCase,
         getCurrentUserUseCase: getCurrentUserUseCase,
         forgotPasswordUseCase: forgotPasswordUseCase,
+        resetPasswordUseCase: resetPasswordUseCase,
         localDataSource: authLocalDataSource,
       );
 
@@ -428,6 +457,8 @@ class ServiceLocator {
         inviteTripMemberUseCase: inviteTripMemberUseCase,
         joinTripViaTokenUseCase: joinTripViaTokenUseCase,
         getGroupConsensusUseCase: getGroupConsensusUseCase,
+        removeTripMemberUseCase: removeTripMemberUseCase,
+        assignTripRoleUseCase: assignTripRoleUseCase,
       );
 
   static FriendBloc createFriendBloc() => FriendBloc(
@@ -435,6 +466,7 @@ class ServiceLocator {
         getPendingFriendRequestsUseCase: getPendingFriendRequestsUseCase,
         sendFriendRequestUseCase: sendFriendRequestUseCase,
         respondFriendRequestUseCase: respondFriendRequestUseCase,
+        getSentFriendRequestsUseCase: getSentFriendRequestsUseCase,
       );
 
   static ChatBloc createChatBloc() => ChatBloc(
@@ -457,5 +489,7 @@ class ServiceLocator {
         createPollUseCase: createPollUseCase,
         castVoteUseCase: castVoteUseCase,
         closePollUseCase: closePollUseCase,
+        updatePollUseCase: updatePollUseCase,
+        deletePollUseCase: deletePollUseCase,
       );
 }

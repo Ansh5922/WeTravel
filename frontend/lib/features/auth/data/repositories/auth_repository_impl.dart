@@ -77,6 +77,23 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      return await remoteDataSource.resetPassword(
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      throw _mapExceptionToFailure(e);
+    }
+  }
+
   Failure _mapExceptionToFailure(Object e) {
     if (e is AuthException) {
       return AuthFailure(e.message, e.statusCode);

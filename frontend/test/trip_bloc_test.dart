@@ -104,6 +104,7 @@ class FakeTripRepository implements TripRepository {
     required String tripId,
     required String type,
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   }) async {
@@ -149,6 +150,23 @@ class FakeTripRepository implements TripRepository {
           hardConstraints: const ['Vegan Food Required'],
           isLockedByAdmin: false,
         );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
+    return [
+      {'name': 'Goa', 'country': 'India', 'displayName': 'Goa, India'}
+    ];
+  }
+
+  @override
+  Future<void> removeMember({required String tripId, required String userId}) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+  }
+
+  @override
+  Future<void> assignRole({required String tripId, required String userId, required String role}) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
   }
 }
 

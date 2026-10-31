@@ -7,6 +7,7 @@ class UserModel extends UserEntity {
     super.username,
     super.fullName,
     super.phone,
+    super.avatarUrl,
     super.isPremium = false,
     super.createdAt,
   });
@@ -18,6 +19,7 @@ class UserModel extends UserEntity {
       username: json['username'] as String?,
       fullName: json['fullName'] as String?,
       phone: json['phone'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
       isPremium: json['isPremium'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
@@ -32,6 +34,7 @@ class UserModel extends UserEntity {
       if (username != null) 'username': username,
       if (fullName != null) 'fullName': fullName,
       if (phone != null) 'phone': phone,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
       'isPremium': isPremium,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
@@ -44,6 +47,7 @@ class UserModel extends UserEntity {
     String? username,
     String? fullName,
     String? phone,
+    String? avatarUrl,
     bool? isPremium,
     DateTime? createdAt,
   }) {
@@ -53,6 +57,7 @@ class UserModel extends UserEntity {
       username: username ?? this.username,
       fullName: fullName ?? this.fullName,
       phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       isPremium: isPremium ?? this.isPremium,
       createdAt: createdAt ?? this.createdAt,
     );

@@ -135,16 +135,19 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
 
   String get _dynamicInviteLink {
     if (_tripId.isNotEmpty) {
-      return 'https://wetravel.app/trips/join/$_tripId';
+      return 'https://wetravel-server.duckdns.org/trips/join/$_tripId';
     }
     final dest = _draft.destination.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
     final cleanDest = dest.isEmpty ? 'trip' : dest;
-    return 'https://wetravel.app/trips/join/invite-$cleanDest';
+    return 'https://wetravel-server.duckdns.org/trips/join/invite-$cleanDest';
   }
 
   String get _inviteMessage {
     final link = _dynamicInviteLink;
-    return "Hey! I'm planning a trip to $_tripName (${_draft.formattedDates}) on WeTravel. Join our trip group to vote on stays, plan activities, and split costs: $link";
+    final codeBlock = _tripId.isNotEmpty
+        ? '\n\n🔑 Trip Code: $_tripId\n(Or open WeTravel app → Tap "Join Trip" → Enter code)'
+        : '';
+    return "Hey! I'm planning a trip to $_tripName (${_draft.formattedDates}) on WeTravel. Join our trip group to vote on stays, plan activities, and split costs:\n$link$codeBlock";
   }
 
   void _copyInviteLink() {
@@ -187,7 +190,6 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
 
   Future<void> _shareInviteLink() async {
     HapticFeedback.lightImpact();
-    final link = _dynamicInviteLink;
     final message = _inviteMessage;
 
     if (_tripId.isNotEmpty) {
@@ -202,7 +204,7 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
     try {
       await SharePlus.instance.share(
         ShareParams(
-          text: '$message\n\n$link',
+          text: message,
           subject: 'Join my trip to $_tripName on WeTravel!',
         ),
       );
@@ -393,7 +395,18 @@ class _InviteMembersPageState extends State<InviteMembersPage> {
     // 1. Send the friend request
     context.read<FriendBloc>().add(FriendSendRequestRequested(username));
 
-    // 2. Simultaneously add to trip invites
+    // 2. If existing trip, send direct invite by username to backend
+    if (_tripId.isNotEmpty) {
+      context.read<TripBloc>().add(
+            TripInviteMemberRequested(
+              tripId: _tripId,
+              type: 'friend',
+              username: username,
+            ),
+          );
+    }
+
+    // 3. Simultaneously add to draft/selected member IDs
     setState(() {
       _selectedMemberIds.add('user_$username');
     });

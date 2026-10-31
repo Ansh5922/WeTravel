@@ -37,6 +37,7 @@ class TripRepositoryImpl implements TripRepository {
     required String tripId,
     required String type,
     String? friendId,
+    String? username,
     String? email,
     String? phone,
   }) {
@@ -44,6 +45,7 @@ class TripRepositoryImpl implements TripRepository {
       tripId: tripId,
       type: type,
       friendId: friendId,
+      username: username,
       email: email,
       phone: phone,
     );
@@ -57,5 +59,20 @@ class TripRepositoryImpl implements TripRepository {
   @override
   Future<GroupConsensusEntity> getGroupConsensus(String tripId) {
     return remoteDataSource.getGroupConsensus(tripId);
+  }
+
+  @override
+  Future<void> removeMember({required String tripId, required String userId}) {
+    return remoteDataSource.removeMember(tripId: tripId, userId: userId);
+  }
+
+  @override
+  Future<void> assignRole({required String tripId, required String userId, required String role}) {
+    return remoteDataSource.assignRole(tripId: tripId, userId: userId, role: role);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchPlaces(String query) {
+    return remoteDataSource.searchPlaces(query);
   }
 }

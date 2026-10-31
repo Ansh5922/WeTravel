@@ -92,6 +92,16 @@ class FakeExpenseRepository implements ExpenseRepository {
   }
 
   @override
+  Future<ReceiptScanEntity> scanReceipt(String tripId, String receiptImageUrl) async {
+    return ReceiptScanEntity(
+      title: 'Scanned Expense',
+      amount: 500.0,
+      category: 'Food',
+      receiptImageUrl: receiptImageUrl,
+    );
+  }
+
+  @override
   Future<ExpenseSettlementEntity> completeSettlement(String tripId, String settlementId) async {
     if (exceptionToThrow != null) throw exceptionToThrow!;
     return ExpenseSettlementEntity(

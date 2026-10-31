@@ -17,6 +17,10 @@ import '../../domain/entities/expense_entity.dart';
 import '../bloc/expense_bloc.dart';
 import '../bloc/expense_event.dart';
 import '../bloc/expense_state.dart';
+import 'dart:convert' show base64Decode;
+import 'package:image_picker/image_picker.dart';
+import '../../../../core/di/service_locator.dart';
+import '../../../../core/services/photo_upload_service.dart';
 import '../widgets/expense_screen_widgets.dart';
 
 /// Dynamic Expenses screen connected to ExpenseBloc, TripBloc & AuthBloc.
@@ -65,11 +69,172 @@ class _ExpensesPageState extends State<ExpensesPage> {
     }
   }
 
-  void _showAddExpenseModal(List<TripGroupMemberEntity> tripMembers) {
-    final titleController = TextEditingController();
-    final amountController = TextEditingController();
-    String selectedCategory = 'Food';
+  Future<void> _handleScanBill(List<TripGroupMemberEntity> tripMembers) async {
+    final action = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDEF2F1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.document_scanner_rounded, color: Color(0xFF004E64), size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Scan Bill / Receipt',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDeepTeal,
+                          ),
+                        ),
+                        Text(
+                          'AI auto-fills title, amount & category',
+                          style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDEF2F1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF004E64)),
+                ),
+                title: Text('Take Photo with Camera', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                subtitle: Text('Snap paper bill or restaurant receipt', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Color(0xFF004E64)),
+                ),
+                title: Text('Choose from Gallery', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                subtitle: Text('Select an image from device photos', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (action == null || !mounted) return;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(seconds: 4),
+          backgroundColor: Color(0xFF004E64),
+          content: Row(
+            children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 12),
+              Text('Scanning receipt with AI OCR...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    try {
+      final token = await ServiceLocator.authLocalDataSource.getToken() ?? '';
+      final photoService = PhotoUploadService();
+      final uploadedUrl = await photoService.pickAndUploadReceipt(
+        source: action,
+        tripId: widget.tripId,
+        token: token,
+      );
+
+      if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
+        final scanResult = await ServiceLocator.scanReceiptUseCase.call(
+          tripId: widget.tripId,
+          receiptImageUrl: uploadedUrl,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          _showAddExpenseModal(tripMembers, initialScan: scanResult);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not scan bill: $e. You can still enter details manually.')),
+        );
+        _showAddExpenseModal(tripMembers);
+      }
+    }
+  }
+
+  void _showAddExpenseModal(
+    List<TripGroupMemberEntity> tripMembers, {
+    ReceiptScanEntity? initialScan,
+  }) {
+    final titleController = TextEditingController(text: initialScan?.title ?? '');
+    final amountController = TextEditingController(
+      text: initialScan?.amount != null
+          ? (initialScan!.amount! % 1 == 0
+              ? initialScan.amount!.toInt().toString()
+              : initialScan.amount!.toString())
+          : '',
+    );
     final categories = ['Food', 'Stay', 'Transit', 'Activities', 'Shopping', 'Other'];
+    String selectedCategory = categories.firstWhere(
+      (c) => c.toLowerCase() == (initialScan?.category ?? 'Food').toLowerCase(),
+      orElse: () => 'Food',
+    );
+
+    String? scannedReceiptUrl = initialScan?.receiptImageUrl;
+    bool isScanning = false;
 
     final defaultPayerId = tripMembers.isNotEmpty ? tripMembers.first.userId : 'you';
     String paidById = defaultPayerId;
@@ -87,17 +252,82 @@ class _ExpensesPageState extends State<ExpensesPage> {
       ),
       builder: (modalCtx) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalContentCtx, setModalState) {
             final enteredAmount = double.tryParse(amountController.text) ?? 0.0;
             final count = splitEquallyAll ? tripMembers.length : selectedMemberIds.length;
             final perPerson = count > 0 ? enteredAmount / count : 0.0;
+
+            Future<void> performModalScan(ImageSource source) async {
+              setModalState(() {
+                isScanning = true;
+              });
+
+              try {
+                final token = await ServiceLocator.authLocalDataSource.getToken() ?? '';
+                final photoService = PhotoUploadService();
+                final uploadedUrl = await photoService.pickAndUploadReceipt(
+                  source: source,
+                  tripId: widget.tripId,
+                  token: token,
+                );
+
+                if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                  final scanResult = await ServiceLocator.scanReceiptUseCase.call(
+                    tripId: widget.tripId,
+                    receiptImageUrl: uploadedUrl,
+                  );
+
+                  setModalState(() {
+                    scannedReceiptUrl = uploadedUrl;
+                    if (scanResult.title.isNotEmpty) {
+                      titleController.text = scanResult.title;
+                    }
+                    if (scanResult.amount != null && scanResult.amount! > 0) {
+                      amountController.text = scanResult.amount! % 1 == 0
+                          ? scanResult.amount!.toInt().toString()
+                          : scanResult.amount!.toString();
+                    }
+                    if (scanResult.category.isNotEmpty) {
+                      final matched = categories.firstWhere(
+                        (c) => c.toLowerCase() == scanResult.category.toLowerCase(),
+                        orElse: () => 'Other',
+                      );
+                      selectedCategory = matched;
+                    }
+                  });
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: const Color(0xFF004E64),
+                        content: Text(
+                          '✨ Bill details auto-filled: "${scanResult.title}" (₹${scanResult.amount ?? "--"})',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    );
+                  }
+                }
+              } catch (err) {
+                debugPrint('[OCR_SCAN] ❌ Modal scan failed: $err');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not scan bill: $err. Enter details manually.')),
+                  );
+                }
+              } finally {
+                setModalState(() {
+                  isScanning = false;
+                });
+              }
+            }
 
             return Padding(
               padding: EdgeInsets.only(
                 top: 20,
                 left: 20,
                 right: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                bottom: MediaQuery.of(modalContentCtx).viewInsets.bottom + 24,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -129,9 +359,199 @@ class _ExpensesPageState extends State<ExpensesPage> {
                             color: AppColors.primaryDeepTeal,
                           ),
                         ),
+                        const Spacer(),
+                        if (scannedReceiptUrl != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF16A34A)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'AI Extracted',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF166534),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
+
+                    // ── Receipt Scan / Attachment Banner ───────────────────
+                    if (isScanning)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDEF2F1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF004E64).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF004E64)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Scanning bill with AI OCR & extracting details...',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF004E64),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (scannedReceiptUrl != null)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: scannedReceiptUrl!.startsWith('data:')
+                                  ? Image.memory(
+                                      base64Decode(scannedReceiptUrl!.split(',')[1]),
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      scannedReceiptUrl!,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(
+                                        Icons.receipt,
+                                        color: Color(0xFF16A34A),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 15),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Bill Details Auto-Filled',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF166534),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Review and confirm Title, Amount & Category below',
+                                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF15803D)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF15803D)),
+                              tooltip: 'Remove receipt',
+                              onPressed: () {
+                                setModalState(() {
+                                  scannedReceiptUrl = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDEF2F1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.document_scanner_rounded, color: Color(0xFF004E64), size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Scan Bill with AI',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF004E64),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Auto-fills title, category & amount',
+                                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => performModalScan(ImageSource.camera),
+                              icon: const Icon(Icons.camera_alt_outlined, size: 15, color: Color(0xFF004E64)),
+                              label: Text(
+                                'Camera',
+                                style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF004E64)),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                                backgroundColor: const Color(0xFFDEF2F1),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton(
+                              onPressed: () => performModalScan(ImageSource.gallery),
+                              icon: const Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFF004E64)),
+                              tooltip: 'Gallery',
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 14),
 
                     // Expense Title
                     Text(
@@ -529,6 +949,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                                   amount: enteredAmount,
                                   description: titleController.text.trim(),
                                   category: selectedCategory,
+                                  receiptImageUrl: scannedReceiptUrl,
                                   splitMemberIds: splitIds,
                                 ),
                               );
@@ -637,6 +1058,41 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (expense.receiptImageUrl != null && expense.receiptImageUrl!.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Attached Bill / Receipt:',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDeepTeal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: expense.receiptImageUrl!.startsWith('data:')
+                      ? Image.memory(
+                          base64Decode(expense.receiptImageUrl!.split(',')[1]),
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.network(
+                          expense.receiptImageUrl!,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 60,
+                            color: const Color(0xFFF1F5F9),
+                            alignment: Alignment.center,
+                            child: const Text('Receipt image unavailable'),
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 12),
+              ],
               const Divider(color: Color(0xFFE2E8F0)),
               const SizedBox(height: 12),
               Text(
@@ -791,6 +1247,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                     // ── 2. Add Expense CTA Button ─────────────────────────
                     ExpenseAddButton(
                       onPressed: () => _showAddExpenseModal(tripMembers),
+                      onScanReceipt: () => _handleScanBill(tripMembers),
                     ),
                     const SizedBox(height: 16),
 

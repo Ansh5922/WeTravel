@@ -4,6 +4,7 @@ class UserEntity {
   final String? username;
   final String? fullName;
   final String? phone;
+  final String? avatarUrl;
   final bool isPremium;
   final DateTime? createdAt;
 
@@ -13,6 +14,7 @@ class UserEntity {
     this.username,
     this.fullName,
     this.phone,
+    this.avatarUrl,
     this.isPremium = false,
     this.createdAt,
   });
@@ -27,6 +29,7 @@ class UserEntity {
           username == other.username &&
           fullName == other.fullName &&
           phone == other.phone &&
+          avatarUrl == other.avatarUrl &&
           isPremium == other.isPremium &&
           createdAt == other.createdAt;
 
@@ -37,6 +40,7 @@ class UserEntity {
       username.hashCode ^
       fullName.hashCode ^
       phone.hashCode ^
+      avatarUrl.hashCode ^
       isPremium.hashCode ^
       createdAt.hashCode;
 
@@ -46,6 +50,7 @@ class UserEntity {
     String? username,
     String? fullName,
     String? phone,
+    String? avatarUrl,
     bool? isPremium,
     DateTime? createdAt,
   }) {
@@ -55,6 +60,7 @@ class UserEntity {
       username: username ?? this.username,
       fullName: fullName ?? this.fullName,
       phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       isPremium: isPremium ?? this.isPremium,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -62,6 +68,6 @@ class UserEntity {
 
   @override
   String toString() {
-    return 'UserEntity(id: $id, email: $email, username: $username, fullName: $fullName, isPremium: $isPremium, createdAt: $createdAt)';
+    return 'UserEntity(id: $id, email: $email, username: $username, fullName: $fullName, avatarUrl: $avatarUrl, isPremium: $isPremium, createdAt: $createdAt)';
   }
 }

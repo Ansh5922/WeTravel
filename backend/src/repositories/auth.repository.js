@@ -12,8 +12,24 @@ const prisma = require('./prisma.client');
  * @returns {Promise<User|null>}
  */
 const findUserByEmail = async (email) => {
-  return prisma.user.findUnique({
-    where: { email },
+  return prisma.user.findFirst({
+    where: {
+      email: {
+        equals: email.trim(),
+        mode: 'insensitive',
+      },
+    },
+  });
+};
+
+/**
+ * Find a user's preferences profile by user ID.
+ * @param {string} userId
+ * @returns {Promise<UserProfile|null>}
+ */
+const findUserProfileByUserId = async (userId) => {
+  return prisma.userProfile.findUnique({
+    where: { userId },
   });
 };
 
@@ -31,6 +47,7 @@ const findUserById = async (id) => {
       email: true,
       username: true,
       fullName: true,
+      avatarUrl: true,
       phone: true,
       isPremium: true,
       createdAt: true,
@@ -162,6 +179,7 @@ module.exports = {
   findUserById,
   findUserByUsername,
   findUserByGoogleId,
+  findUserProfileByUserId,
   updateUserGoogleId,
   createGoogleUser,
   createUser,

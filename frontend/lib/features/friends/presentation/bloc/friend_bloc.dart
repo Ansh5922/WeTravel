@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../domain/entities/friend_entity.dart';
 import '../../domain/usecases/friend_usecases.dart';
 import 'friend_event.dart';
 import 'friend_state.dart';
@@ -8,12 +9,14 @@ import 'friend_state.dart';
 class FriendBloc extends Bloc<FriendEvent, FriendState> {
   final GetFriendsUseCase getFriendsUseCase;
   final GetPendingFriendRequestsUseCase getPendingFriendRequestsUseCase;
+  final GetSentFriendRequestsUseCase? getSentFriendRequestsUseCase;
   final SendFriendRequestUseCase sendFriendRequestUseCase;
   final RespondFriendRequestUseCase respondFriendRequestUseCase;
 
   FriendBloc({
     required this.getFriendsUseCase,
     required this.getPendingFriendRequestsUseCase,
+    this.getSentFriendRequestsUseCase,
     required this.sendFriendRequestUseCase,
     required this.respondFriendRequestUseCase,
   }) : super(FriendInitialState()) {
@@ -33,9 +36,10 @@ class FriendBloc extends Bloc<FriendEvent, FriendState> {
     try {
       final friends = await getFriendsUseCase();
       final requests = await getPendingFriendRequestsUseCase();
+      final sent = getSentFriendRequestsUseCase != null ? await getSentFriendRequestsUseCase!() : <SentFriendRequestEntity>[];
 
-      debugPrint('[FRIEND_BLOC] ✅ Loaded ${friends.length} friend(s) and ${requests.length} pending request(s)');
-      emit(FriendsLoadedState(friends: friends, pendingRequests: requests));
+      debugPrint('[FRIEND_BLOC] ✅ Loaded ${friends.length} friend(s), ${requests.length} pending request(s), and ${sent.length} sent request(s)');
+      emit(FriendsLoadedState(friends: friends, pendingRequests: requests, sentRequests: sent));
     } on ServerException catch (e) {
       debugPrint('[FRIEND_BLOC] ❌ Fetch Error: ${e.message}');
       emit(FriendErrorState(message: e.message));
@@ -60,7 +64,8 @@ class FriendBloc extends Bloc<FriendEvent, FriendState> {
         emit(current.copyWith(pendingRequests: requests));
       } else {
         final friends = await getFriendsUseCase();
-        emit(FriendsLoadedState(friends: friends, pendingRequests: requests));
+        final sent = getSentFriendRequestsUseCase != null ? await getSentFriendRequestsUseCase!() : <SentFriendRequestEntity>[];
+        emit(FriendsLoadedState(friends: friends, pendingRequests: requests, sentRequests: sent));
       }
     } on ServerException catch (e) {
       debugPrint('[FRIEND_BLOC] ❌ Requests Error: ${e.message}');
@@ -83,10 +88,12 @@ class FriendBloc extends Bloc<FriendEvent, FriendState> {
 
       final friends = await getFriendsUseCase();
       final requests = await getPendingFriendRequestsUseCase();
+      final sent = getSentFriendRequestsUseCase != null ? await getSentFriendRequestsUseCase!() : <SentFriendRequestEntity>[];
 
       emit(FriendsLoadedState(
         friends: friends,
         pendingRequests: requests,
+        sentRequests: sent,
         successMessage: 'Friend request sent to ${event.username}.',
       ));
     } on ServerException catch (e) {
@@ -110,10 +117,12 @@ class FriendBloc extends Bloc<FriendEvent, FriendState> {
 
       final friends = await getFriendsUseCase();
       final requests = await getPendingFriendRequestsUseCase();
+      final sent = getSentFriendRequestsUseCase != null ? await getSentFriendRequestsUseCase!() : <SentFriendRequestEntity>[];
 
       emit(FriendsLoadedState(
         friends: friends,
         pendingRequests: requests,
+        sentRequests: sent,
         successMessage: 'Friend request ${event.action}ed.',
       ));
     } on ServerException catch (e) {

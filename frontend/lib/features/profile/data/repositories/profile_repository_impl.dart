@@ -28,6 +28,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     String? fullName,
     String? username,
     String? phone,
+    String? avatarUrl,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
@@ -43,6 +44,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         fullName: fullName,
         username: username,
         phone: phone,
+        avatarUrl: avatarUrl,
         travelStyle: travelStyle,
         dietaryPreference: dietaryPreference,
         budget: budget,
@@ -52,6 +54,18 @@ class ProfileRepositoryImpl implements ProfileRepository {
         climateSensitivities: climateSensitivities,
         rawPreferenceNotes: rawPreferenceNotes,
       );
+    } catch (e) {
+      throw _mapExceptionToFailure(e);
+    }
+  }
+
+  @override
+  Future<String> updateAvatar({
+    required String token,
+    required String avatarUrl,
+  }) async {
+    try {
+      return await remoteDataSource.updateAvatar(token: token, avatarUrl: avatarUrl);
     } catch (e) {
       throw _mapExceptionToFailure(e);
     }

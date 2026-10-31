@@ -7,16 +7,14 @@ def handle_ocr_receipt(
     payload: OcrReceiptRequest,
     db: Session,
 ) -> OcrReceiptResponse:
-    # Controller for processing receipt image and returning extracted total
+    # Controller for processing receipt image and returning extracted total & merchant
     result = process_receipt(payload.image_url)
 
-    # Store interaction embedding if OCR succeeded — this embedding is
-    # retained permanently even after chats expire and contributes to the
-    # group's AI context for future itinerary generation
-    if result["success"] and result["amount"]:
+    # Store interaction embedding if OCR succeeded and expense/group IDs are present
+    if result["success"] and result["amount"] and payload.group_id and payload.expense_id:
         summary_text = (
             f"Receipt expense of ₹{result['amount']} ({result['currency']}) "
-            f"in category '{result['category'] or 'misc'}' "
+            f"in category '{result['category'] or 'Other'}' "
             f"submitted for group {payload.group_id}."
         )
         try:
@@ -34,6 +32,8 @@ def handle_ocr_receipt(
     return OcrReceiptResponse(
         status=     "success" if result["success"] else "partial",
         expense_id= payload.expense_id,
+        title=      result.get("title"),
+        merchant=   result.get("merchant"),
         amount=     result.get("amount"),
         currency=   result.get("currency", "INR"),
         category=   result.get("category"),

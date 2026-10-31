@@ -4,6 +4,7 @@ import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/router/auth_guard.dart';
 import 'package:frontend/core/router/route_names.dart';
+import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_data_source.dart';
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/auth/domain/repositories/auth_repository.dart';
@@ -32,6 +33,12 @@ class FakeGuardLocalDataSource implements AuthLocalDataSource {
   @override
   Future<bool> hasCompletedPreferences(String userId) async =>
       _completedUsers.contains(userId);
+
+  UserModel? cachedUser;
+  @override
+  Future<void> saveUser(UserModel user) async => cachedUser = user;
+  @override
+  Future<UserModel?> getUser() async => cachedUser;
 
   @override
   Future<void> setPreferencesCompleted({

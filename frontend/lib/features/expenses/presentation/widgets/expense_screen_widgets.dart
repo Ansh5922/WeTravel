@@ -127,14 +127,80 @@ class TotalTripExpenseCard extends StatelessWidget {
 /// Full-width warm golden amber pill button matching the mockup.
 class ExpenseAddButton extends StatelessWidget {
   final VoidCallback onPressed;
+  final VoidCallback? onScanReceipt;
 
   const ExpenseAddButton({
     super.key,
     required this.onPressed,
+    this.onScanReceipt,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (onScanReceipt != null) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF5A623),
+                  foregroundColor: AppColors.primaryDeepTeal,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_rounded, color: AppColors.primaryDeepTeal, size: 22),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Add Expense',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: onScanReceipt,
+              icon: const Icon(Icons.document_scanner_rounded, color: Color(0xFF004E64), size: 19),
+              label: Text(
+                'Scan Bill',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF004E64),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF004E64), width: 1.5),
+                backgroundColor: const Color(0xFFDEF2F1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 50,

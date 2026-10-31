@@ -5,6 +5,7 @@ class AuthResponseModel extends AuthResponseEntity {
   const AuthResponseModel({
     required super.user,
     super.token,
+    super.isFirstTimeUser,
   });
 
   factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
@@ -17,9 +18,15 @@ class AuthResponseModel extends AuthResponseEntity {
         ? target['user'] as Map<String, dynamic>
         : <String, dynamic>{};
 
+    final isFirst = target['isFirstTimeUser'] == true ||
+        target['isNewUser'] == true ||
+        userJson['isFirstTimeUser'] == true ||
+        userJson['isNewUser'] == true;
+
     return AuthResponseModel(
       user: UserModel.fromJson(userJson),
       token: target['token'] as String?,
+      isFirstTimeUser: isFirst,
     );
   }
 

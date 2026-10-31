@@ -199,17 +199,20 @@ const googleLogin = async (idToken) => {
 
   // 2. Check if user already exists by googleId
   let user = await authRepository.findUserByGoogleId(googleId);
+  let isNewUser = false;
+  const normalizedEmail = email.toLowerCase().trim();
 
   if (!user) {
     // 3. Check if user exists by email (Account Linking)
-    const existingByEmail = await authRepository.findUserByEmail(email);
+    const existingByEmail = await authRepository.findUserByEmail(normalizedEmail);
 
     if (existingByEmail) {
       // Link Google ID to existing account
       user = await authRepository.updateUserGoogleId(existingByEmail.id, googleId);
     } else {
       // 4. Create new user with Google profile details
-      const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      isNewUser = true;
+      const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
       let username = baseUsername.substring(0, 40);
       
       // Ensure unique username
@@ -221,7 +224,7 @@ const googleLogin = async (idToken) => {
       const resolvedFullName = (fullName && fullName.trim()) || username;
 
       user = await authRepository.createGoogleUser({
-        email,
+        email: normalizedEmail,
         username,
         googleId,
         fullName: resolvedFullName,
@@ -230,10 +233,16 @@ const googleLogin = async (idToken) => {
     }
   }
 
-  // 5. Issue WeTravel app JWT
+  // 5. Check if user has an existing preferences profile in DB
+  const userProfile = await authRepository.findUserProfileByUserId(user.id);
+
+  // Set preference screen only when user is signing in for the first time and does not have an account already
+  const isFirstTimeUser = Boolean(isNewUser && !userProfile);
+
+  // 6. Issue WeTravel app JWT
   const token = signToken(user.id);
 
-  return { user, token };
+  return { user, token, isNewUser, isFirstTimeUser };
 };
 
 /**

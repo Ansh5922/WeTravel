@@ -12,6 +12,18 @@ const SAFE_USER_SELECT = {
   email: true,
   username: true,
   fullName: true,
+  avatarUrl: true,
+  profile: {
+    select: {
+      dietaryPreference: true,
+      travelStyle: true,
+      budgetTier: true,
+      pacePreference: true,
+      healthConstraints: true,
+      climateSensitivities: true,
+      rawPreferenceNotes: true,
+    },
+  },
 };
 
 /** Create a trip and add the creator as admin in a single transaction. */
@@ -101,7 +113,18 @@ const findInviteByToken = async (token) => {
       expiresAt:   { gt: new Date() },
     },
     include: {
-      group:   { select: { id: true, name: true } },
+      group: {
+        select: {
+          id: true,
+          name: true,
+          coverImageUrl: true,
+          tripStartDate: true,
+          tripEndDate: true,
+          members: {
+            include: { user: { select: SAFE_USER_SELECT } },
+          },
+        },
+      },
       inviter: { select: SAFE_USER_SELECT },
     },
   });
@@ -183,6 +206,13 @@ const updateMemberRole = async (groupId, targetUserId, role) => {
   });
 };
 
+/** Remove a group member from a trip. */
+const removeGroupMember = async (groupId, targetUserId) => {
+  return prisma.groupMember.deleteMany({
+    where: { groupId, userId: targetUserId },
+  });
+};
+
 module.exports = {
   createTrip,
   findTripById,
@@ -198,4 +228,5 @@ module.exports = {
   findConsensus,
   upsertConsensus,
   updateMemberRole,
+  removeGroupMember,
 };

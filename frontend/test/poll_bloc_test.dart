@@ -37,6 +37,7 @@ class FakePollRepository implements PollRepository {
     required String tripId,
     required String question,
     required List<String> options,
+    bool isAnonymous = false,
   }) async {
     if (exceptionToThrow != null) throw exceptionToThrow!;
     return PollEntity(
@@ -45,9 +46,37 @@ class FakePollRepository implements PollRepository {
       creatorId: 'usr_1',
       question: question,
       isClosed: false,
+      isAnonymous: isAnonymous,
       options: options.map((opt) => PollOptionEntity(id: 'opt_new', pollId: 'poll_2', optionText: opt, voteCount: 0)).toList(),
       createdAt: DateTime.now(),
     );
+  }
+
+  @override
+  Future<PollEntity> updatePoll({
+    required String tripId,
+    required String pollId,
+    String? question,
+    List<String>? options,
+  }) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
+    return PollEntity(
+      id: pollId,
+      groupId: tripId,
+      creatorId: 'usr_1',
+      question: question ?? 'Updated question',
+      isClosed: false,
+      options: options?.map((opt) => PollOptionEntity(id: 'opt_new', pollId: pollId, optionText: opt, voteCount: 0)).toList() ?? const [],
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> deletePoll({
+    required String tripId,
+    required String pollId,
+  }) async {
+    if (exceptionToThrow != null) throw exceptionToThrow!;
   }
 
   @override

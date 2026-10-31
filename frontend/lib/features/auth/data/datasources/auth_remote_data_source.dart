@@ -27,6 +27,12 @@ abstract class AuthRemoteDataSource {
   Future<UserModel> getCurrentUser(String token);
 
   Future<String> forgotPassword({required String email});
+
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -238,6 +244,49 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       debugPrint('[AUTH_REMOTE_DS] 💥 Error on ForgotPassword: $e');
+      if (e is AuthException || e is ServerException || e is NetworkException) {
+        rethrow;
+      }
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    debugPrint('[AUTH_REMOTE_DS] 🚀 POST ${ApiConstants.resetPassword} -> Email: $email');
+    try {
+      final response = await dio.post(
+        ApiConstants.resetPassword,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'otp': otp.trim(),
+          'newPassword': newPassword,
+        },
+      );
+
+      debugPrint('[AUTH_REMOTE_DS] ✅ Response Code: ${response.statusCode}');
+      debugPrint('[AUTH_REMOTE_DS] 📦 Data: ${response.data}');
+
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic> && data['message'] != null) {
+        return data['message'].toString();
+      }
+      return 'Password has been successfully reset. You can now log in.';
+    } on DioException catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] ❌ DioError on ResetPassword: [${e.response?.statusCode}] ${e.message}');
+      throw _handleDioError(e);
+    } catch (e) {
+      debugPrint('[AUTH_REMOTE_DS] 💥 Error on ResetPassword: $e');
       if (e is AuthException || e is ServerException || e is NetworkException) {
         rethrow;
       }

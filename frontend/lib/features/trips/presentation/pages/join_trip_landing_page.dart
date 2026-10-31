@@ -171,7 +171,7 @@ class _JoinTripLandingPageState extends State<JoinTripLandingPage> {
                     controller: _controller,
                     style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
-                      hintText: 'https://wetravel.app/trips/join/...',
+                      hintText: 'https://wetravel-server.duckdns.org/trips/join/... or Trip Code',
                       hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),

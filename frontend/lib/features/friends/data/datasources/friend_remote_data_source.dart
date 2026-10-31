@@ -7,6 +7,7 @@ import '../models/friend_model.dart';
 abstract class FriendRemoteDataSource {
   Future<List<FriendModel>> getFriends();
   Future<List<FriendRequestModel>> getPendingRequests();
+  Future<List<SentFriendRequestModel>> getSentRequests();
   Future<FriendRequestModel> sendFriendRequest(String username);
   Future<FriendRequestModel> respondToFriendRequest(String friendshipId, String action);
 }
@@ -118,6 +119,32 @@ class FriendRemoteDataSourceImpl implements FriendRemoteDataSource {
       debugPrint('[FRIEND_REMOTE_DS] ❌ DioError PATCH /friend/request: ${e.message}');
       throw ServerException(
         e.response?.data?['message'] ?? 'Network error responding to request',
+        e.response?.statusCode,
+      );
+    }
+  }
+
+
+  @override
+  Future<List<SentFriendRequestModel>> getSentRequests() async {
+    debugPrint('[FRIEND_REMOTE_DS] 📤 GET ${ApiConstants.friendRequestsSent}');
+    try {
+      final response = await dio.get(ApiConstants.friendRequestsSent);
+      debugPrint('[FRIEND_REMOTE_DS] 📥 Res: ${response.statusCode} -> ${response.data}');
+
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        final List list = response.data['data']['requests'] ?? [];
+        return list.map((item) => SentFriendRequestModel.fromJson(item)).toList();
+      } else {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to fetch sent friend requests',
+          response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint('[FRIEND_REMOTE_DS] ❌ DioError GET /friends/requests/sent: ${e.message}');
+      throw ServerException(
+        e.response?.data?['message'] ?? 'Network error fetching sent requests',
         e.response?.statusCode,
       );
     }

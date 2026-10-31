@@ -22,5 +22,10 @@ abstract class AuthRepository {
   Future<UserEntity> getCurrentUser(String token);
 
   Future<String> forgotPassword({required String email});
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  });
 }
 

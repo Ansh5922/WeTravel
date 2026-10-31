@@ -3,9 +3,10 @@
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <application
-        android:label="frontend"
+        android:label="WeTravel"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
@@ -27,6 +28,35 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Deep Link: Custom URL Scheme wetravel://trips/join/* -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="wetravel"
+                    android:host="trips"
+                    android:pathPrefix="/join" />
+                <data
+                    android:scheme="wetravel"
+                    android:host="join" />
+            </intent-filter>
+
+            <!-- Deep Link: HTTPS App Links for wetravel-server.duckdns.org -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="wetravel-server.duckdns.org"
+                    android:pathPrefix="/trips/join" />
+                <data
+                    android:scheme="https"
+                    android:host="wetravel-server.duckdns.org"
+                    android:pathPrefix="/join" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

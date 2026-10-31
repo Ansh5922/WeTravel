@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/services/destination_photo_service.dart';
 import '../../domain/entities/trip_review_draft.dart';
 import '../widgets/budget_range_pill.dart';
 import '../widgets/trip_category_icons.dart';
@@ -25,6 +28,10 @@ class CreateTripPage extends StatefulWidget {
 class _CreateTripPageState extends State<CreateTripPage> {
   final TextEditingController _destinationController = TextEditingController();
   final FocusNode _destinationFocusNode = FocusNode();
+
+  Timer? _placesDebounceTimer;
+  List<Map<String, dynamic>> _livePlaces = [];
+  bool _isSearchingPlaces = false;
 
   late DateTime _startDate;
   late DateTime _endDate;
@@ -69,9 +76,47 @@ class _CreateTripPageState extends State<CreateTripPage> {
 
   @override
   void dispose() {
+    _placesDebounceTimer?.cancel();
     _destinationController.dispose();
     _destinationFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onDestinationChanged(String query) {
+    setState(() {});
+    _placesDebounceTimer?.cancel();
+    final clean = query.trim();
+    if (clean.length < 2) {
+      if (_livePlaces.isNotEmpty || _isSearchingPlaces) {
+        setState(() {
+          _livePlaces = [];
+          _isSearchingPlaces = false;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isSearchingPlaces = true;
+    });
+
+    _placesDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final results = await ServiceLocator.tripRepository.searchPlaces(clean);
+        if (mounted && _destinationController.text.trim() == clean) {
+          setState(() {
+            _livePlaces = results;
+            _isSearchingPlaces = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isSearchingPlaces = false;
+          });
+        }
+      }
+    });
   }
 
   String _formatDate(DateTime dt) {
@@ -186,82 +231,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
   }
 
   String _resolveCoverImageUrl(String destination, String style) {
-    final lower = destination.toLowerCase();
-
-    // ── Coastal & Beaches ──────────────────────────────────────────────────
-    if (lower.contains('beach') ||
-        lower.contains('goa') ||
-        lower.contains('bali') ||
-        lower.contains('phuket') ||
-        lower.contains('pondicherry') ||
-        lower.contains('andaman') ||
-        lower.contains('maldives')) {
-      return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1200';
-    }
-
-    // ── Mountains, Hills & Valleys ─────────────────────────────────────────
-    if (lower.contains('manali') ||
-        lower.contains('ladakh') ||
-        lower.contains('mountain') ||
-        lower.contains('himalaya') ||
-        lower.contains('shimla') ||
-        lower.contains('kashmir') ||
-        lower.contains('rishikesh') ||
-        lower.contains('spiti') ||
-        lower.contains('leh') ||
-        lower.contains('kasol') ||
-        lower.contains('ooty')) {
-      return 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1200';
-    }
-
-    // ── Heritage, Palaces & Forts ──────────────────────────────────────────
-    if (lower.contains('jaipur') ||
-        lower.contains('rajasthan') ||
-        lower.contains('palace') ||
-        lower.contains('agra') ||
-        lower.contains('udaipur') ||
-        lower.contains('jodhpur') ||
-        lower.contains('varanasi') ||
-        lower.contains('hampi') ||
-        lower.contains('delhi')) {
-      return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1200';
-    }
-
-    // ── Nature & Backwaters ────────────────────────────────────────────────
-    if (lower.contains('kerala') ||
-        lower.contains('backwater') ||
-        lower.contains('alleppey') ||
-        lower.contains('munnar') ||
-        lower.contains('wayanad') ||
-        lower.contains('coorg') ||
-        lower.contains('forest')) {
-      return 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1200';
-    }
-
-    // ── Metros & Urban Skylines ────────────────────────────────────────────
-    if (lower.contains('mumbai') ||
-        lower.contains('bangalore') ||
-        lower.contains('singapore') ||
-        lower.contains('dubai') ||
-        lower.contains('london') ||
-        lower.contains('paris') ||
-        lower.contains('tokyo') ||
-        lower.contains('new york')) {
-      return 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=1200';
-    }
-
-    // ── Fallback by Selected Trip Style (Copyright-Free Unsplash) ──────────
-    switch (style.toLowerCase()) {
-      case 'adventure':
-        return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200';
-      case 'food':
-        return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200';
-      case 'cultural':
-        return 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200';
-      default:
-        // Scenic travel wanderlust
-        return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200';
-    }
+    return DestinationPhotoService.resolveCoverImageUrl(destination, style);
   }
 
   bool _isValidDestination(String input) {
@@ -551,7 +521,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
                               isDense: true,
                               contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            onChanged: (_) => setState(() {}),
+                            onChanged: _onDestinationChanged,
                           ),
                         ),
 
@@ -561,6 +531,8 @@ class _CreateTripPageState extends State<CreateTripPage> {
                             onTap: () {
                               setState(() {
                                 _destinationController.clear();
+                                _livePlaces = [];
+                                _isSearchingPlaces = false;
                               });
                             },
                             child: const Padding(
@@ -891,18 +863,138 @@ class _CreateTripPageState extends State<CreateTripPage> {
     'Manali',
     'Ladakh',
     'Jaipur',
-    'Bali',
+    'Udaipur',
     'Rishikesh',
     'Kerala',
-    'Udaipur',
+    'Varanasi',
+    'Ooty',
     'Shimla',
+    'Coorg',
     'Kasol',
-    'Paris',
-    'Tokyo',
-    'Dubai',
+    'Andaman',
+    'Darjeeling',
+    'Agra',
+    'Amritsar',
+    'Hampi',
+    'Munnar',
   ];
 
   Widget _buildDestinationSuggestions() {
+    if (_isSearchingPlaces) {
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF005F73)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Searching destinations worldwide...',
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                color: const Color(0xFF64748B),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_livePlaces.isNotEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _livePlaces.take(5).map((place) {
+              final name = place['name']?.toString() ?? '';
+              final country = place['country']?.toString() ?? '';
+              final state = place['state']?.toString() ?? '';
+              final displayName = place['displayName']?.toString() ?? name;
+              final subtitle = [state, country].where((s) => s.isNotEmpty).join(', ');
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _destinationController.text = displayName.isNotEmpty ? displayName : name;
+                    _livePlaces = [];
+                  });
+                  FocusScope.of(context).unfocus();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: Color(0xFFF59E0B),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (subtitle.isNotEmpty)
+                              Text(
+                                subtitle,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.north_west_rounded,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      );
+    }
+
     final query = _destinationController.text.trim().toLowerCase();
     final matches = _popularDestinations.where((d) {
       if (query.isEmpty) return true;
@@ -926,6 +1018,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
             onTap: () {
               setState(() {
                 _destinationController.text = dest;
+                _livePlaces = [];
               });
               FocusScope.of(context).unfocus();
             },

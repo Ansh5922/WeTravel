@@ -34,9 +34,26 @@ const confirmImageMessage = async (req, res, next) => {
 /** POST /api/trips/:tripId/chat/polls */
 const createPoll = async (req, res, next) => {
   try {
-    const { question, options } = req.body;
-    const poll = await chatService.createPoll(req.user.id, req.params.tripId, { question, options });
+    const { question, options, isAnonymous } = req.body;
+    const poll = await chatService.createPoll(req.user.id, req.params.tripId, { question, options, isAnonymous });
     res.status(201).json({ status: 'success', message: 'Poll created.', data: { poll } });
+  } catch (err) { next(err); }
+};
+
+/** PATCH /api/trips/:tripId/chat/polls/:pollId */
+const updatePoll = async (req, res, next) => {
+  try {
+    const { question, options } = req.body;
+    const poll = await chatService.updatePoll(req.user.id, req.params.tripId, req.params.pollId, { question, options });
+    res.status(200).json({ status: 'success', message: 'Poll updated successfully.', data: { poll } });
+  } catch (err) { next(err); }
+};
+
+/** DELETE /api/trips/:tripId/chat/polls/:pollId */
+const deletePoll = async (req, res, next) => {
+  try {
+    const result = await chatService.deletePoll(req.user.id, req.params.tripId, req.params.pollId);
+    res.status(200).json({ status: 'success', ...result });
   } catch (err) { next(err); }
 };
 
@@ -66,4 +83,4 @@ const getPolls = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getMessages, getImageKitAuth, confirmImageMessage, createPoll, castVote, closePoll, getPolls };
+module.exports = { getMessages, getImageKitAuth, confirmImageMessage, createPoll, updatePoll, deletePoll, castVote, closePoll, getPolls };

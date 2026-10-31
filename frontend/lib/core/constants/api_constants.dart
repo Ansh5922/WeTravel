@@ -113,20 +113,30 @@ class ApiConstants {
   static const String signup = '/api/auth/signup';
   static const String googleSignIn = '/api/auth/google';
   static const String forgotPassword = '/api/auth/forgot-password';
+  static const String resetPassword = '/api/auth/reset-password';
   static const String me = '/api/auth/me';
 
   // User endpoints
   static const String userProfile = '/api/users/profile';
+  static const String userAvatar = '/api/users/avatar';
+  static const String userAvatarAuth = '/api/users/avatar/auth';
   static const String deleteAccount = '/api/users/account';
+
+  // Places & Autocomplete
+  static const String placesAutocomplete = '/api/places/autocomplete';
 
   // Friends endpoints
   static const String friendRequest = '/api/friends/request';
   static const String friendRequests = '/api/friends/requests';
+  static const String friendRequestsSent = '/api/friends/requests/sent';
   static const String friends = '/api/friends';
 
   // Trips endpoints
   static const String trips = '/api/trips';
   static const String myInvites = '/api/trips/invites/me';
+  static String tripInvite(String tripId) => '/api/trips/$tripId/invite';
+  static String tripJoin(String token) => '/api/trips/join/$token';
+  static String respondInvite(String inviteId) => '/api/trips/invites/$inviteId/respond';
 
   // Itinerary endpoints
   static String tripItineraries(String tripId) => '/api/trips/$tripId/itineraries';
@@ -136,6 +146,8 @@ class ApiConstants {
   static String tripExpenses(String tripId) => '/api/trips/$tripId/expenses';
   static String tripLedger(String tripId) => '/api/trips/$tripId/expenses/ledger';
   static String tripSettlements(String tripId) => '/api/trips/$tripId/expenses/settlements';
+  static String tripExpenseImageKitAuth(String tripId) => '/api/trips/$tripId/expenses/imagekit-auth';
+  static String tripExpenseScanReceipt(String tripId) => '/api/trips/$tripId/expenses/scan-receipt';
 
   // Chat & Poll endpoints
   static String tripChatMessages(String tripId) => '/api/trips/$tripId/chat/messages';

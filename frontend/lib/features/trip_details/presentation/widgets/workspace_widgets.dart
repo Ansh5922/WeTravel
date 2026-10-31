@@ -115,7 +115,6 @@ class WorkspaceConsensusCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -128,60 +127,60 @@ class WorkspaceConsensusCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    color: AppColors.accentWarmYellow,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'AI Group Consensus',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primaryDeepTeal,
-                      letterSpacing: -0.2,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onViewInsights,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.accentWarmYellow,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'AI Group Consensus',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDeepTeal,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: onViewInsights,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    children: [
-                      Text(
-                        'View insights',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Text(
+                          'View insights',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondaryTeal,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
                           color: AppColors.secondaryTeal,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: AppColors.secondaryTeal,
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
           // Body Row: Donut Chart + Details Column
           Row(
@@ -348,7 +347,10 @@ class WorkspaceConsensusCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }
 
@@ -356,11 +358,13 @@ class WorkspaceConsensusCard extends StatelessWidget {
 class WorkspaceBuddiesCard extends StatelessWidget {
   final List<TripGroupMemberEntity> members;
   final VoidCallback onInvite;
+  final ValueChanged<TripGroupMemberEntity>? onTapBuddy;
 
   const WorkspaceBuddiesCard({
     super.key,
     required this.members,
     required this.onInvite,
+    this.onTapBuddy,
   });
 
   @override
@@ -393,7 +397,7 @@ class WorkspaceBuddiesCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Trip buddies',
+                'Trip buddies (${members.length})',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -418,32 +422,58 @@ class WorkspaceBuddiesCard extends StatelessWidget {
                           color: const Color(0xFF64748B),
                         ),
                       )
-                    : Row(
-                        children: members.take(4).map((member) {
-                          final initial = member.fullName.isNotEmpty
-                              ? member.fullName[0].toUpperCase()
-                              : '?';
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: members.map((member) {
+                            final initial = member.fullName.isNotEmpty
+                                ? member.fullName[0].toUpperCase()
+                                : (member.username.isNotEmpty ? member.username[0].toUpperCase() : '?');
 
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFE2E8F0),
-                                  width: 1.5,
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: Tooltip(
+                                message: '${member.fullName} (@${member.username})',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    onTap: onTapBuddy != null ? () => onTapBuddy!(member) : null,
+                                    customBorder: const CircleBorder(),
+                                    child: Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: member.role == 'admin'
+                                              ? AppColors.primaryDeepTeal
+                                              : const Color(0xFFE2E8F0),
+                                          width: member.role == 'admin' ? 2.0 : 1.5,
+                                        ),
+                                      ),
+                                      child: ClipOval(
+                                        child: (member.avatarUrl != null && member.avatarUrl!.isNotEmpty)
+                                            ? Image.network(
+                                                member.avatarUrl!,
+                                                width: 44,
+                                                height: 44,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) =>
+                                                    _buildInitialAvatar(initial),
+                                              )
+                                            : _buildInitialAvatar(initial),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              child: ClipOval(
-                                child: _buildInitialAvatar(initial),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       ),
               ),
+              const SizedBox(width: 8),
 
               // Golden Amber '+ Invite' Pill Button
               ElevatedButton.icon(
@@ -452,7 +482,7 @@ class WorkspaceBuddiesCard extends StatelessWidget {
                   backgroundColor: AppColors.accentWarmYellow,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
@@ -517,7 +547,6 @@ class WorkspaceChatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -530,60 +559,60 @@ class WorkspaceChatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    color: AppColors.primaryDeepTeal,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Group chat',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primaryDeepTeal,
-                      letterSpacing: -0.2,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onViewChat,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: AppColors.primaryDeepTeal,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Group chat',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDeepTeal,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: onViewChat,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    children: [
-                      Text(
-                        'View all',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Text(
+                          'View all',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondaryTeal,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
                           color: AppColors.secondaryTeal,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: AppColors.secondaryTeal,
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
           // Message Preview Row
           if (!hasMessages)
@@ -735,7 +764,10 @@ class WorkspaceChatCard extends StatelessWidget {
             ),
         ],
       ),
-    );
+    ),
+  ),
+),
+);
   }
 
   Widget _buildAvatarPlaceholder() {
@@ -779,7 +811,6 @@ class WorkspacePollCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -792,9 +823,16 @@ class WorkspacePollCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onViewAll ?? onCreatePoll,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           // Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1125,7 +1163,10 @@ class WorkspacePollCard extends StatelessWidget {
             ),
         ],
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }
 
@@ -1229,4 +1270,530 @@ class _WorkspaceTrailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// ── 6. Buddy Profile Bottom Sheet ──────────────────────────────────────────
+class BuddyProfileSheet extends StatelessWidget {
+  final TripGroupMemberEntity member;
+  final TripEntity trip;
+  final String currentUserId;
+  final bool isFriend;
+  final VoidCallback onAddFriend;
+  final VoidCallback? onRemoveMember;
+  final ValueChanged<String>? onAssignRole;
+
+  const BuddyProfileSheet({
+    super.key,
+    required this.member,
+    required this.trip,
+    required this.currentUserId,
+    required this.isFriend,
+    required this.onAddFriend,
+    this.onRemoveMember,
+    this.onAssignRole,
+  });
+
+  bool get isSelf => member.userId == currentUserId;
+  bool get isCreator => member.userId == trip.createdBy;
+  bool get isAdmin => member.role == 'admin' || isCreator;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = member.fullName.isNotEmpty
+        ? member.fullName[0].toUpperCase()
+        : (member.username.isNotEmpty ? member.username[0].toUpperCase() : '?');
+
+    // Extract constraints if available
+    List<String> constraints = [];
+    if (member.healthConstraints is List) {
+      constraints.addAll((member.healthConstraints as List).map((e) => e.toString()));
+    } else if (member.healthConstraints != null) {
+      constraints.add(member.healthConstraints.toString());
+    }
+    if (member.climateSensitivities is List) {
+      constraints.addAll((member.climateSensitivities as List).map((e) => e.toString()));
+    } else if (member.climateSensitivities != null) {
+      constraints.add(member.climateSensitivities.toString());
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // 2. Avatar & Identity Header
+              Center(
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isAdmin ? AppColors.accentWarmYellow : const Color(0xFFE2E8F0),
+                          width: 2.5,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: (member.avatarUrl != null && member.avatarUrl!.isNotEmpty)
+                            ? Image.network(
+                                member.avatarUrl!,
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(initial),
+                              )
+                            : _buildAvatarFallback(initial),
+                      ),
+                    ),
+                    if (isCreator)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.accentWarmYellow,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.star_rounded, size: 16, color: Colors.white),
+                      )
+                    else if (isAdmin)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryDeepTeal,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.shield_rounded, size: 16, color: Colors.white),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Text(
+                member.fullName.isNotEmpty ? member.fullName : 'Traveler',
+                style: GoogleFonts.inter(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDeepTeal,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '@${member.username.isNotEmpty ? member.username : 'traveler'}',
+                style: GoogleFonts.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Role Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isCreator
+                      ? AppColors.accentWarmYellow.withValues(alpha: 0.15)
+                      : (isAdmin
+                          ? AppColors.primaryDeepTeal.withValues(alpha: 0.1)
+                          : const Color(0xFFF1F5F9)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isCreator
+                          ? Icons.stars_rounded
+                          : (isAdmin ? Icons.shield_outlined : Icons.person_outline_rounded),
+                      size: 14,
+                      color: isCreator
+                          ? const Color(0xFFB45309)
+                          : (isAdmin ? AppColors.primaryDeepTeal : const Color(0xFF475569)),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isCreator
+                          ? 'Trip Organizer'
+                          : (isAdmin ? 'Trip Admin' : 'Trip Buddy'),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isCreator
+                            ? const Color(0xFFB45309)
+                            : (isAdmin ? AppColors.primaryDeepTeal : const Color(0xFF475569)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 3. Travel Persona 2x2 Grid
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: Icons.explore_outlined,
+                      label: 'Travel Style',
+                      value: member.travelStyle ?? 'Relaxed',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: Icons.speed_rounded,
+                      label: 'Pace',
+                      value: member.pacePreference ?? 'Moderate',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: Icons.restaurant_outlined,
+                      label: 'Dietary',
+                      value: member.dietaryPreference ?? 'Flexible',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Budget Tier',
+                      value: member.budgetTier ?? 'Flexible',
+                    ),
+                  ),
+                ],
+              ),
+
+              // 4. Constraints / Health Sensitivities
+              if (constraints.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Health & Sensitivities',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: constraints.map((c) {
+                    final clean = c.replaceAll('_', ' ').trim();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF92400E)),
+                          const SizedBox(width: 5),
+                          Text(
+                            clean,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF92400E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+
+              // 5. Actions: Add Friend & Remove Member
+              if (!isSelf) ...[
+                Row(
+                  children: [
+                    // Friend Action Button
+                    Expanded(
+                      child: isFriend
+                          ? Container(
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDEF2F1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.primaryDeepTeal.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: AppColors.primaryDeepTeal, size: 18),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Already Friends',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryDeepTeal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ElevatedButton.icon(
+                              onPressed: onAddFriend,
+                              icon: const Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
+                              label: Text(
+                                'Add Friend',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryDeepTeal,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                    ),
+
+                    // Admin Remove Button
+                    if (onRemoveMember != null) ...[
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => _confirmRemove(context),
+                        icon: const Icon(Icons.person_remove_rounded, size: 18, color: Colors.redAccent),
+                        label: Text(
+                          'Remove',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent, width: 1.4),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                // Make / Dismiss Admin Button
+                if (onAssignRole != null && !isCreator) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmAssignRole(
+                        context,
+                        member.role == 'admin' ? 'member' : 'admin',
+                      ),
+                      icon: Icon(
+                        member.role == 'admin' ? Icons.shield_outlined : Icons.shield_rounded,
+                        size: 18,
+                        color: AppColors.primaryDeepTeal,
+                      ),
+                      label: Text(
+                        member.role == 'admin' ? 'Dismiss as Admin' : 'Make Trip Admin',
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDeepTeal,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primaryDeepTeal, width: 1.4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String initial) {
+    return Container(
+      color: const Color(0xFFE8F6F4),
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.inter(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDeepTeal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: AppColors.secondaryTeal),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryDeepTeal,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmAssignRole(BuildContext context, String newRole) {
+    final isPromote = newRole == 'admin';
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isPromote ? 'Make Trip Admin?' : 'Dismiss as Admin?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: AppColors.primaryDeepTeal),
+        ),
+        content: Text(
+          isPromote
+              ? 'Make ${member.fullName} a Trip Admin? They will be able to edit trip plans, invite buddies, and manage group preferences.'
+              : 'Dismiss ${member.fullName} from Admin? They will return to regular trip buddy permissions.',
+          style: GoogleFonts.inter(fontSize: 13.5, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              onAssignRole?.call(newRole);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isPromote ? AppColors.primaryDeepTeal : Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              isPromote ? 'Make Admin' : 'Dismiss',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemove(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Remove from Trip?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: AppColors.primaryDeepTeal),
+        ),
+        content: Text(
+          'Are you sure you want to remove ${member.fullName} from "${trip.name}"? They will lose access to this trip workspace.',
+          style: GoogleFonts.inter(fontSize: 13.5, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              onRemoveMember?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Remove',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

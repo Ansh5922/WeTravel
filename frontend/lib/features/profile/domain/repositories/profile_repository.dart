@@ -10,6 +10,7 @@ abstract class ProfileRepository {
     String? fullName,
     String? username,
     String? phone,
+    String? avatarUrl,
     String? travelStyle,
     String? dietaryPreference,
     double? budget,
@@ -18,6 +19,11 @@ abstract class ProfileRepository {
     Map<String, dynamic>? healthConstraints,
     Map<String, dynamic>? climateSensitivities,
     String? rawPreferenceNotes,
+  });
+
+  Future<String> updateAvatar({
+    required String token,
+    required String avatarUrl,
   });
 
   Future<void> deleteAccount(String token);

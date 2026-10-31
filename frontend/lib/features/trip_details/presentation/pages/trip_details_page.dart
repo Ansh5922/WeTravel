@@ -20,6 +20,7 @@ import '../../../expenses/presentation/bloc/expense_event.dart';
 import '../../../expenses/presentation/pages/expenses_page.dart';
 import '../../../friends/domain/entities/friend_entity.dart';
 import '../../../friends/presentation/bloc/friend_bloc.dart';
+import '../../../friends/presentation/bloc/friend_event.dart';
 import '../../../friends/presentation/bloc/friend_state.dart';
 import '../../../group_chat/presentation/bloc/chat_bloc.dart';
 import '../../../group_chat/presentation/bloc/chat_event.dart';
@@ -31,6 +32,7 @@ import '../../../polls/domain/entities/poll_entity.dart';
 import '../../../polls/presentation/bloc/poll_bloc.dart';
 import '../../../polls/presentation/bloc/poll_event.dart';
 import '../../../polls/presentation/bloc/poll_state.dart';
+import '../../../polls/presentation/widgets/create_poll_modal.dart';
 import '../../../trips/domain/entities/trip_entity.dart';
 import '../../../trips/presentation/bloc/trip_bloc.dart';
 import '../../../trips/presentation/bloc/trip_event.dart';
@@ -115,10 +117,88 @@ class _TripDetailsPageState extends State<TripDetailsPage>
     }
   }
 
+  void _showBuddyDetailsModal(BuildContext context, TripGroupMemberEntity member, TripEntity trip) {
+    final authState = context.read<AuthBloc>().state;
+    final currentUserId = authState is AuthAuthenticatedState ? authState.user.id : '';
+
+    final currentMember = trip.members.where((m) => m.userId == currentUserId).firstOrNull;
+    final bool isCurrentUserAdmin = trip.createdBy == currentUserId || currentMember?.role == 'admin';
+    final bool canRemove = isCurrentUserAdmin && member.userId != trip.createdBy && member.userId != currentUserId;
+    final bool canAssignRole = isCurrentUserAdmin && member.userId != trip.createdBy && member.userId != currentUserId;
+
+    final friendState = context.read<FriendBloc>().state;
+    final bool isFriend = (friendState is FriendsLoadedState) &&
+        friendState.friends.any((f) => f.id == member.userId || f.username.toLowerCase() == member.username.toLowerCase());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => BuddyProfileSheet(
+        member: member,
+        trip: trip,
+        currentUserId: currentUserId,
+        isFriend: isFriend,
+        onAddFriend: () {
+          Navigator.pop(modalCtx);
+          context.read<FriendBloc>().add(FriendSendRequestRequested(member.username));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Friend request sent to @${member.username}!'),
+              backgroundColor: AppColors.primaryDeepTeal,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        onRemoveMember: canRemove
+            ? () {
+                Navigator.pop(modalCtx);
+                context.read<TripBloc>().add(
+                      TripRemoveMemberRequested(
+                        tripId: trip.id,
+                        userId: member.userId,
+                      ),
+                    );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${member.fullName} removed from ${trip.name}.'),
+                    backgroundColor: AppColors.primaryDeepTeal,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            : null,
+        onAssignRole: canAssignRole
+            ? (newRole) {
+                Navigator.pop(modalCtx);
+                context.read<TripBloc>().add(
+                      TripAssignRoleRequested(
+                        tripId: trip.id,
+                        userId: member.userId,
+                        role: newRole,
+                      ),
+                    );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      newRole == 'admin'
+                          ? '${member.fullName} is now a Trip Admin.'
+                          : '${member.fullName} is no longer an Admin.',
+                    ),
+                    backgroundColor: AppColors.primaryDeepTeal,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            : null,
+      ),
+    );
+  }
+
   void _showInviteModal(BuildContext context, TripEntity trip) {
-    final inviteLink = 'https://wetravel.app/join/${trip.id}';
+    final inviteLink = 'https://wetravel-server.duckdns.org/trips/join/${trip.id}';
     final inviteMessage =
-        'Hey! Join our trip "${trip.name}" on WeTravel! Plan together, vote on activities, and split expenses effortlessly.\n\nTap here to join: $inviteLink';
+        'Hey! Join our trip "${trip.name}" on WeTravel! Plan together, vote on activities, and split expenses effortlessly.\n\n$inviteLink\n\n🔑 Trip Code: ${trip.id}\n(Or open WeTravel app → Tap "Join Trip" → Enter code)';
 
     showModalBottomSheet(
       context: context,
@@ -460,206 +540,7 @@ class _TripDetailsPageState extends State<TripDetailsPage>
   }
 
   void _showCreatePollModal(BuildContext context) {
-    final questionController = TextEditingController();
-    final List<TextEditingController> optionControllers = [
-      TextEditingController(),
-      TextEditingController(),
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 38,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Create a Group Poll',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF004E64),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDEF2F1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${optionControllers.length} options',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF004E64),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: questionController,
-                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-                      decoration: InputDecoration(
-                        labelText: 'Poll Question',
-                        hintText: 'e.g. Which sunset cafe should we visit?',
-                        hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF004E64), width: 1.8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Poll Options',
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    ...List.generate(optionControllers.length, (index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: optionControllers[index],
-                                style: GoogleFonts.inter(fontSize: 13.5),
-                                decoration: InputDecoration(
-                                  labelText: 'Option ${index + 1}',
-                                  isDense: true,
-                                  prefixIcon: const Icon(Icons.radio_button_unchecked, size: 16, color: Color(0xFF004E64)),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Color(0xFF004E64), width: 1.5),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (optionControllers.length > 2)
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444), size: 20),
-                                tooltip: 'Remove option',
-                                onPressed: () {
-                                  setModalState(() {
-                                    optionControllers.removeAt(index);
-                                  });
-                                },
-                              ),
-                          ],
-                        ),
-                      );
-                    }),
-                    if (optionControllers.length < 6)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: () {
-                            setModalState(() {
-                              optionControllers.add(TextEditingController());
-                            });
-                          },
-                          icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF004E64)),
-                          label: Text(
-                            '+ Add Another Option',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF004E64),
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final q = questionController.text.trim();
-                          final options = optionControllers
-                              .map((c) => c.text.trim())
-                              .where((txt) => txt.isNotEmpty)
-                              .toList();
-
-                          if (q.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a poll question')),
-                            );
-                            return;
-                          }
-                          if (options.length < 2) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please provide at least 2 non-empty options')),
-                            );
-                            return;
-                          }
-
-                          Navigator.pop(modalCtx);
-                          context.read<PollBloc>().add(
-                                PollCreateRequested(
-                                  tripId: widget.tripId,
-                                  question: q,
-                                  options: options,
-                                ),
-                              );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF004E64),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Publish Poll',
-                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+    CreatePollModal.show(context, widget.tripId);
   }
 
   @override
@@ -782,20 +663,22 @@ class _TripDetailsPageState extends State<TripDetailsPage>
         SizedBox(
           width: double.infinity,
           height: topPadding + 110,
-          child: Image.asset(
-            'assets/images/workspace_header.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (context, error, stackTrace) => Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF005F73), Color(0xFF0A9396)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          child: (coverUrl != null && coverUrl.isNotEmpty && coverUrl.startsWith('http'))
+              ? Image.network(
+                  coverUrl,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/images/workspace_header.jpg',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
+                )
+              : Image.asset(
+                  'assets/images/workspace_header.jpg',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
                 ),
-              ),
-            ),
-          ),
         ),
 
         // 2. Subtle Dark Gradient Overlay for Contrast
@@ -1082,6 +965,9 @@ class _TripDetailsPageState extends State<TripDetailsPage>
             members: trip?.members ?? [],
             onInvite: () {
               if (trip != null) _showInviteModal(context, trip);
+            },
+            onTapBuddy: (member) {
+              if (trip != null) _showBuddyDetailsModal(context, member, trip);
             },
           ),
           const SizedBox(height: 16),

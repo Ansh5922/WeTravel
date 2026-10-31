@@ -49,4 +49,14 @@ const getPendingRequests = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { sendRequest, respondToRequest, getFriends, getPendingRequests };
+
+/** GET /api/friends/requests/sent */
+const getSentRequests = async (req, res, next) => {
+  try {
+    const requests = await friendService.getSentRequests(req.user.id);
+    res.status(200).json({ status: 'success', data: { requests } });
+  } catch (err) { next(err); }
+};
+
+module.exports = {
+  getSentRequests, sendRequest, respondToRequest, getFriends, getPendingRequests };

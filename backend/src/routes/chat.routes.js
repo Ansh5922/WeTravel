@@ -25,5 +25,7 @@ router.post('/polls', chatController.createPoll);
 router.get('/polls', chatController.getPolls);
 router.post('/polls/:pollId/vote', chatController.castVote);
 router.patch('/polls/:pollId/close', chatController.closePoll);
+router.patch('/polls/:pollId',       chatController.updatePoll);
+router.delete('/polls/:pollId',      chatController.deletePoll);
 
 module.exports = router;

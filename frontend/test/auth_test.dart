@@ -8,6 +8,7 @@ import 'package:frontend/features/auth/domain/entities/auth_response_entity.dart
 import 'package:frontend/features/auth/domain/entities/user_entity.dart';
 import 'package:frontend/features/auth/domain/repositories/auth_repository.dart';
 import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
+import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'package:frontend/features/auth/domain/usecases/signup_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.dart';
@@ -78,6 +79,15 @@ class MockAuthRepository implements AuthRepository {
   Future<String> forgotPassword({required String email}) async {
     return 'Password reset link sent successfully.';
   }
+
+  @override
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    return 'Password reset successfully.';
+  }
 }
 
 class MockAuthLocalDataSource implements AuthLocalDataSource {
@@ -100,6 +110,12 @@ class MockAuthLocalDataSource implements AuthLocalDataSource {
   @override
   Future<bool> hasCompletedPreferences(String userId) async =>
       _completedUsers.contains(userId);
+
+  UserModel? cachedUser;
+  @override
+  Future<void> saveUser(UserModel user) async => cachedUser = user;
+  @override
+  Future<UserModel?> getUser() async => cachedUser;
 
   @override
   Future<void> setPreferencesCompleted({
