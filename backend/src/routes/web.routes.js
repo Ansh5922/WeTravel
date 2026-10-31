@@ -580,7 +580,7 @@ router.post('/delete-account', async (req, res) => {
       return res.status(401).send('<h3 style="font-family:sans-serif;color:red;padding:20px;">Incorrect password. <a href="/delete-account">Back</a></h3>');
     }
 
-    await userRepository.deleteUser(user.id);
+    await userRepository.anonymizeAndDeleteUser(user.id);
     return res.status(200).send(`
       <div style="font-family:sans-serif;max-width:440px;margin:50px auto;padding:30px;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);text-align:center;">
         <h2 style="color:#16A34A;">Account Successfully Deleted</h2>
